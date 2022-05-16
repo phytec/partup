@@ -1,0 +1,41 @@
+api-version: 0
+disklabel: "msdos"
+emmc-boot-partitions:
+  enable: true
+  input-offset: 0
+  output-offset: 0
+  input: "/root/imx-boot"
+raw:
+  - binary:
+      input-offset: 0
+      output-offset: 32
+      input: "/root/imx-boot"
+partitions:
+  - partition:
+      label: "BOOT0"
+      type: "primary"
+      filesystem: "fat32"
+      size: 96
+      offset: 4
+      input: "/root/Image /root/oftree"
+  - partition:
+      label: "BOOT1"
+      type: "primary"
+      filesystem: "fat32"
+      size: 96
+      input: "/root/Image /root/oftree"
+  - partition:
+      label: "CONFIG"
+      type: "primary"
+      filesystem: "ext4"
+      size: 64
+  - partition:
+      label: "ROOT0"
+      type: "logical"
+      filesystem: "ext4"
+      input: "/root/root.tar.gz"
+  - partition:
+      label: "ROOT1"
+      type: "logical"
+      filesystem: "ext4"
+      input: "/root/root.tar.gz"

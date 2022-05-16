@@ -1,0 +1,4 @@
+option('doc',
+       type: 'boolean',
+       value: false,
+       description: 'Build the documentation')

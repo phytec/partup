@@ -1,0 +1,41 @@
+api-version: 0
+disklabel: "msdos"
+emmc-boot-partitions:
+  enable: false
+  input-offset: 0
+  output-offset: 0
+  input: "/root/barebox.bin"
+raw:
+  - binary:
+      input-offset: 1
+      output-offset: 1
+      input: "/root/barebox.bin"
+partitions:
+  - partition:
+      label: "BOOT0"
+      type: "primary"
+      filesystem: "fat32"
+      size: 64
+      offset: 4
+      input: "/root/boot.tar.gz"
+  - partition:
+      label: "BOOT1"
+      type: "primary"
+      filesystem: "fat32"
+      size: 64
+      input: "/root/boot.tar.gz"
+  - partition:
+      label: "CONFIG"
+      type: "primary"
+      filesystem: "ext4"
+      size: 32
+  - partition:
+      label: "ROOT0"
+      type: "logical"
+      filesystem: "ext4"
+      input: "/root/root.tar.gz"
+  - partition:
+      label: "ROOT1"
+      type: "logical"
+      filesystem: "ext4"
+      input: "/root/root.tar.gz"

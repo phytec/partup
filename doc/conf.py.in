@@ -1,0 +1,34 @@
+import os
+
+# -- Project information -----------------------------------------------------
+
+project = '@PROJECT_NAME@'
+copyright = u'2022, PHYTEC Messtechnik GmbH'
+author = u'Martin Schwan'
+release = '@PROJECT_VERSION@'
+
+# -- General configuration ---------------------------------------------------
+
+extensions = [
+    'sphinx.ext.githubpages',
+    'breathe'
+]
+
+# -- Options for HTML output -------------------------------------------------
+
+html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    'style_external_links': True
+}
+
+# -- Breathe configuration ---------------------------------------------------
+
+breathe_projects = {
+    '@PROJECT_NAME@': os.path.join('@CURRENT_BUILD_DIR@', 'xml')
+}
+breathe_default_project = '@PROJECT_NAME@'
+breathe_show_include = False
+breathe_domain_by_extension = {
+    'c': 'c',
+    'h': 'c'
+}

@@ -1,0 +1,22 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
+      - name: Build application
+        run: |
+          meson build
+          ninja -C build
