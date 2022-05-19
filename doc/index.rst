@@ -9,6 +9,7 @@ partup Documentation
    layout-config
    contributing
    api
+   changelog
 
 Introduction
 ------------

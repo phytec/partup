@@ -44,6 +44,8 @@ if doxygen.found() and sphinx.found()
     'contributing.rst',
     'index.rst',
     'usage.rst',
+    'changelog.rst',
+    '../CHANGELOG.rst',
     '../src/config.h',
     '../src/configprivate.h',
     '../src/configemmc.h',
