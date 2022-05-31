@@ -22,6 +22,8 @@ configure_file(
   configuration : version_data
 )
 
+use_static_deps = get_option('static')
+
 exec = executable(
   meson.project_name(),
   c_args : ['-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())],
@@ -36,10 +38,10 @@ exec = executable(
     'src/utils.c'
   ],
   dependencies : [
-    dependency('glib-2.0'),
-    dependency('gio-2.0'),
-    dependency('yaml-0.1'),
-    dependency('libparted')
+    dependency('glib-2.0', static : use_static_deps),
+    dependency('gio-2.0', static : use_static_deps),
+    dependency('yaml-0.1', static : use_static_deps),
+    dependency('libparted', static : use_static_deps)
   ],
   install : true
 )

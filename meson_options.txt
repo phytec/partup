@@ -1,3 +1,7 @@
+option('static',
+       type: 'boolean',
+       value: false,
+       description: 'Link against static library dependencies instead of shared ones')
 option('doc',
        type: 'boolean',
        value: false,
