@@ -18,6 +18,7 @@
 static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
 static gchar *arg_config = NULL;
+static gchar *arg_mount_prefix = NULL;
 static gchar *arg_device = NULL;
 
 static gboolean
@@ -42,6 +43,8 @@ arg_parse_remaining(const gchar *option_name,
 static GOptionEntry option_entries[] = {
     { "config", 'c', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_config, "Layout configuration file in YAML format", "CONFIG" },
+    { "mount-prefix", 'm', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
+        &arg_mount_prefix, "Prefix for mounting partitions and volumes during writing", "PREFIX" },
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_debug, "Print debug messages", NULL },
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
