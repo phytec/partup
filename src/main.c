@@ -129,6 +129,8 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
+    ped_unit_set_default(PED_UNIT_SECTOR);
+
     emmc = pu_emmc_new(arg_device, config);
     g_debug("successfully created new PuEmmc instance");
     if (!pu_flash_init_device(PU_FLASH(emmc), &error)) {
