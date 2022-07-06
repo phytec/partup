@@ -72,18 +72,20 @@ pu_make_filesystem(const gchar *part,
 }
 
 gboolean
-pu_write_raw(const gchar *filename,
-             const gchar *device,
-             gint64 in_offset,
-             gint64 out_offset)
+pu_write_raw(const gchar *input,
+             const gchar *output,
+             PedSector block_size,
+             PedSector input_offset,
+             PedSector output_offset)
 {
-    g_autofree gchar *cmd = g_strdup_printf("dd if=%s of=%s bs=1k skip=%ld seek=%ld",
-                                            filename, device, in_offset, out_offset);
+    g_autofree gchar *cmd = g_strdup_printf("dd if=%s of=%s bs=%lld skip=%lld seek=%lld",
+                                            input, output, block_size,
+                                            input_offset, output_offset);
 
     g_debug("Executing '%s'", cmd);
     if (!g_spawn_command_line_sync(cmd, NULL, NULL, NULL, NULL)) {
         g_critical("Failed writing raw input '%s' to '%s'!",
-                   filename, device);
+                   input, output);
         return FALSE;
     }
 
@@ -114,23 +116,28 @@ pu_bootpart_force_ro(const gchar *bootpart,
 }
 
 gboolean
-pu_write_raw_bootpart(const gchar *filename,
-                      const gchar *bootpart,
-                      gint64 in_offset,
-                      gint64 out_offset)
+pu_write_raw_bootpart(const gchar *input,
+                      PedDevice *device,
+                      guint bootpart,
+                      PedSector input_offset,
+                      PedSector output_offset)
 {
-    g_autofree gchar *cmd_bootpart = g_strdup_printf("dd if=%s of=%s bs=1k skip=%ld seek=%ld",
-                                                     filename, bootpart, in_offset, out_offset);
+    g_return_val_if_fail(bootpart <= 1, FALSE);
 
-    g_debug("Executing '%s'", cmd_bootpart);
-    g_return_val_if_fail(pu_bootpart_force_ro(bootpart, 0), FALSE);
+    g_autofree gchar *bootpart_device = g_strdup_printf("%sboot%d", device->path, bootpart);
+    g_autofree gchar *cmd = g_strdup_printf("dd if=%s of=%s bs=%lld skip=%lld seek=%lld",
+                                            input, bootpart_device, device->sector_size,
+                                            input_offset, output_offset);
 
-    if (!g_spawn_command_line_sync(cmd_bootpart, NULL, NULL, NULL, NULL)) {
+    g_debug("Executing '%s'", cmd);
+    g_return_val_if_fail(pu_bootpart_force_ro(bootpart_device, 0), FALSE);
+
+    if (!g_spawn_command_line_sync(cmd, NULL, NULL, NULL, NULL)) {
         g_critical("Failed writing to boot partition!");
         return FALSE;
     }
 
-    g_return_val_if_fail(pu_bootpart_force_ro(bootpart, 1), FALSE);
+    g_return_val_if_fail(pu_bootpart_force_ro(bootpart_device, 1), FALSE);
 
     return TRUE;
 }
@@ -194,4 +201,25 @@ pu_hash_table_lookup_boolean(GHashTable *hash_table,
         return def;
 
     return g_str_equal(g_ascii_strdown(value_str, -1), "true");
+}
+
+PedSector
+pu_hash_table_lookup_sector(GHashTable *hash_table,
+                            PedDevice *device,
+                            const gchar *key,
+                            PedSector def)
+{
+    gchar *value_str = g_hash_table_lookup(hash_table, key);
+    PedSector value;
+
+    if (value_str == NULL)
+        return def;
+
+    if (!ped_unit_parse(value_str, device, &value, NULL)) {
+        g_warning("Failed parsing value '%s' to sectors, using default '%lld'",
+                  value_str, def);
+        return def;
+    }
+
+    return value;
 }
