@@ -7,28 +7,28 @@ emmc-boot-partitions:
   input: "/root/barebox.bin"
 raw:
   - binary:
-      input-offset: 1
-      output-offset: 1
+      input-offset: 1KiB
+      output-offset: 1KiB
       input: "/root/barebox.bin"
 partitions:
   - partition:
       label: "BOOT0"
       type: "primary"
       filesystem: "fat32"
-      size: 64
-      offset: 4
+      size: 64KiB
+      offset: 4KiB
       input: "/root/boot.tar.gz"
   - partition:
       label: "BOOT1"
       type: "primary"
       filesystem: "fat32"
-      size: 64
+      size: 64KiB
       input: "/root/boot.tar.gz"
   - partition:
       label: "CONFIG"
       type: "primary"
       filesystem: "ext4"
-      size: 32
+      size: 32KiB
   - partition:
       label: "ROOT0"
       type: "logical"

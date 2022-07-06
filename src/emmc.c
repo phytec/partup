@@ -185,8 +185,8 @@ pu_emmc_setup_layout(PuFlash *flash,
         part_label = pu_hash_table_lookup_string(part->data, "label", "");
         part_type = pu_hash_table_lookup_string(part->data, "type", "primary");
         part_fs = pu_hash_table_lookup_string(part->data, "filesystem", "fat32");
-        part_offset = pu_hash_table_lookup_int64(part->data, "offset", 0);
-        part_size = pu_hash_table_lookup_int64(part->data, "size", 0);
+        part_offset = pu_hash_table_lookup_sector(part->data, self->device, "offset", 0);
+        part_size = pu_hash_table_lookup_sector(part->data, self->device, "size", 2048);
 
         if (g_str_equal(part_type, "primary")) {
             type = PED_PARTITION_NORMAL;
@@ -205,8 +205,6 @@ pu_emmc_setup_layout(PuFlash *flash,
         g_debug("type=%s filesystem=%s, start=%ld, size=%ld, offset=%ld",
                 part_type, part_fs, part_start, part_size, part_offset);
 
-        part_size = (part_size * PED_MEBIBYTE_SIZE) / self->device->sector_size;
-        part_offset = (part_offset * PED_MEBIBYTE_SIZE) / self->device->sector_size;
         if (!emmc_create_partition(self, part_label, type, part_fs,
                                    part_start + part_offset, part_size - 1, error)) {
             return FALSE;
@@ -225,6 +223,7 @@ static gboolean
 pu_emmc_write_data(PuFlash *flash,
                    GError **error)
 {
+    PuEmmc *self = PU_EMMC(flash);
     PuConfig *config;
     g_autofree gchar *device_path = NULL;
     g_autofree gchar *part_label = NULL;
@@ -302,8 +301,8 @@ pu_emmc_write_data(PuFlash *flash,
     }
 
     for (GList *bin = raw; bin != NULL; bin = bin->next) {
-        gint64 rio = pu_hash_table_lookup_int64(bin->data, "input-offset", 0);
-        gint64 roo = pu_hash_table_lookup_int64(bin->data, "output-offset", 0);
+        PedSector rio = pu_hash_table_lookup_sector(bin->data, self->device, "input-offset", 0);
+        PedSector roo = pu_hash_table_lookup_sector(bin->data, self->device, "output-offset", 0);
         gchar *input = pu_hash_table_lookup_string(bin->data, "input", "");
 
         if (g_str_equal(input, "")) {
@@ -312,19 +311,16 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        g_debug("Writing %s to %s with %ld kiB offset", input, device_path, roo);
-        pu_write_raw(input, device_path, rio, roo);
+        pu_write_raw(input, device_path, self->device->sector_size, rio, roo);
     }
 
     gboolean bootpart_enable = pu_hash_table_lookup_boolean(emmc_bootpart, "enabled", FALSE);
-    gint64 bootpart_io = pu_hash_table_lookup_int64(emmc_bootpart, "input-offset", 0);
-    gint64 bootpart_oo = pu_hash_table_lookup_int64(emmc_bootpart, "output-offset", 0);
+    PedSector bootpart_io = pu_hash_table_lookup_sector(emmc_bootpart, self->device, "input-offset", 0);
+    PedSector bootpart_oo = pu_hash_table_lookup_sector(emmc_bootpart, self->device, "output-offset", 0);
     gchar *bootpart_input = pu_hash_table_lookup_string(emmc_bootpart, "input", "");
+    pu_write_raw_bootpart(bootpart_input, self->device, 0, bootpart_io, bootpart_oo);
+    pu_write_raw_bootpart(bootpart_input, self->device, 1, bootpart_io, bootpart_oo);
     pu_bootpart_enable(device_path, bootpart_enable);
-    pu_write_raw_bootpart(bootpart_input, g_strdup_printf("%sboot0", device_path),
-                          bootpart_io, bootpart_oo);
-    pu_write_raw_bootpart(bootpart_input, g_strdup_printf("%sboot1", device_path),
-                          bootpart_io, bootpart_oo);
 
     g_debug("%s: Finished", G_STRFUNC);
 
