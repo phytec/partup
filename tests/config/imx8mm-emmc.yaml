@@ -33,9 +33,11 @@ partitions:
       label: "ROOT0"
       type: "logical"
       filesystem: "ext4"
+      expand: true
       input: "/root/root.tar.gz"
   - partition:
       label: "ROOT1"
       type: "logical"
       filesystem: "ext4"
+      expand: true
       input: "/root/root.tar.gz"

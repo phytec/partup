@@ -31,7 +31,7 @@ struct _PuConfigEmmc {
 };
 
 static const gchar * const pu_valid_part_keys[] = {
-    "label", "type", "filesystem", "size", "offset", "input"
+    "label", "type", "filesystem", "size", "offset", "input", "expand"
 };
 static const gchar * const pu_valid_bootpart_keys[] = {
     "enable", "input-offset", "output-offset", "input"

@@ -14,7 +14,7 @@
 struct _PuEmmc {
     PuFlash parent_instance;
 
-    gint64 expanded_part_size;
+    PedSector expanded_part_size;
     guint num_expanded_parts;
 
     PedDevice *device;
@@ -43,8 +43,8 @@ emmc_create_partition(PuEmmc *self,
                       const gchar *label,
                       PedPartitionType type,
                       const gchar *filesystem,
-                      gint64 start,
-                      gint64 length,
+                      PedSector start,
+                      PedSector length,
                       GError **error)
 {
     PedPartition *part;
@@ -65,7 +65,7 @@ emmc_create_partition(PuEmmc *self,
             return FALSE;
         }
         if (ped_disk_extended_partition(self->disk) == NULL) {
-            g_debug("Creating extended partition at %ld", start);
+            g_debug("Creating extended partition at %lld", start);
             PedPartition *extpart;
             gint ret;
 
@@ -81,7 +81,7 @@ emmc_create_partition(PuEmmc *self,
                 return FALSE;
             }
         }
-        g_debug("logical partition: start=%ld, length=%ld", start, length);
+        g_debug("logical partition: start=%lld, length=%lld", start, length);
         start += 1;
         length -= 1;
     }
@@ -161,13 +161,14 @@ pu_emmc_setup_layout(PuFlash *flash,
 {
     PuEmmc *self = PU_EMMC(flash);
     PuConfig *config;
-    gint64 part_start = 0;
+    PedSector part_start = 0;
     PedPartitionType type;
     g_autofree gchar *part_label = NULL;
     g_autofree gchar *part_type = NULL;
     g_autofree gchar *part_fs = NULL;
-    gint64 part_offset;
-    gint64 part_size;
+    PedSector part_offset;
+    PedSector part_size;
+    gboolean part_expand;
 
     g_debug(G_STRFUNC);
 
@@ -187,6 +188,7 @@ pu_emmc_setup_layout(PuFlash *flash,
         part_fs = pu_hash_table_lookup_string(part->data, "filesystem", "fat32");
         part_offset = pu_hash_table_lookup_sector(part->data, self->device, "offset", 0);
         part_size = pu_hash_table_lookup_sector(part->data, self->device, "size", 2048);
+        part_expand = pu_hash_table_lookup_boolean(part->data, "expand", FALSE);
 
         if (g_str_equal(part_type, "primary")) {
             type = PED_PARTITION_NORMAL;
@@ -199,11 +201,17 @@ pu_emmc_setup_layout(PuFlash *flash,
         }
 
         if (part_size == 0) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                        "Partition with invalid size zero specified!");
+            continue;
+        }
+
+        if (part_expand) {
             part_size = self->expanded_part_size;
         }
 
-        g_debug("type=%s filesystem=%s, start=%ld, size=%ld, offset=%ld",
-                part_type, part_fs, part_start, part_size, part_offset);
+        g_debug("type=%s filesystem=%s, start=%lld, size=%lld, offset=%lld, expand=%s",
+                part_type, part_fs, part_start, part_size, part_offset, part_expand ? "y" : "n");
 
         if (!emmc_create_partition(self, part_label, type, part_fs,
                                    part_start + part_offset, part_size - 1, error)) {
@@ -362,9 +370,10 @@ PuEmmc *
 pu_emmc_new(const gchar *device_path,
             PuConfigEmmc *config)
 {
-    gint64 part_size;
-    gint64 part_offset;
-    gint64 fixed_parts_size = 0;
+    PedSector part_size;
+    PedSector part_offset;
+    gboolean part_expand;
+    PedSector fixed_parts_size = 0;
 
     g_return_val_if_fail(device_path != NULL, NULL);
     g_return_val_if_fail(!g_str_equal(device_path, ""), NULL);
@@ -382,18 +391,19 @@ pu_emmc_new(const gchar *device_path,
     GList *partitions = pu_config_emmc_get_partitions(config);
 
     for (GList *part = partitions; part != NULL; part = part->next) {
-        part_size = pu_hash_table_lookup_int64(part->data, "size", 0);
-        part_offset = pu_hash_table_lookup_int64(part->data, "offset", 0);
-        g_debug("partition %p: size=%ld offset=%ld", (gpointer) part, part_size, part_offset);
-        fixed_parts_size += (part_size + part_offset) * PED_MEBIBYTE_SIZE;
-        if (part_size == 0) {
+        part_size = pu_hash_table_lookup_sector(part->data, self->device, "size", 0);
+        part_offset = pu_hash_table_lookup_sector(part->data, self->device, "offset", 0);
+        part_expand = pu_hash_table_lookup_boolean(part->data, "expand", FALSE);
+        g_debug("partition %p: size=%llds offset=%llds", (gpointer) part, part_size, part_offset);
+        fixed_parts_size += part_size + part_offset;
+        if (part_expand) {
             self->num_expanded_parts++;
         }
     }
 
-    self->expanded_part_size = (self->device->length * self->device->sector_size
-                                - fixed_parts_size) / (self->num_expanded_parts * PED_MEBIBYTE_SIZE);
-    g_debug("%u expanding partitions, each of size %ld",
+    self->expanded_part_size = (self->device->length - fixed_parts_size)
+                                / self->num_expanded_parts;
+    g_debug("%u expanding partitions, each of size %llds",
             self->num_expanded_parts, self->expanded_part_size);
 
     return g_steal_pointer(&self);
