@@ -200,7 +200,10 @@ pu_hash_table_lookup_boolean(GHashTable *hash_table,
     if (value_str == NULL)
         return def;
 
-    return g_str_equal(g_ascii_strdown(value_str, -1), "true");
+    return g_str_equal(g_ascii_strdown(value_str, -1), "true") ||
+           g_str_equal(g_ascii_strdown(value_str, -1), "on") ||
+           g_str_equal(g_ascii_strdown(value_str, -1), "yes") ||
+           g_str_equal(g_ascii_strdown(value_str, -1), "y");
 }
 
 PedSector
