@@ -53,21 +53,6 @@ struct _PuEmmc {
 
 G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
 
-#define sectors_to_bytes(sectors) \
-    (sectors * self->device->sector_size)
-#define sectors_to_kibibytes(sectors) \
-    (sectors * self->device->sector_size / PED_KIBIBYTE_SIZE)
-#define sectors_to_kilobytes(sectors) \
-    (sectors * self->device->sector_size / PED_KILOBYTE_SIZE)
-#define sectors_to_mebibytes(sectors) \
-    (sectors * self->device->sector_size / PED_MEBIBYTE_SIZE)
-#define sectors_to_megabytes(sectors) \
-    (sectors * self->device->sector_size / PED_MEGABYTE_SIZE)
-#define sectors_to_gibibytes(sectors) \
-    (sectors * self->device->sector_size / PED_GIBIBYTE_SIZE)
-#define sectors_to_gigabytes(sectors) \
-    (sectors * self->device->sector_size / PED_GIGABYTE_SIZE)
-
 static gboolean
 emmc_create_partition(PuEmmc *self,
                       PuEmmcPartition *partition,
