@@ -11,6 +11,31 @@
 #include "emmc.h"
 #include "error.h"
 
+struct _PuEmmcPartition {
+    gchar *label;
+    PedPartitionType type;
+    gchar *filesystem;
+    PedSector size;
+    PedSector offset;
+    gboolean expand;
+    gchar *input;
+};
+struct _PuEmmcBinary {
+    PedSector input_offset;
+    PedSector output_offset;
+    gchar *input;
+};
+struct _PuEmmcBootPartitions {
+    gboolean enable;
+    PedSector input_offset;
+    PedSector output_offset;
+    gchar *input;
+};
+
+typedef struct _PuEmmcPartition PuEmmcPartition;
+typedef struct _PuEmmcBinary PuEmmcBinary;
+typedef struct _PuEmmcBootPartitions PuEmmcBootPartitions;
+
 struct _PuEmmc {
     PuFlash parent_instance;
 
@@ -19,6 +44,11 @@ struct _PuEmmc {
 
     PedDevice *device;
     PedDisk *disk;
+
+    PedDiskType *disktype;
+    GList *partitions;
+    GList *raw;
+    PuEmmcBootPartitions *emmc_boot_partitions;
 };
 
 G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
@@ -40,25 +70,24 @@ G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
 
 static gboolean
 emmc_create_partition(PuEmmc *self,
-                      const gchar *label,
-                      PedPartitionType type,
-                      const gchar *filesystem,
+                      PuEmmcPartition *partition,
                       PedSector start,
-                      PedSector length,
                       GError **error)
 {
+    /* TODO: Rename to more distinct name to not collision with PuEmmcPartition */
     PedPartition *part;
     PedFileSystemType *fstype;
     PedConstraint *constraint;
+    PedSector length = partition->size - 1;
 
-    fstype = ped_file_system_type_get(filesystem);
+    fstype = ped_file_system_type_get(partition->filesystem);
     if (fstype == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                    "Failed to recognize filesystem type '%s'", filesystem);
+                    "Failed to recognize filesystem type '%s'", partition->filesystem);
         return FALSE;
     }
 
-    if (type == PED_PARTITION_LOGICAL) {
+    if (partition->type == PED_PARTITION_LOGICAL) {
         if (!ped_disk_type_check_feature(self->disk->type, PED_DISK_TYPE_EXTENDED)) {
             g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                         "Logical partitions are not supported on this disk");
@@ -86,7 +115,8 @@ emmc_create_partition(PuEmmc *self,
         length -= 1;
     }
 
-    part = ped_partition_new(self->disk, type, fstype, start, start + length);
+    part = ped_partition_new(self->disk, partition->type, fstype,
+                             start, start + length);
     if (part == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                     "Failed creating partition");
@@ -101,7 +131,7 @@ emmc_create_partition(PuEmmc *self,
     }
 
     if (ped_disk_type_check_feature(part->disk->type, PED_DISK_TYPE_PARTITION_NAME)) {
-        ped_partition_set_name(part, label);
+        ped_partition_set_name(part, partition->label);
     }
 
     if (!ped_disk_add_partition(self->disk, part, constraint)) {
@@ -120,24 +150,14 @@ pu_emmc_init_device(PuFlash *flash,
                     GError **error)
 {
     PuEmmc *self = PU_EMMC(flash);
-    PuConfig *config;
     PedDisk *newdisk;
-    PedDiskType *disktype;
-    gchar *disklabel;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    g_object_get(flash, "config", &config, NULL);
-
-    g_return_val_if_fail(config != NULL, FALSE);
-    g_return_val_if_fail(PU_IS_CONFIG_EMMC(config), FALSE);
-
-    disklabel = pu_config_emmc_get_disklabel(PU_CONFIG_EMMC(config));
-    disktype = ped_disk_type_get(disklabel);
-    newdisk = ped_disk_new_fresh(self->device, disktype);
+    newdisk = ped_disk_new_fresh(self->device, self->disktype);
     if (newdisk == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
                     "Failed creating new disk");
@@ -160,64 +180,28 @@ pu_emmc_setup_layout(PuFlash *flash,
                      GError **error)
 {
     PuEmmc *self = PU_EMMC(flash);
-    PuConfig *config;
     PedSector part_start = 0;
-    PedPartitionType type;
-    g_autofree gchar *part_label = NULL;
-    g_autofree gchar *part_type = NULL;
-    g_autofree gchar *part_fs = NULL;
-    PedSector part_offset;
-    PedSector part_size;
-    gboolean part_expand;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    g_object_get(flash, "config", &config, NULL);
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
 
-    g_return_val_if_fail(config != NULL, FALSE);
-    g_return_val_if_fail(PU_IS_CONFIG_EMMC(config), FALSE);
-
-    GList *partitions = pu_config_emmc_get_partitions(PU_CONFIG_EMMC(config));
-
-    for (GList *part = partitions; part != NULL; part = part->next) {
-        part_label = pu_hash_table_lookup_string(part->data, "label", "");
-        part_type = pu_hash_table_lookup_string(part->data, "type", "primary");
-        part_fs = pu_hash_table_lookup_string(part->data, "filesystem", "fat32");
-        part_offset = pu_hash_table_lookup_sector(part->data, self->device, "offset", 0);
-        part_size = pu_hash_table_lookup_sector(part->data, self->device, "size", 2048);
-        part_expand = pu_hash_table_lookup_boolean(part->data, "expand", FALSE);
-
-        if (g_str_equal(part_type, "primary")) {
-            type = PED_PARTITION_NORMAL;
-        } else if (g_str_equal(part_type, "logical")) {
-            type = PED_PARTITION_LOGICAL;
-        } else {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                        "Partition of unkown type '%s' specified", part_type);
-            continue;
+        if (part->expand) {
+            part->size = self->expanded_part_size;
         }
 
-        if (part_size == 0) {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                        "Partition with invalid size zero specified!");
-            continue;
-        }
+        g_debug("type=%d filesystem=%s, start=%lld, size=%lld, offset=%lld, expand=%s",
+                part->type, part->filesystem, part_start, part->size, part->offset,
+                part->expand ? "y" : "n");
 
-        if (part_expand) {
-            part_size = self->expanded_part_size;
-        }
-
-        g_debug("type=%s filesystem=%s, start=%lld, size=%lld, offset=%lld, expand=%s",
-                part_type, part_fs, part_start, part_size, part_offset, part_expand ? "y" : "n");
-
-        if (!emmc_create_partition(self, part_label, type, part_fs,
-                                   part_start + part_offset, part_size - 1, error)) {
+        if (!emmc_create_partition(self, part, part_start + part->offset, error)) {
             return FALSE;
         }
-        part_start += part_size + part_offset;
+        part_start += part->size + part->offset;
     }
 
     ped_disk_commit(self->disk);
@@ -232,12 +216,6 @@ pu_emmc_write_data(PuFlash *flash,
                    GError **error)
 {
     PuEmmc *self = PU_EMMC(flash);
-    PuConfig *config;
-    g_autofree gchar *device_path = NULL;
-    g_autofree gchar *part_label = NULL;
-    g_autofree gchar *part_input = NULL;
-    g_autofree gchar *part_type = NULL;
-    g_autofree gchar *part_fs = NULL;
     guint i = 0;
     gboolean first_logical_part = FALSE;
     g_autofree gchar *part_path = NULL;
@@ -248,48 +226,37 @@ pu_emmc_write_data(PuFlash *flash,
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    g_object_get(flash, "config", &config, "device-path", &device_path, NULL);
-    g_return_val_if_fail(config != NULL, FALSE);
-    g_return_val_if_fail(PU_IS_CONFIG_EMMC(config), FALSE);
-
-    GList *partitions = pu_config_emmc_get_partitions(PU_CONFIG_EMMC(config));
-    GList *raw = pu_config_emmc_get_raw(PU_CONFIG_EMMC(config));
-    GHashTable *emmc_bootpart = pu_config_emmc_get_bootpart(PU_CONFIG_EMMC(config));
-
-    for (GList *part = partitions; part != NULL; part = part->next) {
-        part_label = pu_hash_table_lookup_string(part->data, "label", "default_mount");
-        part_input = pu_hash_table_lookup_string(part->data, "input", "");
-        part_type = pu_hash_table_lookup_string(part->data, "type", "primary");
-        part_fs = pu_hash_table_lookup_string(part->data, "filesystem", "fat32");
-
-        if (g_str_equal(part_type, "logical") && first_logical_part == FALSE) {
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
+        if (part->type == PED_PARTITION_LOGICAL && first_logical_part == FALSE) {
             first_logical_part = TRUE;
             i = 5;
         } else {
             i++;
         }
-        part_path = g_strdup_printf("%sp%u", device_path, i);
+        part_path = g_strdup_printf("%sp%u", self->device->path, i);
 
-        g_debug("Creating filesystem %s on %s", part_fs, part_path);
-        g_return_val_if_fail(pu_make_filesystem(part_path, part_fs), 1);
+        g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
+        g_return_val_if_fail(pu_make_filesystem(part_path, part->filesystem), FALSE);
 
-        if (g_str_equal(part_input, "")) {
+        if (g_str_equal(part->input, "")) {
             g_debug("No input specified. Skipping %s",
-                    g_strdup_printf("%sp%u", device_path, i));
+                    g_strdup_printf("%sp%u", self->device->path, i));
             continue;
         }
 
-        part_mount = pu_create_mount_point(part_label);
+        /* TODO: Consider case where the label is unspecified */
+        part_mount = pu_create_mount_point(part->label);
         if (part_mount == NULL) {
             g_warning("Failed creating mount point");
             continue;
         }
 
         g_debug("Writing input data '%s' to %s (mounted at %s)",
-                part_input, part_path, part_mount);
+                part->input, part_path, part_mount);
 
         pu_mount(part_path, part_mount);
-        gchar **input_array = g_strsplit(part_input, " ", -1);
+        gchar **input_array = g_strsplit(part->input, " ", -1);
         for (gchar **i = input_array; *i != NULL; i++) {
             if (g_regex_match_simple(".tar", *i, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", *i, part_mount);
@@ -308,27 +275,25 @@ pu_emmc_write_data(PuFlash *flash,
                     "Failed cleaning up mount point %s", PU_MOUNT_PREFIX);
     }
 
-    for (GList *bin = raw; bin != NULL; bin = bin->next) {
-        PedSector rio = pu_hash_table_lookup_sector(bin->data, self->device, "input-offset", 0);
-        PedSector roo = pu_hash_table_lookup_sector(bin->data, self->device, "output-offset", 0);
-        gchar *input = pu_hash_table_lookup_string(bin->data, "input", "");
-
-        if (g_str_equal(input, "")) {
+    for (GList *b = self->raw; b != NULL; b = b->next) {
+        PuEmmcBinary *bin = b->data;
+        if (g_str_equal(bin->input, "")) {
             g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
                         "No input specified for binary");
             continue;
         }
 
-        pu_write_raw(input, device_path, self->device->sector_size, rio, roo);
+        pu_write_raw(bin->input, self->device->path, self->device->sector_size,
+                     bin->input_offset, bin->output_offset);
     }
 
-    gboolean bootpart_enable = pu_hash_table_lookup_boolean(emmc_bootpart, "enabled", FALSE);
-    PedSector bootpart_io = pu_hash_table_lookup_sector(emmc_bootpart, self->device, "input-offset", 0);
-    PedSector bootpart_oo = pu_hash_table_lookup_sector(emmc_bootpart, self->device, "output-offset", 0);
-    gchar *bootpart_input = pu_hash_table_lookup_string(emmc_bootpart, "input", "");
-    pu_write_raw_bootpart(bootpart_input, self->device, 0, bootpart_io, bootpart_oo);
-    pu_write_raw_bootpart(bootpart_input, self->device, 1, bootpart_io, bootpart_oo);
-    pu_bootpart_enable(device_path, bootpart_enable);
+    pu_write_raw_bootpart(self->emmc_boot_partitions->input, self->device, 0,
+                          self->emmc_boot_partitions->input_offset,
+                          self->emmc_boot_partitions->output_offset);
+    pu_write_raw_bootpart(self->emmc_boot_partitions->input, self->device, 1,
+                          self->emmc_boot_partitions->input_offset,
+                          self->emmc_boot_partitions->output_offset);
+    pu_bootpart_enable(self->device->path, self->emmc_boot_partitions->enable);
 
     g_debug("%s: Finished", G_STRFUNC);
 
@@ -339,6 +304,22 @@ static void
 pu_emmc_class_finalize(GObject *object)
 {
     PuEmmc *emmc = PU_EMMC(object);
+
+    for (GList *p = emmc->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
+        g_free(part->label);
+        g_free(part->filesystem);
+        g_free(part->input);
+    }
+    g_list_free(g_steal_pointer(&emmc->partitions));
+
+    for (GList *b = emmc->raw; b != NULL; b = b->next) {
+        PuEmmcBinary *bin = b->data;
+        g_free(bin->input);
+    }
+    g_list_free(g_steal_pointer(&emmc->raw));
+
+    g_free(emmc->emmc_boot_partitions->input);
 
     if (emmc->disk)
         ped_disk_destroy(emmc->disk);
@@ -370,11 +351,6 @@ PuEmmc *
 pu_emmc_new(const gchar *device_path,
             PuConfigEmmc *config)
 {
-    PedSector part_size;
-    PedSector part_offset;
-    gboolean part_expand;
-    PedSector fixed_parts_size = 0;
-
     g_return_val_if_fail(device_path != NULL, NULL);
     g_return_val_if_fail(!g_str_equal(device_path, ""), NULL);
     g_return_val_if_fail(config != NULL, NULL);
@@ -387,24 +363,71 @@ pu_emmc_new(const gchar *device_path,
     self->device = ped_device_get(device_path);
     g_return_val_if_fail(self->device != NULL, NULL);
     self->num_expanded_parts = 0;
+    self->disktype = ped_disk_type_get(pu_config_emmc_get_disklabel(config));
+    g_return_val_if_fail(self->disktype != NULL, NULL);
 
+    PedSector fixed_parts_size = 0;
     GList *partitions = pu_config_emmc_get_partitions(config);
 
-    for (GList *part = partitions; part != NULL; part = part->next) {
-        part_size = pu_hash_table_lookup_sector(part->data, self->device, "size", 0);
-        part_offset = pu_hash_table_lookup_sector(part->data, self->device, "offset", 0);
-        part_expand = pu_hash_table_lookup_boolean(part->data, "expand", FALSE);
-        g_debug("partition %p: size=%llds offset=%llds", (gpointer) part, part_size, part_offset);
-        fixed_parts_size += part_size + part_offset;
-        if (part_expand) {
+    for (GList *p = partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
+        part->label = pu_hash_table_lookup_string(p->data, "label", "");
+        part->filesystem = pu_hash_table_lookup_string(p->data, "filesystem", "");
+        part->size = pu_hash_table_lookup_sector(p->data, self->device, "size", 0);
+        part->offset = pu_hash_table_lookup_sector(p->data, self->device, "offset", 0);
+        part->expand = pu_hash_table_lookup_boolean(p->data, "expand", FALSE);
+        part->input = pu_hash_table_lookup_string(p->data, "input", "");
+
+        g_autofree gchar *type_str = pu_hash_table_lookup_string(p->data, "type", "primary");
+        if (g_str_equal(type_str, "primary"))
+            part->type = PED_PARTITION_NORMAL;
+        else if (g_str_equal(type_str, "logical"))
+            part->type = PED_PARTITION_LOGICAL;
+        else
+            g_critical("Partition of invalid type '%s' specified", type_str);
+
+        if (part->size == 0 && !part->expand) {
+            g_critical("Partition with invalid fixed size zero specified");
+        }
+
+        self->partitions = g_list_prepend(self->partitions, part);
+
+        fixed_parts_size += part->size + part->offset;
+        if (part->expand) {
             self->num_expanded_parts++;
         }
     }
+
+    self->partitions = g_list_reverse(self->partitions);
 
     self->expanded_part_size = (self->device->length - fixed_parts_size)
                                 / self->num_expanded_parts;
     g_debug("%u expanding partitions, each of size %llds",
             self->num_expanded_parts, self->expanded_part_size);
+
+    GList *raw = pu_config_emmc_get_raw(config);
+
+    for (GList *b = raw; b != NULL; b = b->next) {
+        PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
+        bin->input_offset = pu_hash_table_lookup_sector(b->data, self->device, "input-offset", 0);
+        bin->output_offset = pu_hash_table_lookup_sector(b->data, self->device, "output-offset", 0);
+        bin->input = pu_hash_table_lookup_string(b->data, "input", "");
+
+        self->raw = g_list_prepend(self->raw, bin);
+    }
+
+    self->raw = g_list_reverse(self->raw);
+
+    GHashTable *bootpart = pu_config_emmc_get_bootpart(config);
+    self->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
+    self->emmc_boot_partitions->enable =
+        pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
+    self->emmc_boot_partitions->input_offset =
+        pu_hash_table_lookup_sector(bootpart, self->device, "input-offset", 0);
+    self->emmc_boot_partitions->output_offset =
+        pu_hash_table_lookup_sector(bootpart, self->device, "output-offset", 0);
+    self->emmc_boot_partitions->input =
+        pu_hash_table_lookup_string(bootpart, "input", "");
 
     return g_steal_pointer(&self);
 }
