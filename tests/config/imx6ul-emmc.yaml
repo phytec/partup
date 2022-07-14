@@ -15,20 +15,20 @@ partitions:
       label: "BOOT0"
       type: "primary"
       filesystem: "fat32"
-      size: 64KiB
-      offset: 4KiB
+      size: 64MiB
+      offset: 4MiB
       input: "/root/boot.tar.gz"
   - partition:
       label: "BOOT1"
       type: "primary"
       filesystem: "fat32"
-      size: 64KiB
+      size: 64MiB
       input: "/root/boot.tar.gz"
   - partition:
       label: "CONFIG"
       type: "primary"
       filesystem: "ext4"
-      size: 32KiB
+      size: 32MiB
   - partition:
       label: "ROOT0"
       type: "logical"
