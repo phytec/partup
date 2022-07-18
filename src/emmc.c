@@ -385,10 +385,12 @@ pu_emmc_new(const gchar *device_path,
 
     self->partitions = g_list_reverse(self->partitions);
 
-    self->expanded_part_size = (self->device->length - fixed_parts_size)
-                                / self->num_expanded_parts;
-    g_debug("%u expanding partitions, each of size %llds",
-            self->num_expanded_parts, self->expanded_part_size);
+    if (self->num_expanded_parts > 0) {
+        self->expanded_part_size = (self->device->length - fixed_parts_size)
+                                    / self->num_expanded_parts;
+        g_debug("%u expanding partitions, each of size %llds",
+                self->num_expanded_parts, self->expanded_part_size);
+    }
 
     GList *raw = pu_config_emmc_get_raw(config);
 
