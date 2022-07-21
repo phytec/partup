@@ -63,7 +63,11 @@ emmc_create_partition(PuEmmc *self,
     PedPartition *part;
     PedFileSystemType *fstype;
     PedConstraint *constraint;
+    PedConstraint *dev_constraint;
+    PedConstraint *final_constraint;
     PedSector length = partition->size - 1;
+
+    g_debug("%s: %s", G_STRFUNC, partition->label);
 
     fstype = ped_file_system_type_get(partition->filesystem);
     if (fstype == NULL) {
@@ -108,10 +112,23 @@ emmc_create_partition(PuEmmc *self,
         return FALSE;
     }
 
+    dev_constraint = ped_device_get_minimal_aligned_constraint(self->device);
+    if (dev_constraint == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                    "Failed retrieving constraint from device geometry");
+        return FALSE;
+    }
     constraint = ped_constraint_exact(&part->geom);
     if (constraint == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                     "Failed retrieving constraint from partition geometry");
+        return FALSE;
+    }
+    final_constraint = ped_constraint_intersect(constraint, dev_constraint);
+    if (final_constraint == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                    "Failed creating intersecting constraint from config input "
+                    "and device geometry");
         return FALSE;
     }
 
@@ -119,13 +136,14 @@ emmc_create_partition(PuEmmc *self,
         ped_partition_set_name(part, partition->label);
     }
 
-    if (!ped_disk_add_partition(self->disk, part, constraint)) {
+    if (!ped_disk_add_partition(self->disk, part, final_constraint)) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                     "Failed adding partition to disk");
         return FALSE;
     }
 
     ped_constraint_destroy(constraint);
+    ped_constraint_destroy(dev_constraint);
 
     return TRUE;
 }
