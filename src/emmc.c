@@ -230,8 +230,7 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        /* TODO: Consider case where the label is unspecified */
-        part_mount = pu_create_mount_point(part->label);
+        part_mount = pu_create_mount_point(g_strdup_printf("p%u", i));
         if (part_mount == NULL) {
             g_warning("Failed creating mount point");
             continue;
