@@ -17,13 +17,13 @@ partitions:
       filesystem: "fat32"
       size: 64MiB
       offset: 4MiB
-      input: "/root/boot.tar.gz"
+      input: "/root/zImage /root/oftree"
   - partition:
       label: "BOOT1"
       type: "primary"
       filesystem: "fat32"
       size: 64MiB
-      input: "/root/boot.tar.gz"
+      input: "/root/zImage /root/oftree"
   - partition:
       label: "CONFIG"
       type: "primary"
