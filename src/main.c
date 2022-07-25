@@ -123,7 +123,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
     api_version = pu_config_get_api_version(PU_CONFIG(config));
-    if (api_version != PARTUP_VERSION_MAJOR) {
+    if (api_version > PARTUP_VERSION_MAJOR) {
         g_printerr("API version %d of configuration file is not compatible "
                    "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
         return 1;
