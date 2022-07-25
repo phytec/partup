@@ -26,6 +26,7 @@ exec = executable(
   meson.project_name(),
   c_args : ['-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())],
   sources : [
+    'src/checksum.c',
     'src/config.c',
     'src/configemmc.c',
     'src/emmc.c',
