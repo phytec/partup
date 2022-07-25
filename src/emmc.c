@@ -252,11 +252,7 @@ pu_emmc_write_data(PuFlash *flash,
         }
         g_strfreev(input_array);
         pu_umount(part_mount);
-    }
-    /* FIXME: This silently fails for some reason. The directory is not removed. */
-    if (!g_rmdir(PU_MOUNT_PREFIX)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                    "Failed cleaning up mount point %s", PU_MOUNT_PREFIX);
+        g_rmdir(part_mount);
     }
 
     for (GList *b = self->raw; b != NULL; b = b->next) {
