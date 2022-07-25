@@ -20,7 +20,10 @@ typedef enum {
     PU_ERROR_FLASH_DATA,
 
     /* Config parsing errors */
-    PU_ERROR_CONFIG
+    PU_ERROR_CONFIG,
+
+    /* Checksum errors */
+    PU_ERROR_CHECKSUM
 } PuErrorEnum;
 
 GQuark pu_error_quark(void);
