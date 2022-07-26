@@ -22,29 +22,41 @@ configure_file(
   configuration : version_data
 )
 
+deps = [
+  dependency('glib-2.0'),
+  dependency('gio-2.0'),
+  dependency('yaml-0.1'),
+  dependency('libparted')
+]
+src = [
+  'src/checksum.c',
+  'src/config.c',
+  'src/configemmc.c',
+  'src/emmc.c',
+  'src/error.c',
+  'src/flash.c',
+  'src/mount.c',
+  'src/utils.c'
+]
+
 exec = executable(
   meson.project_name(),
   c_args : ['-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())],
-  sources : [
-    'src/checksum.c',
-    'src/config.c',
-    'src/configemmc.c',
-    'src/emmc.c',
-    'src/error.c',
-    'src/flash.c',
-    'src/main.c',
-    'src/mount.c',
-    'src/utils.c'
-  ],
-  dependencies : [
-    dependency('glib-2.0'),
-    dependency('gio-2.0'),
-    dependency('yaml-0.1'),
-    dependency('libparted')
-  ],
+  sources : [src, 'src/main.c'],
+  dependencies : deps,
   install : true
+)
+
+partup_dep = declare_dependency(
+  dependencies : deps,
+  include_directories : ['src'],
+  sources : src
 )
 
 if get_option('doc')
   subdir('doc')
+endif
+
+if get_option('tests')
+  subdir('tests')
 endif
