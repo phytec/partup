@@ -30,11 +30,11 @@ struct _PuConfigEmmc {
     GList *partitions;
 };
 
+static const gchar * const pu_valid_input_keys[] = {
+    "uri", "md5sum", "sha256sum"
+};
 static const gchar * const pu_valid_part_keys[] = {
     "label", "type", "filesystem", "size", "offset", "input", "expand"
-};
-static const gchar * const pu_valid_part_input_keys[] = {
-    "uri", "md5sum", "sha256sum"
 };
 static const gchar * const pu_valid_bootpart_keys[] = {
     "enable", "input-offset", "output-offset", "input"
@@ -297,6 +297,7 @@ pu_config_emmc_init(PuConfigEmmc *self)
 {
     self->state = STATE_START;
     self->disklabel = NULL;
+    /* g_free does not work for freeing hash tables, free manually in finalize */
     self->bootpart = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     self->raw = NULL;
     self->partitions = NULL;

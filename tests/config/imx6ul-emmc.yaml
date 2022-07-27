@@ -4,12 +4,17 @@ emmc-boot-partitions:
   enable: false
   input-offset: 0
   output-offset: 0
-  input: "/root/barebox.bin"
+  input-path: "/root/barebox.bin"
+  input-md5sum: "3948579347593"
+  input-sha256sum: "2983457983475930750934759357"
 raw:
   - binary:
       input-offset: 1KiB
       output-offset: 1KiB
-      input: "/root/barebox.bin"
+      input:
+        - uri: "/root/barebox.bin"
+          md5sum: ""
+          sha256sum: ""
 partitions:
   - partition:
       label: "BOOT0"
@@ -18,12 +23,20 @@ partitions:
       size: 64MiB
       offset: 4MiB
       input: "/root/zImage /root/oftree"
+      input-md5sum: "00000 00000"
+      input-sha256sum: "438957389457398475 893475938475983475"
   - partition:
       label: "BOOT1"
       type: "primary"
       filesystem: "fat32"
       size: 64MiB
-      input: "/root/zImage /root/oftree"
+      input:
+        - uri: "/root/zImage"
+          md5sum: "39405873984579384"
+          sha256sum: "3894579384753904759384759083475893475"
+        - uri: "/root/oftree"
+          md5sum: "39405873984579384"
+          sha256sum: "3894579384753904759384759083475893475"
   - partition:
       label: "CONFIG"
       type: "primary"

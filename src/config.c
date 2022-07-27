@@ -78,10 +78,34 @@ pu_config_parse_string(PuConfig *self,
     return TRUE;
 }
 
+/*gboolean
+pu_config_parse_input(PuConfig *self,
+                      GHashTable **mapping,
+                      const gchar * const valid_input_keys[])
+{
+    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    g_autofree gchar *key = NULL;
+
+    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
+    g_return_val_if_fail(priv->event.type == YAML_SEQUENCE_START_EVENT, FALSE);
+
+    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
+
+    do {
+        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+    } while (priv->event.type != YAML_SEQUENCE_END_EVENT);
+
+    return TRUE;
+}*/
+
+/* Recursively use this function. When using for parsing input, set valid_keys
+ * to the valid input keys and valid_input_keys to NULL to prevent further
+ * recursion. */
 gboolean
 pu_config_parse_mapping(PuConfig *config,
                         GHashTable **mapping,
-                        const gchar * const valid_keys[])
+                        const gchar * const valid_keys[],
+                        const gchar * const valid_input_keys[])
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
     g_autofree gchar *key = NULL;
@@ -116,9 +140,16 @@ pu_config_parse_mapping(PuConfig *config,
 
         /* value */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_debug("Inserting key-value pair into hash table");
-        g_hash_table_insert(*mapping, g_strdup(key),
-                            g_strdup((char *) priv->event.data.scalar.value));
+        if (g_str_equal(priv->event.data.scalar.value, "input")) {
+            g_debug("Inserting sequence of 'input' mappings");
+            GList *input_list = NULL;
+            pu_config_parse_sequence_of_mappings(config, "input", &input_list,
+                                                 pu_valid_input_keys);
+        } else {
+            g_debug("Inserting key-value pair into hash table");
+            g_hash_table_insert(*mapping, g_strdup(key),
+                                g_strdup((char *) priv->event.data.scalar.value));
+        }
 
         g_debug("Done inserting");
 
@@ -129,6 +160,9 @@ pu_config_parse_mapping(PuConfig *config,
     return TRUE;
 }
 
+/* TODO: should be "parse sequence of keyed mappings"? Or simply remove the key
+ * "partition" and "binary" for a true sequence of mappings (without the key).
+ */
 gboolean
 pu_config_parse_sequence_of_mappings(PuConfig *config,
                                      const gchar *name,
