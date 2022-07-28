@@ -37,6 +37,8 @@ pu_config_parse(PuConfig *self)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
+    g_debug(G_STRFUNC);
+
     if (!yaml_parser_parse(&priv->parser, &priv->event)) {
         g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
                    priv->parser.error);
@@ -51,6 +53,10 @@ pu_config_parse_int(PuConfig *self,
                     gint *value)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
+
+    g_debug(G_STRFUNC);
+
+    g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
 
     if (!yaml_parser_parse(&priv->parser, &priv->event)) {
         g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
@@ -68,6 +74,10 @@ pu_config_parse_string(PuConfig *self,
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
+    g_debug(G_STRFUNC);
+
+    g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
+
     if (!yaml_parser_parse(&priv->parser, &priv->event)) {
         g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
                    priv->parser.error);
@@ -79,163 +89,120 @@ pu_config_parse_string(PuConfig *self,
 }
 
 /*gboolean
-pu_config_parse_input(PuConfig *self,
-                      GHashTable **mapping,
-                      const gchar * const valid_input_keys[])
+pu_config_parse_scalar(PuConfig *config,
+                       gpointer *value)
 {
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
-    g_autofree gchar *key = NULL;
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
 
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-    g_return_val_if_fail(priv->event.type == YAML_SEQUENCE_START_EVENT, FALSE);
+    g_debug(G_STRFUNC);
 
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
+    g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
 
-    do {
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
-    } while (priv->event.type != YAML_SEQUENCE_END_EVENT);
+    if (g_str_equal(priv->event.data.scalar.tag, YAML_STR_TAG)) {
+        value = g_strdup(priv->event.data.scalar.value);
+    } else if (g_str_equal(priv->event.data.scalar.tag, YAML_INT_TAG)) {
+        *value = g_ascii_strtoll(priv->event.data.scalar.value, NULL, 10);
+    } else if (g_str_equal(priv->event.data.scalar.tag, YAML_BOOL_TAG)) {
+        *value = g_str_equal(g_ascii_strdown(priv->event.data.scalar.value, -1), "true");
+    } else {
+        g_critical("Unexpected scalar tag '%s' occured", priv->event.data.scalar.tag);
+        return FALSE;
+    }
 
     return TRUE;
 }*/
 
-/* Recursively use this function. When using for parsing input, set valid_keys
- * to the valid input keys and valid_input_keys to NULL to prevent further
- * recursion. */
 gboolean
 pu_config_parse_mapping(PuConfig *config,
-                        GHashTable **mapping,
-                        const gchar * const valid_keys[],
-                        const gchar * const valid_input_keys[])
+                        GHashTable **mapping)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
     g_autofree gchar *key = NULL;
 
-    /* Parse first mapping */
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-    g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+    g_debug(G_STRFUNC);
 
-    /* Parse first key */
+    g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+    g_return_val_if_fail(*mapping == NULL, FALSE);
+
+    *mapping = g_hash_table_new(g_str_hash, g_str_equal);
+
+    /* parse first key */
     g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-    g_debug("new hash table");
 
     do {
         /* key */
-        if (priv->event.type != YAML_SCALAR_EVENT) {
-            g_critical("Expected YAML_SCALAR_EVENT (%d), got %d!",
-                       YAML_SCALAR_EVENT, priv->event.type);
-            //g_hash_table_destroy(*mapping);
-            return FALSE;
-        }
-
-        if (g_strv_contains(valid_keys, (char *) priv->event.data.scalar.value)) {
-            key = g_strdup((char *) priv->event.data.scalar.value);
-        } else {
-            g_warning("Unknown key \"%s\"!", priv->event.data.scalar.value);
-            /* skip value of unknown key */
-            /* Maybe we should not consume the value, in case there is no
-             * value. */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-            continue;
-        }
+        g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
+        key = g_strdup((gchar *) priv->event.data.scalar.value);
 
         /* value */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        if (g_str_equal(priv->event.data.scalar.value, "input")) {
-            g_debug("Inserting sequence of 'input' mappings");
-            GList *input_list = NULL;
-            pu_config_parse_sequence_of_mappings(config, "input", &input_list,
-                                                 pu_valid_input_keys);
-        } else {
-            g_debug("Inserting key-value pair into hash table");
-            g_hash_table_insert(*mapping, g_strdup(key),
-                                g_strdup((char *) priv->event.data.scalar.value));
+        switch (priv->event.type) {
+        case YAML_SCALAR_EVENT:
+            gchar *value;
+            pu_config_parse_string(config, value);
+            g_hash_table_insert(*mapping, key, value);
+            break;
+        case YAML_MAPPING_START_EVENT:
+            GHashTable *nested_mapping;
+            pu_config_parse_mapping2(config, &nested_mapping);
+            g_hash_table_insert(*mapping, key, nested_mapping);
+            break;
+        case YAML_SEQUENCE_START_EVENT:
+            GList *sequence;
+            pu_config_parse_sequence(config, &sequence);
+            g_hash_table_insert(*mapping, key, sequence);
+            break;
+        default:
+            g_critical("Unexpected YAML event %d occured", priv->event.type);
+            break;
         }
 
-        g_debug("Done inserting");
-
-        /* Parse next key or end of mapping */
+        /* parse next key or end of mapping */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     } while (priv->event.type != YAML_MAPPING_END_EVENT);
 
     return TRUE;
 }
 
-/* TODO: should be "parse sequence of keyed mappings"? Or simply remove the key
- * "partition" and "binary" for a true sequence of mappings (without the key).
- */
 gboolean
-pu_config_parse_sequence_of_mappings(PuConfig *config,
-                                     const gchar *name,
-                                     GList **mappings,
-                                     const gchar * const valid_keys[])
+pu_config_parse_sequence(PuConfig *config,
+                         GList **sequence)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
-    g_autofree gchar *key = NULL;
-    GHashTable *hash_table;
 
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     g_return_val_if_fail(priv->event.type == YAML_SEQUENCE_START_EVENT, FALSE);
+    g_return_val_if_fail(*sequence == NULL, FALSE);
 
-    /* Parse first mapping */
+    /* parse first node of sequence */
     g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
 
     do {
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
-        g_return_val_if_fail(g_str_equal(priv->event.data.scalar.value, name), FALSE);
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+        switch (priv->event.type) {
+        case YAML_SCALAR_EVENT:
+            gchar *value;
+            pu_config_parse_string(config, value);
+            *sequence = g_list_prepend(*sequence, value);
+            break;
+        case YAML_MAPPING_START_EVENT:
+            GHashTable *mapping;
+            pu_config_parse_mapping2(config, &mapping);
+            *sequence = g_list_prepend(*sequence, mapping);
+            break;
+        case YAML_SEQUENCE_START_EVENT:
+            GList *nested_sequence;
+            pu_config_parse_sequence(config, &nested_sequence);
+            *sequence = g_list_prepend(*sequence, nested_sequence);
+            break;
+        default:
+            g_critical("Unexpected YAML event %d occured", priv->event.type);
+            break;
+        }
 
-        /* Parse first key */
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-        g_debug("new hash table");
-
-        do {
-            /* key */
-            if (priv->event.type != YAML_SCALAR_EVENT) {
-                g_critical("Expected YAML_SCALAR_EVENT (%d), got %d!",
-                           YAML_SCALAR_EVENT, priv->event.type);
-                g_hash_table_destroy(hash_table);
-                return FALSE;
-            }
-
-            if (g_strv_contains(valid_keys, (char *) priv->event.data.scalar.value)) {
-                key = g_strdup((char *) priv->event.data.scalar.value);
-            } else {
-                g_warning("Unknown key '%s'!", priv->event.data.scalar.value);
-                /* skip value of unknown key */
-                /* Maybe we should not consume the value, in case there is no
-                 * value. */
-                g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-                continue;
-            }
-
-            /* value */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-            g_debug("Inserting key-value pair into hash table");
-            g_hash_table_insert(hash_table, g_strdup(key),
-                                g_strdup((char *) priv->event.data.scalar.value));
-            g_debug("Done inserting");
-
-            /* Parse next key */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        } while (priv->event.type != YAML_MAPPING_END_EVENT);
-
-        g_debug("Prepending hash table to mappings");
-        *mappings = g_list_prepend(*mappings, hash_table);
-        g_debug("Added new mapping of type '%s'", name);
-
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_END_EVENT, FALSE);
-
-        /* Parse next mapping or end of sequence */
+        /* parse next node or end of sequence */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     } while (priv->event.type != YAML_SEQUENCE_END_EVENT);
 
-    *mappings = g_list_reverse(*mappings);
-    g_debug("Done adding all mappings of type '%s'", name);
+    *sequence = g_list_reverse(*sequence);
 
     return TRUE;
 }
