@@ -4,9 +4,10 @@ emmc-boot-partitions:
   enable: false
   input-offset: 0
   output-offset: 0
-  input-path: "/root/barebox.bin"
-  input-md5sum: "3948579347593"
-  input-sha256sum: "2983457983475930750934759357"
+  input:
+    path: "/root/barebox.bin"
+    md5sum: "3948579347593"
+    sha256sum: "2983457983475930750934759357"
 raw:
   - binary:
       input-offset: 1KiB
