@@ -345,6 +345,7 @@ pu_emmc_new(const gchar *device_path,
     self->num_expanded_parts = 0;
     self->disktype = ped_disk_type_get(pu_config_emmc_get_disklabel(config));
     g_return_val_if_fail(self->disktype != NULL, NULL);
+    ped_unit_set_default(PED_UNIT_SECTOR);
 
     PedSector fixed_parts_size = 0;
     GList *partitions = pu_config_emmc_get_partitions(config);
