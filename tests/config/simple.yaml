@@ -1,0 +1,8 @@
+api-version: 0
+disklabel: msdos
+partitions:
+  - label: BOOT
+    size: 65536
+    offset: 8192
+  - label: ROOT
+    expand: true

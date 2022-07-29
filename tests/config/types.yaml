@@ -1,0 +1,32 @@
+api-version: 42
+nulls:
+  - ~
+  - null
+  - Null
+  - NULL
+integers10:
+  - 0
+  - 21
+  - -19
+integers16:
+  - 0x3a
+  - 0x0
+  - 0xFE34
+booleans:
+  - true
+  - True
+  - false
+  - FALSE
+floats:
+  - 1.23
+  - 0.
+  - -0.0
+  - .5
+  - +12e03
+  - -2E-05
+strings:
+  - one
+  - a string with whitespace but not quoted
+  - "quoted string"
+  - 4.26MiB
+  - a number at the end 1
