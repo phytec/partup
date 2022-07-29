@@ -346,6 +346,7 @@ pu_emmc_new(const gchar *device_path,
     self->num_expanded_parts = 0;
     self->disktype = ped_disk_type_get(pu_config_emmc_get_disklabel(config));
     g_return_val_if_fail(self->disktype != NULL, NULL);
+    ped_unit_set_default(PED_UNIT_SECTOR);
 
     g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", "msdos");
     self->disktype = ped_disk_type_get(disklabel);
