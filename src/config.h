@@ -27,28 +27,12 @@
  * dependent on the flash type and supported features of the corresponding
  * configuration file for that flash type.
  */
-G_DECLARE_DERIVABLE_TYPE(PuConfig, pu_config, PU, CONFIG, GObject)
+G_DECLARE_FINAL_TYPE(PuConfig, pu_config, PU, CONFIG, GObject)
 
-struct _PuConfigClass {
-    GObjectClass parent_class;
+PuConfig * pu_config_new_from_file(const gchar *filename,
+                                   GError **error);
 
-    gboolean (*read)(PuConfig *self,
-                     GError **error);
-
-    gpointer padding[8];
-};
-
-/**
- * Read and parse the specified configuration file of a PuConfig instance.
- *
- * @param self the configuration instance containing the path to the
- *             configuration file.
- * @param error a GError for error handling.
- *
- * @return TRUE on success or FALSE if an error occurred.
- */
-gboolean pu_config_read(PuConfig *self,
-                        GError **error);
+void pu_config_free(PuConfig *config);
 
 /**
  * Get the API version specified in the configuration.
@@ -57,17 +41,6 @@ gboolean pu_config_read(PuConfig *self,
  *
  * @return the API version number.
  */
-gint pu_config_get_api_version(PuConfig *self);
-
-/**
- * Prepare the YAML parser with the contents of the configuration file.
- *
- * @param self the configuration instance.
- * @param error a GError for error handling.
- *
- * @return TRUE on success or FALSE if an error occurred.
- */
-gboolean pu_config_set_parser_input(PuConfig *self,
-                                    GError **error);
+gint pu_config_get_api_version(PuConfig *config);
 
 #endif /* PARTUP_CONFIG_H */
