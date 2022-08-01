@@ -19,4 +19,4 @@ jobs:
       - name: Build application
         run: |
           meson build -Dbuildtype=release
-          ninja -C build
+          meson compile -C build
