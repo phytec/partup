@@ -3,6 +3,8 @@ partup - System Initialization Program
 
 .. image:: https://github.com/phytec/partup/workflows/build/badge.svg
    :target: https://github.com/phytec/partup/actions/workflows/build.yml
+.. image:: https://github.com/phytec/partup/workflows/tests/badge.svg
+   :target: https://github.com/phytec/partup/actions/workflows/tests.yml
 .. image:: https://github.com/phytec/partup/workflows/documentation/badge.svg
    :target: https://github.com/phytec/partup/actions/workflows/documentation.yml
 
