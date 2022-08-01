@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
+      - name: Build unit tests and program
+        run: meson build -Dbuildtype=debug
+      - name: Run unit tests
+        run: meson test -C build
