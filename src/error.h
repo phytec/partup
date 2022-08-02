@@ -22,6 +22,7 @@ typedef enum {
     /* Config parsing errors */
     PU_ERROR_CONFIG_INIT_FAILED,
     PU_ERROR_CONFIG_INVALID_ROOT,
+    PU_ERROR_CONFIG_PARSING_FAILED,
 
     /* Checksum errors */
     PU_ERROR_CHECKSUM

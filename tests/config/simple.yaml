@@ -1,0 +1,6 @@
+api-version: 42
+disklabel: "msdos"
+partitions:
+  - "one"
+  - "two"
+  - "three"

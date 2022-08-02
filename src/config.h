@@ -32,8 +32,6 @@ G_DECLARE_FINAL_TYPE(PuConfig, pu_config, PU, CONFIG, GObject)
 PuConfig * pu_config_new_from_file(const gchar *filename,
                                    GError **error);
 
-void pu_config_free(PuConfig *config);
-
 /**
  * Get the API version specified in the configuration.
  *
@@ -42,5 +40,7 @@ void pu_config_free(PuConfig *config);
  * @return the API version number.
  */
 gint pu_config_get_api_version(PuConfig *config);
+
+GHashTable * pu_config_get_root(PuConfig *config);
 
 #endif /* PARTUP_CONFIG_H */

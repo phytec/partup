@@ -8,7 +8,6 @@
 #include <parted/parted.h>
 #include <unistd.h>
 #include "config.h"
-#include "configemmc.h"
 #include "emmc.h"
 #include "flash.h"
 #include "mount.h"
@@ -57,7 +56,7 @@ main(G_GNUC_UNUSED int argc,
 {
     g_autoptr(GError) error = NULL;
     g_autoptr(GOptionContext) context = NULL;
-    g_autoptr(PuConfigEmmc) config = NULL;
+    g_autoptr(PuConfig) config = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
     g_autofree gchar **args;
     gint api_version;
@@ -113,16 +112,13 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    config = pu_config_emmc_new_for_path(arg_config);
+    config = pu_config_new_from_file(arg_config, &error);
     if (config == NULL) {
-        g_printerr("Failed creating configuration object for file '%s'!\n", arg_config);
+        g_printerr("Failed creating configuration object for file '%s': %s\n",
+                   arg_config, error->message);
         return 1;
     }
-    if (!pu_config_read(PU_CONFIG(config), &error)) {
-        g_printerr("Failed reading configuration file: %s\n", error->message);
-        return 1;
-    }
-    api_version = pu_config_get_api_version(PU_CONFIG(config));
+    api_version = pu_config_get_api_version(config);
     if (api_version > PARTUP_VERSION_MAJOR) {
         g_printerr("API version %d of configuration file is not compatible "
                    "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
