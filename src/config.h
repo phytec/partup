@@ -29,6 +29,22 @@
  */
 G_DECLARE_FINAL_TYPE(PuConfig, pu_config, PU, CONFIG, GObject)
 
+typedef enum {
+    PU_CONFIG_VALUE_TYPE_NULL = 0,
+    PU_CONFIG_VALUE_TYPE_STRING,
+    PU_CONFIG_VALUE_TYPE_MAPPING,
+    PU_CONFIG_VALUE_TYPE_SEQUENCE
+} PuConfigValueType;
+
+typedef struct {
+    PuConfigValueType type;
+    union {
+        gchar *string;
+        GHashTable *mapping;
+        GList *sequence;
+    } data;
+} PuConfigValue;
+
 PuConfig * pu_config_new_from_file(const gchar *filename,
                                    GError **error);
 
