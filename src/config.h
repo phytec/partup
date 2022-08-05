@@ -31,6 +31,10 @@ G_DECLARE_FINAL_TYPE(PuConfig, pu_config, PU, CONFIG, GObject)
 
 typedef enum {
     PU_CONFIG_VALUE_TYPE_NULL = 0,
+    PU_CONFIG_VALUE_TYPE_BOOLEAN,
+    PU_CONFIG_VALUE_TYPE_INTEGER_10,
+    PU_CONFIG_VALUE_TYPE_INTEGER_16,
+    PU_CONFIG_VALUE_TYPE_FLOAT,
     PU_CONFIG_VALUE_TYPE_STRING,
     PU_CONFIG_VALUE_TYPE_MAPPING,
     PU_CONFIG_VALUE_TYPE_SEQUENCE
@@ -40,6 +44,9 @@ typedef struct {
     PuConfigValueType type;
     union {
         gchar *string;
+        gint64 integer;
+        gboolean boolean;
+        gfloat number;
         GHashTable *mapping;
         GList *sequence;
     } data;

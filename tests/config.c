@@ -27,13 +27,6 @@ config_simple(void)
     value = g_hash_table_lookup(root, "disklabel");
     disklabel = value->data.string;
     g_assert_true(g_str_equal(disklabel, "msdos"));
-    value = g_hash_table_lookup(root, "partitions");
-    partitions = value->data.sequence;
-    g_assert_true(partitions != NULL);
-    for (GList *p = partitions; p != NULL; p = p->next) {
-        PuConfigValue *value = p->data;
-        g_debug("%s", value->data.string);
-    }
     g_clear_error(&error);
 }
 

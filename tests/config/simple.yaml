@@ -1,6 +1,8 @@
 api-version: 42
 disklabel: "msdos"
 partitions:
-  - "one"
-  - "two"
-  - "three"
+  - label: "boot"
+    size: 10
+    offset: 4
+  - label: "root"
+    size: 100

@@ -41,8 +41,8 @@ static GParamSpec *props[NUM_PROPS] = { NULL };
  */
 G_DEFINE_TYPE_WITH_PRIVATE(PuConfig, pu_config, G_TYPE_OBJECT)
 
-/*static gboolean pu_config_parse_scalar(PuConfig *config,
-                                       gpointer *value)*/
+static gboolean pu_config_parse_scalar(PuConfig *config,
+                                       PuConfigValue *value);
 static gboolean pu_config_parse_mapping(PuConfig *config,
                                         GHashTable **mapping);
 static gboolean pu_config_parse_sequence(PuConfig *config,
@@ -50,29 +50,68 @@ static gboolean pu_config_parse_sequence(PuConfig *config,
 static void pu_config_free_mapping(GHashTable *mapping);
 static void pu_config_free_sequence(GList *sequence);
 
-/*gboolean
+gboolean
 pu_config_parse_scalar(PuConfig *config,
-                       gpointer *value)
+                       PuConfigValue *value)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
+    gchar *v = priv->event.data.scalar.value;
+    gchar *tag = priv->event.data.scalar.tag;
 
-    g_debug(G_STRFUNC);
+    g_debug("%s: tag '%s', value '%s'", G_STRFUNC, tag, v);
 
     g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
 
-    if (g_str_equal(priv->event.data.scalar.tag, YAML_STR_TAG)) {
-        value = (gpointer) g_strdup((gchar *) priv->event.data.scalar.value);
-    } else if (g_str_equal(priv->event.data.scalar.tag, YAML_INT_TAG)) {
-        *value = g_ascii_strtoll((gchar *) priv->event.data.scalar.value, NULL, 10);
-    } else if (g_str_equal(priv->event.data.scalar.tag, YAML_BOOL_TAG)) {
-        *value = g_str_equal(g_ascii_strdown((gchar *) priv->event.data.scalar.value, -1), "true");
+    /* libyaml does not automatically assign a tag when none is explicitly
+     * specified. Check for the correct type manually in this case. */
+    if (priv->event.data.scalar.plain_implicit ||
+        priv->event.data.scalar.quoted_implicit) {
+        if (g_regex_match_simple("null|NULL|Null|~", v, 0, 0)) {
+            value->data.string = NULL;
+            value->type = PU_CONFIG_VALUE_TYPE_NULL;
+            g_debug("null");
+        } else if (g_regex_match_simple("true|True|TRUE|false|False|FALSE", v, 0, 0)) {
+            value->data.boolean = g_str_equal(g_ascii_strdown(v, -1), "true");
+            value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
+            g_debug("boolean");
+        } else if (g_regex_match_simple("[-+]?[0-9]+", v, 0, 0)) {
+            value->data.integer = g_ascii_strtoll(v, NULL, 10);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
+            g_debug("integer 10");
+        } else if (g_regex_match_simple("0x[0-9a-fA-F]+", v, 0, 0)) {
+            value->data.integer = g_ascii_strtoll(v, NULL, 16);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_16;
+            g_debug("integer 16");
+        } else if (g_regex_match_simple("[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?", v, 0, 0)) {
+            value->data.number = g_ascii_strtod(v, NULL);
+            value->type = PU_CONFIG_VALUE_TYPE_FLOAT;
+            g_debug("float");
+        } else {
+            value->data.string = g_strdup(v);
+            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+            g_debug("string");
+        }
     } else {
-        g_critical("Unexpected scalar tag '%s' occured", priv->event.data.scalar.tag);
-        return FALSE;
+        if (g_strcmp0(tag, YAML_STR_TAG) == 0 || tag == NULL) {
+            g_debug("%s: string", G_STRFUNC);
+            value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
+            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+        } else if (g_strcmp0(tag, YAML_INT_TAG) == 0) {
+            g_debug("%s: integer", G_STRFUNC);
+            value->data.integer = g_ascii_strtoll((gchar *) priv->event.data.scalar.value, NULL, 10);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
+        } else if (g_strcmp0(tag, YAML_BOOL_TAG) == 0) {
+            g_debug("%s: boolean", G_STRFUNC);
+            value->data.boolean = g_str_equal(g_ascii_strdown((gchar *) priv->event.data.scalar.value, -1), "true");
+            value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
+        } else {
+            g_critical("Unexpected scalar tag '%s' occurred", priv->event.data.scalar.tag);
+            return FALSE;
+        }
     }
 
     return TRUE;
-}*/
+}
 
 gboolean
 pu_config_parse_mapping(PuConfig *config,
@@ -102,9 +141,7 @@ pu_config_parse_mapping(PuConfig *config,
         value = g_new0(PuConfigValue, 1);
         switch (priv->event.type) {
         case YAML_SCALAR_EVENT:
-            g_debug("mapping: string");
-            value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
-            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+            pu_config_parse_scalar(config, value);
             g_hash_table_insert(*mapping, key, value);
             break;
         case YAML_MAPPING_START_EVENT:
@@ -149,9 +186,7 @@ pu_config_parse_sequence(PuConfig *config,
         value = g_new0(PuConfigValue, 1);
         switch (priv->event.type) {
         case YAML_SCALAR_EVENT:
-            g_debug("sequence: string");
-            value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
-            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+            pu_config_parse_scalar(config, value);
             *sequence = g_list_prepend(*sequence, value);
             break;
         case YAML_MAPPING_START_EVENT:
@@ -186,12 +221,15 @@ pu_config_free_mapping(GHashTable *mapping)
     gchar *key;
     PuConfigValue *value;
 
+    g_debug("free mapping");
+
     g_hash_table_iter_init(&iter, mapping);
 
     while (g_hash_table_iter_next(&iter, (gpointer) &key, (gpointer) &value)) {
         g_free(key);
         switch (value->type) {
         case PU_CONFIG_VALUE_TYPE_STRING:
+            g_debug("mapping free string");
             g_free(value->data.string);
             break;
         case PU_CONFIG_VALUE_TYPE_MAPPING:
@@ -203,6 +241,7 @@ pu_config_free_mapping(GHashTable *mapping)
         default:
             break;
         }
+        g_debug("mapping free config value");
         g_free(value);
     }
 }
@@ -216,6 +255,7 @@ pu_config_free_sequence(GList *sequence)
         value = node->data;
         switch (value->type) {
         case PU_CONFIG_VALUE_TYPE_STRING:
+            g_debug("sequence free string");
             g_free(value->data.string);
             break;
         case PU_CONFIG_VALUE_TYPE_MAPPING:
@@ -227,6 +267,7 @@ pu_config_free_sequence(GList *sequence)
         default:
             break;
         }
+        g_debug("sequence free config value");
         g_free(value);
     }
 }
@@ -274,6 +315,8 @@ pu_config_class_finalize(GObject *object)
 {
     PuConfig *self = PU_CONFIG(object);
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
+
+    g_debug("finalize");
 
     g_free(priv->contents);
     /* TODO: Free individual elements of hash table first */
@@ -360,8 +403,10 @@ pu_config_new_from_file(const gchar *filename,
 
     g_debug("Finished parsing");
 
-    PuConfigValue *api_version_value = g_hash_table_lookup(priv->root, "api-version");
-    priv->api_version = g_ascii_strtoll(api_version_value->data.string, NULL, 10);
+    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
+    g_return_val_if_fail(value != NULL, NULL);
+    g_return_val_if_fail(value->type == PU_CONFIG_VALUE_TYPE_INTEGER_10, NULL);
+    priv->api_version = value->data.integer;
 
     return g_steal_pointer(&config);
 }
