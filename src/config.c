@@ -32,13 +32,12 @@ enum {
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
 
-/* TODO: Idea:
- * - PuConfig just serializes the YAML document to GLib types.
- * - The flash type then converts and checks the content of PuConfig and uses
- *   that for its flash definition.
- * - Subclassing PuConfig to e.g. PuConfigEmmc may not be needed, as the
- *   conversion happens inside the flash type PuEmmc directly.
- */
+#define PU_CONFIG_TAG_REGEX_NULL       "^(null|NULL|Null|~)$"
+#define PU_CONFIG_TAG_REGEX_BOOLEAN    "^(true|True|TRUE|false|False|FALSE)$"
+#define PU_CONFIG_TAG_REGEX_INTEGER_10 "^[-+]?[0-9]+$"
+#define PU_CONFIG_TAG_REGEX_INTEGER_16 "^0x[0-9a-fA-F]+$"
+#define PU_CONFIG_TAG_REGEX_FLOAT      "^[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?$"
+
 G_DEFINE_TYPE_WITH_PRIVATE(PuConfig, pu_config, G_TYPE_OBJECT)
 
 static gboolean pu_config_parse_scalar(PuConfig *config,
@@ -55,8 +54,8 @@ pu_config_parse_scalar(PuConfig *config,
                        PuConfigValue *value)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
-    gchar *v = priv->event.data.scalar.value;
-    gchar *tag = priv->event.data.scalar.tag;
+    gchar *v = (gchar *) priv->event.data.scalar.value;
+    gchar *tag = (gchar *) priv->event.data.scalar.tag;
 
     g_debug("%s: tag '%s', value '%s'", G_STRFUNC, tag, v);
 
@@ -66,42 +65,33 @@ pu_config_parse_scalar(PuConfig *config,
      * specified. Check for the correct type manually in this case. */
     if (priv->event.data.scalar.plain_implicit ||
         priv->event.data.scalar.quoted_implicit) {
-        if (g_regex_match_simple("null|NULL|Null|~", v, 0, 0)) {
+        if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_NULL, v, 0, 0)) {
             value->data.string = NULL;
             value->type = PU_CONFIG_VALUE_TYPE_NULL;
-            g_debug("null");
-        } else if (g_regex_match_simple("true|True|TRUE|false|False|FALSE", v, 0, 0)) {
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_BOOLEAN, v, 0, 0)) {
             value->data.boolean = g_str_equal(g_ascii_strdown(v, -1), "true");
             value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
-            g_debug("boolean");
-        } else if (g_regex_match_simple("[-+]?[0-9]+", v, 0, 0)) {
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_INTEGER_10, v, 0, 0)) {
             value->data.integer = g_ascii_strtoll(v, NULL, 10);
             value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
-            g_debug("integer 10");
-        } else if (g_regex_match_simple("0x[0-9a-fA-F]+", v, 0, 0)) {
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_INTEGER_16, v, 0, 0)) {
             value->data.integer = g_ascii_strtoll(v, NULL, 16);
             value->type = PU_CONFIG_VALUE_TYPE_INTEGER_16;
-            g_debug("integer 16");
-        } else if (g_regex_match_simple("[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?", v, 0, 0)) {
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_FLOAT, v, 0, 0)) {
             value->data.number = g_ascii_strtod(v, NULL);
             value->type = PU_CONFIG_VALUE_TYPE_FLOAT;
-            g_debug("float");
         } else {
             value->data.string = g_strdup(v);
             value->type = PU_CONFIG_VALUE_TYPE_STRING;
-            g_debug("string");
         }
     } else {
-        if (g_strcmp0(tag, YAML_STR_TAG) == 0 || tag == NULL) {
-            g_debug("%s: string", G_STRFUNC);
+        if (g_str_equal(tag, YAML_STR_TAG)) {
             value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
             value->type = PU_CONFIG_VALUE_TYPE_STRING;
-        } else if (g_strcmp0(tag, YAML_INT_TAG) == 0) {
-            g_debug("%s: integer", G_STRFUNC);
+        } else if (g_str_equal(tag, YAML_INT_TAG)) {
             value->data.integer = g_ascii_strtoll((gchar *) priv->event.data.scalar.value, NULL, 10);
             value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
-        } else if (g_strcmp0(tag, YAML_BOOL_TAG) == 0) {
-            g_debug("%s: boolean", G_STRFUNC);
+        } else if (g_str_equal(tag, YAML_BOOL_TAG)) {
             value->data.boolean = g_str_equal(g_ascii_strdown((gchar *) priv->event.data.scalar.value, -1), "true");
             value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
         } else {
@@ -221,15 +211,12 @@ pu_config_free_mapping(GHashTable *mapping)
     gchar *key;
     PuConfigValue *value;
 
-    g_debug("free mapping");
-
     g_hash_table_iter_init(&iter, mapping);
 
-    while (g_hash_table_iter_next(&iter, (gpointer) &key, (gpointer) &value)) {
+    while (g_hash_table_iter_next(&iter, (gpointer *) &key, (gpointer *) &value)) {
         g_free(key);
         switch (value->type) {
         case PU_CONFIG_VALUE_TYPE_STRING:
-            g_debug("mapping free string");
             g_free(value->data.string);
             break;
         case PU_CONFIG_VALUE_TYPE_MAPPING:
@@ -241,9 +228,10 @@ pu_config_free_mapping(GHashTable *mapping)
         default:
             break;
         }
-        g_debug("mapping free config value");
         g_free(value);
     }
+
+    g_hash_table_destroy(mapping);
 }
 
 void
@@ -255,7 +243,6 @@ pu_config_free_sequence(GList *sequence)
         value = node->data;
         switch (value->type) {
         case PU_CONFIG_VALUE_TYPE_STRING:
-            g_debug("sequence free string");
             g_free(value->data.string);
             break;
         case PU_CONFIG_VALUE_TYPE_MAPPING:
@@ -267,9 +254,10 @@ pu_config_free_sequence(GList *sequence)
         default:
             break;
         }
-        g_debug("sequence free config value");
         g_free(value);
     }
+
+    g_list_free(g_steal_pointer(&sequence));
 }
 
 static void
@@ -316,10 +304,7 @@ pu_config_class_finalize(GObject *object)
     PuConfig *self = PU_CONFIG(object);
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
-    g_debug("finalize");
-
     g_free(priv->contents);
-    /* TODO: Free individual elements of hash table first */
     pu_config_free_mapping(priv->root);
 
     yaml_event_delete(&priv->event);
@@ -400,8 +385,6 @@ pu_config_new_from_file(const gchar *filename,
             break;
         }
     } while (priv->event.type != YAML_DOCUMENT_END_EVENT);
-
-    g_debug("Finished parsing");
 
     PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
     g_return_val_if_fail(value != NULL, NULL);
