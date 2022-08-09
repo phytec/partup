@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "config.h"
 #include "utils.h"
 
 gboolean
@@ -165,16 +166,12 @@ pu_hash_table_lookup_string(GHashTable *hash_table,
                             const gchar *key,
                             const gchar *def)
 {
-    gchar *value;
-
-    g_return_val_if_fail(hash_table != NULL, NULL);
-
-    value = g_hash_table_lookup(hash_table, key);
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
 
     if (value == NULL)
         return g_strdup(def);
 
-    return g_strdup(value);
+    return g_strdup(value->data.string);
 }
 
 gint64
@@ -182,12 +179,12 @@ pu_hash_table_lookup_int64(GHashTable *hash_table,
                            const gchar *key,
                            gint64 def)
 {
-    gchar *value = g_hash_table_lookup(hash_table, key);
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
 
     if (value == NULL)
         return def;
 
-    return g_ascii_strtoll(value, NULL, 10);
+    return value->data.integer;
 }
 
 gboolean
@@ -195,12 +192,12 @@ pu_hash_table_lookup_boolean(GHashTable *hash_table,
                              const gchar *key,
                              gboolean def)
 {
-    gchar *value_str = g_hash_table_lookup(hash_table, key);
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
 
-    if (value_str == NULL)
+    if (value == NULL)
         return def;
 
-    return g_str_equal(g_ascii_strdown(value_str, -1), "true");
+    return value->data.boolean;
 }
 
 PedSector
@@ -209,17 +206,17 @@ pu_hash_table_lookup_sector(GHashTable *hash_table,
                             const gchar *key,
                             PedSector def)
 {
-    gchar *value_str = g_hash_table_lookup(hash_table, key);
-    PedSector value;
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
+    PedSector sector;
 
-    if (value_str == NULL)
+    if (value == NULL)
         return def;
 
-    if (!ped_unit_parse(value_str, device, &value, NULL)) {
+    if (!ped_unit_parse(value->data.string, device, &sector, NULL)) {
         g_warning("Failed parsing value '%s' to sectors, using default '%lld'",
-                  value_str, def);
+                  value->data.string, def);
         return def;
     }
 
-    return value;
+    return sector;
 }
