@@ -352,19 +352,33 @@ pu_emmc_new(const gchar *device_path,
     g_return_val_if_fail(self->disktype != NULL, NULL);
 
     PedSector fixed_parts_size = 0;
-    GList *partitions = g_hash_table_lookup(root, "partitions");
+    PuConfigValue *node_partitions = g_hash_table_lookup(root, "partitions");
+    g_return_val_if_fail(node_partitions->type == PU_CONFIG_VALUE_TYPE_SEQUENCE, NULL);
+    GList *partitions = node_partitions->data.sequence;
     g_return_val_if_fail(partitions != NULL, NULL);
+    g_debug("1");
 
     for (GList *p = partitions; p != NULL; p = p->next) {
+        g_debug("part loop start");
+        PuConfigValue *v = p->data;
+        g_return_val_if_fail(v->type == PU_CONFIG_VALUE_TYPE_MAPPING, NULL);
+        g_debug("is mapping");
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
-        part->label = pu_hash_table_lookup_string(p->data, "label", "");
-        part->filesystem = pu_hash_table_lookup_string(p->data, "filesystem", "");
-        part->size = pu_hash_table_lookup_sector(p->data, self->device, "size", 0);
-        part->offset = pu_hash_table_lookup_sector(p->data, self->device, "offset", 0);
-        part->expand = pu_hash_table_lookup_boolean(p->data, "expand", FALSE);
-        part->input = pu_hash_table_lookup_string(p->data, "input", "");
+        g_debug("new part");
+        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", "");
+        g_debug("got label");
+        part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
+        g_debug("got filesystem");
+        part->size = pu_hash_table_lookup_sector(v->data.mapping, self->device, "size", 0);
+        g_debug("got size");
+        part->offset = pu_hash_table_lookup_sector(v->data.mapping, self->device, "offset", 0);
+        g_debug("got offset");
+        part->expand = pu_hash_table_lookup_boolean(v->data.mapping, "expand", FALSE);
+        g_debug("got boolean");
+        part->input = pu_hash_table_lookup_string(v->data.mapping, "input", "");
+        g_debug("got input");
 
-        g_autofree gchar *type_str = pu_hash_table_lookup_string(p->data, "type", "primary");
+        g_autofree gchar *type_str = pu_hash_table_lookup_string(v->data.mapping, "type", "primary");
         if (g_str_equal(type_str, "primary"))
             part->type = PED_PARTITION_NORMAL;
         else if (g_str_equal(type_str, "logical"))
@@ -393,31 +407,36 @@ pu_emmc_new(const gchar *device_path,
                 self->num_expanded_parts, self->expanded_part_size);
     }
 
-    GList *raw = g_hash_table_lookup(root, "raw");
-    g_return_val_if_fail(raw != NULL, NULL);
+    PuConfigValue *node_raw = g_hash_table_lookup(root, "raw");
+    if (node_raw != NULL) {
+        GList *raw = node_raw->data.sequence;
 
-    for (GList *b = raw; b != NULL; b = b->next) {
-        PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
-        bin->input_offset = pu_hash_table_lookup_sector(b->data, self->device, "input-offset", 0);
-        bin->output_offset = pu_hash_table_lookup_sector(b->data, self->device, "output-offset", 0);
-        bin->input = pu_hash_table_lookup_string(b->data, "input", "");
+        for (GList *b = raw; b != NULL; b = b->next) {
+            PuConfigValue *v = b->data;
+            PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
+            bin->input_offset = pu_hash_table_lookup_sector(v->data.mapping, self->device, "input-offset", 0);
+            bin->output_offset = pu_hash_table_lookup_sector(v->data.mapping, self->device, "output-offset", 0);
+            bin->input = pu_hash_table_lookup_string(v->data.mapping, "input", "");
 
-        self->raw = g_list_prepend(self->raw, bin);
+            self->raw = g_list_prepend(self->raw, bin);
+        }
+
+        self->raw = g_list_reverse(self->raw);
     }
 
-    self->raw = g_list_reverse(self->raw);
-
-    GHashTable *bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
-    g_return_val_if_fail(bootpart != NULL, NULL);
-    self->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
-    self->emmc_boot_partitions->enable =
-        pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
-    self->emmc_boot_partitions->input_offset =
-        pu_hash_table_lookup_sector(bootpart, self->device, "input-offset", 0);
-    self->emmc_boot_partitions->output_offset =
-        pu_hash_table_lookup_sector(bootpart, self->device, "output-offset", 0);
-    self->emmc_boot_partitions->input =
-        pu_hash_table_lookup_string(bootpart, "input", "");
+    PuConfigValue *node_bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
+    if (node_bootpart != NULL) {
+        GHashTable *bootpart = node_bootpart->data.mapping;
+        self->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
+        self->emmc_boot_partitions->enable =
+            pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
+        self->emmc_boot_partitions->input_offset =
+            pu_hash_table_lookup_sector(bootpart, self->device, "input-offset", 0);
+        self->emmc_boot_partitions->output_offset =
+            pu_hash_table_lookup_sector(bootpart, self->device, "output-offset", 0);
+        self->emmc_boot_partitions->input =
+            pu_hash_table_lookup_string(bootpart, "input", "");
+    }
 
     return g_steal_pointer(&self);
 }
