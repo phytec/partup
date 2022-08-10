@@ -16,7 +16,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
-      - name: Build and run tests
+      - name: Build unit tests and program
+        run: meson build -Dbuildtype=debug
+      - name: Run unit tests
+        run: meson test -C build
+      - name: Run integration tests
         run: |
-          meson build -Dbuildtype=debug
-          meson test -C build
+          dd if=/dev/zero of=mmcblk0 bs=1MiB count=128
+          sudo ./build/partup -d -c tests/config/simple.yaml mmcblk0
