@@ -161,6 +161,8 @@ pu_bootpart_enable(const gchar *device,
     return TRUE;
 }
 
+/* TODO: Move lookup functions to config object */
+
 gchar *
 pu_hash_table_lookup_string(GHashTable *hash_table,
                             const gchar *key,
@@ -224,4 +226,22 @@ pu_hash_table_lookup_sector(GHashTable *hash_table,
     }
 
     return sector;
+}
+
+GList *
+pu_hash_table_lookup_list(GHashTable *hash_table,
+                          const gchar *key,
+                          GList *def)
+{
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
+
+    if (value == NULL)
+        return def;
+
+    if (value->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
+        g_warning("Failed parsing sequence for key '%s'", key);
+        return def;
+    }
+
+    return value->data.sequence;
 }

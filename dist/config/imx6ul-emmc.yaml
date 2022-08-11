@@ -23,9 +23,13 @@ partitions:
       filesystem: "fat32"
       size: 64MiB
       offset: 4MiB
-      input: "/root/zImage /root/oftree"
-      input-md5sum: "00000 00000"
-      input-sha256sum: "438957389457398475 893475938475983475"
+      input:
+        - uri: "/root/zImage"
+          md5sum: "39405873984579384"
+          sha256sum: "3894579384753904759384759083475893475"
+        - uri: "/root/oftree"
+          md5sum: "39405873984579384"
+          sha256sum: "3894579384753904759384759083475893475"
   - partition:
       label: "BOOT1"
       type: "primary"
@@ -37,21 +41,23 @@ partitions:
           sha256sum: "3894579384753904759384759083475893475"
         - uri: "/root/oftree"
           md5sum: "39405873984579384"
-          sha256sum: "3894579384753904759384759083475893475"
+          sha256sum: 3894579384753904759384759083475893475
   - partition:
-      label: "CONFIG"
-      type: "primary"
-      filesystem: "ext4"
+      label: CONFIG
+      type: primary
+      filesystem: ext4
       size: 32MiB
   - partition:
-      label: "ROOT0"
-      type: "logical"
-      filesystem: "ext4"
+      label: ROOT0
+      type: logical
+      filesystem: ext4
       expand: true
-      input: "/root/root.tar.gz"
+      input:
+        - uri: /root/root.tar.gz
   - partition:
-      label: "ROOT1"
-      type: "logical"
-      filesystem: "ext4"
+      label: ROOT1
+      type: logical
+      filesystem: ext4
       expand: true
-      input: "/root/root.tar.gz"
+      input:
+        - uri: file:///root/root.tar.gz

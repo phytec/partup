@@ -63,8 +63,7 @@ pu_config_parse_scalar(PuConfig *config,
 
     /* libyaml does not automatically assign a tag when none is explicitly
      * specified. Check for the correct type manually in this case. */
-    if (priv->event.data.scalar.plain_implicit ||
-        priv->event.data.scalar.quoted_implicit) {
+    if (priv->event.data.scalar.plain_implicit) {
         if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_NULL, v, 0, 0)) {
             value->data.string = NULL;
             value->type = PU_CONFIG_VALUE_TYPE_NULL;
@@ -84,6 +83,9 @@ pu_config_parse_scalar(PuConfig *config,
             value->data.string = g_strdup(v);
             value->type = PU_CONFIG_VALUE_TYPE_STRING;
         }
+    } else if (priv->event.data.scalar.quoted_implicit) {
+        value->data.string = g_strdup(v);
+        value->type = PU_CONFIG_VALUE_TYPE_STRING;
     } else {
         if (g_str_equal(tag, YAML_STR_TAG)) {
             value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
