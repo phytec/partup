@@ -219,7 +219,8 @@ pu_hash_table_lookup_sector(GHashTable *hash_table,
         return value->data.integer;
     }
 
-    if (!ped_unit_parse(value->data.string, device, &sector, NULL)) {
+    if (value->type != PU_CONFIG_VALUE_TYPE_STRING ||
+        !ped_unit_parse(value->data.string, device, &sector, NULL)) {
         g_warning("Failed parsing value '%s' to sectors, using default '%lld'",
                   value->data.string, def);
         return def;

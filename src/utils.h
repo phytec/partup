@@ -40,5 +40,8 @@ PedSector pu_hash_table_lookup_sector(GHashTable *hash_table,
                                       PedDevice *device,
                                       const gchar *key,
                                       PedSector def);
+GList * pu_hash_table_lookup_list(GHashTable *hash_table,
+                                  const gchar *key,
+                                  GList *def);
 
 #endif /* PARTUP_UTILS_H */
