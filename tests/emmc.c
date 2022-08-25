@@ -11,6 +11,30 @@
 #include "error.h"
 
 static void
+create_tmp_file(const gchar *template,
+                gchar **out_file,
+                gsize size,
+                GError **error)
+{
+    g_autoptr(GFile) file = NULL;
+    g_autoptr(GFileIOStream) stream = NULL;
+    g_autofree guchar *buffer = NULL;
+
+    file = g_file_new_tmp(template, &stream, error);
+    g_assert_nonnull(file);
+    g_assert_nonnull(stream);
+    *out_file = g_file_get_path(file);
+    g_debug("writing filename %s", *out_file);
+    //g_assert_nonnull(out_file);
+    buffer = g_new0(guchar, size);
+    gsize written = 0;
+    GOutputStream *output = g_io_stream_get_output_stream(G_IO_STREAM(stream));
+    g_assert_true(g_output_stream_write_all(output, buffer, size, &written, NULL, error));
+    g_debug("written bytes: %lu", written);
+    g_assert_no_error(*error);
+}
+
+static void
 emmc_simple(void)
 {
     g_autoptr(GError) error = NULL;
@@ -21,26 +45,17 @@ emmc_simple(void)
     g_assert_nonnull(config);
 
     // TODO: Create a binary file with zeros of size 128MiB
-    g_autoptr(GFile) file = NULL;
-    g_autoptr(GFileIOStream) stream = NULL;
     g_autofree gchar *path = NULL;
-    g_autofree guchar *buffer = NULL;
+    create_tmp_file("partup-XXXXXX-mmcblk0", &path, 100 * PED_MEBIBYTE_SIZE, &error);
+    create_tmp_file("partup-XXXXXX-mmcblk0p1", &path, 32 * PED_MEBIBYTE_SIZE, &error);
+    create_tmp_file("partup-XXXXXX-mmcblk0p2", &path, 64 * PED_MEBIBYTE_SIZE, &error);
 
-    file = g_file_new_tmp("partup-emmc-XXXXXX.img", &stream, &error);
-    g_assert_nonnull(file);
-    g_assert_nonnull(stream);
-    path = g_file_get_path(file);
-    g_assert_nonnull(path);
-    gsize size = 100 * PED_MEBIBYTE_SIZE;
-    buffer = g_new0(guchar, size);
-    gsize written = 0;
-    GOutputStream *output = g_io_stream_get_output_stream(G_IO_STREAM(stream));
-    g_assert_true(g_output_stream_write_all(output, buffer, size, &written, NULL, &error));
-    g_debug("written bytes: %lu", written);
-    g_assert_no_error(error);
-
-    emmc = pu_emmc_new(path, config, &error);
+    /*emmc = pu_emmc_new(path, config, &error);
     g_assert_nonnull(emmc);
+    g_assert_true(pu_flash_init_device(PU_FLASH(emmc), &error));
+    g_assert_true(pu_flash_setup_layout(PU_FLASH(emmc), &error));
+    g_assert_true(pu_flash_write_data(PU_FLASH(emmc), &error));*/
+    //g_assert_true(g_file_delete(file, NULL, &error));
 }
 
 int

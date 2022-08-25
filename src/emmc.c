@@ -394,18 +394,24 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
                             GHashTable *root,
                             GError **error)
 {
-    PuConfigValue *node_bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
+    PuConfigValue *value_bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
 
-    if (!node_bootpart)
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("bootpart");
+
+    if (!value_bootpart)
         return TRUE;
 
-    if (node_bootpart->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+    if (value_bootpart->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                     "'emmc-boot-partitions' is not a valid YAML mapping");
         return FALSE;
     }
 
-    GHashTable *bootpart = node_bootpart->data.mapping;
+    GHashTable *bootpart = value_bootpart->data.mapping;
     emmc->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     emmc->emmc_boot_partitions->enable =
         pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
@@ -413,42 +419,58 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
         pu_hash_table_lookup_sector(bootpart, emmc->device, "input-offset", 0);
     emmc->emmc_boot_partitions->output_offset =
         pu_hash_table_lookup_sector(bootpart, emmc->device, "output-offset", 0);
-    emmc->emmc_boot_partitions->input =
-        pu_hash_table_lookup_string(bootpart, "input", "");
+
+    PuConfigValue *value_input = g_hash_table_lookup(bootpart, "input");
+    if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'input' of binary does not contain a mapping");
+        return FALSE;
+    }
+    PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+    input->uri = pu_hash_table_lookup_string(value_input->data.mapping, "uri", "");
+    input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
+    input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+    emmc->emmc_boot_partitions->input = input;
 
     return TRUE;
 }
 
 static gboolean
-pu_emmc_lookup_raw(PuEmmc *emmc,
-                   PuConfig *config,
-                   GError **error)
+pu_emmc_parse_raw(PuEmmc *emmc,
+                  GHashTable *root,
+                  GError **error)
 {
-    GHashTable *root;
-    PuConfigValue *value_raw;
+    PuConfigValue *value_raw = g_hash_table_lookup(root, "raw");
     GList *raw;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
-    g_return_val_if_fail(config != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    root = pu_config_get_root(config);
+    g_debug("raw");
 
-    value_raw = g_hash_table_lookup(root, "raw");
+    if (!value_raw)
+        return TRUE;
+
+    g_debug("1");
     if (value_raw->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                     "'raw' is not a sequence");
         return FALSE;
     }
+    g_debug("2");
     raw = value_raw->data.sequence;
+    g_debug("3");
 
     for (GList *b = raw; b != NULL; b = b->next) {
+        g_debug("0");
         PuConfigValue *v = b->data;
         PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
         bin->input_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
                                                         "input-offset", 0);
         bin->output_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
                                                          "output-offset", 0);
+        g_debug("A");
         PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
         if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
             g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
@@ -459,9 +481,14 @@ pu_emmc_lookup_raw(PuEmmc *emmc,
         input->uri = pu_hash_table_lookup_string(value_input->data.mapping, "uri", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+        bin->input = input;
 
         emmc->raw = g_list_prepend(emmc->raw, bin);
+
+        g_debug("B");
     }
+
+    g_debug("C");
 
     emmc->raw = g_list_reverse(emmc->raw);
 
@@ -469,23 +496,25 @@ pu_emmc_lookup_raw(PuEmmc *emmc,
 }
 
 static gboolean
-pu_emmc_lookup_partitions(PuEmmc *emmc,
-                          PuConfig *config,
-                          GError **error)
+pu_emmc_parse_partitions(PuEmmc *emmc,
+                         GHashTable *root,
+                         GError **error)
 {
-    GHashTable *root;
-    PuConfigValue *value_partitions;
+    PuConfigValue *value_partitions = g_hash_table_lookup(root, "partitions");
     GList *partitions;
     PedSector fixed_parts_size = 0;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
-    g_return_val_if_fail(config != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    root = pu_config_get_root(config);
+    g_debug("partitions");
+
     emmc->num_expanded_parts = 0;
 
-    value_partitions = g_hash_table_lookup(root, "partitions");
+    if (!value_partitions)
+        return TRUE;
+
     if (value_partitions->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                     "'partitions' is not a sequence");
@@ -522,7 +551,9 @@ pu_emmc_lookup_partitions(PuEmmc *emmc,
                 input->uri = pu_hash_table_lookup_string(iv->data.mapping, "uri", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
+                input_list = g_list_prepend(input_list, input);
             }
+            input_list = g_list_reverse(input_list);
         }
 
         g_autofree gchar *type_str = pu_hash_table_lookup_string(v->data.mapping, "type", "primary");
@@ -591,10 +622,13 @@ pu_emmc_new(const gchar *device_path,
     self->disktype = ped_disk_type_get(disklabel);
     g_return_val_if_fail(self->disktype != NULL, NULL);
 
-    /*if (!pu_emmc_parse_emmc_bootpart(self, root, error)) {
+    if (!pu_emmc_parse_emmc_bootpart(self, root, error) ||
+        !pu_emmc_parse_raw(self, root, error) ||
+        !pu_emmc_parse_partitions(self, root, error)) {
+        g_printerr("emmc failed: %s\n", (*error)->message);
         g_clear_pointer(&self, g_object_unref);
         return NULL;
-    }*/
+    }
 
     return g_steal_pointer(&self);
 }
