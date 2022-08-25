@@ -11,8 +11,8 @@
 #include "error.h"
 
 static void
-create_tmp_file(const gchar *template,
-                gchar **out_file,
+create_tmp_file(const gchar *filename,
+                const gchar *pwd,
                 gsize size,
                 GError **error)
 {
@@ -20,17 +20,10 @@ create_tmp_file(const gchar *template,
     g_autoptr(GFileIOStream) stream = NULL;
     g_autofree guchar *buffer = NULL;
 
-    file = g_file_new_tmp(template, &stream, error);
+    file = g_file_get_child(pwd, filename);
     g_assert_nonnull(file);
-    g_assert_nonnull(stream);
-    *out_file = g_file_get_path(file);
-    g_debug("writing filename %s", *out_file);
-    //g_assert_nonnull(out_file);
     buffer = g_new0(guchar, size);
-    gsize written = 0;
-    GOutputStream *output = g_io_stream_get_output_stream(G_IO_STREAM(stream));
-    g_assert_true(g_output_stream_write_all(output, buffer, size, &written, NULL, error));
-    g_debug("written bytes: %lu", written);
+    g_assert_true(g_file_replace_contents(file, buffer, size, NULL, FALSE, 0, NULL, NULL, error);
     g_assert_no_error(*error);
 }
 
@@ -46,16 +39,21 @@ emmc_simple(void)
 
     // TODO: Create a binary file with zeros of size 128MiB
     g_autofree gchar *path = NULL;
-    create_tmp_file("partup-XXXXXX-mmcblk0", &path, 100 * PED_MEBIBYTE_SIZE, &error);
-    create_tmp_file("partup-XXXXXX-mmcblk0p1", &path, 32 * PED_MEBIBYTE_SIZE, &error);
-    create_tmp_file("partup-XXXXXX-mmcblk0p2", &path, 64 * PED_MEBIBYTE_SIZE, &error);
+    path = g_dir_make_tmp("partup-XXXXXX", &error);
+    g_assert_no_error(error);
+    create_tmp_file("mmcblk0", path, 100 * PED_MEBIBYTE_SIZE, &error);
+    create_tmp_file("mmcblk0p1", path, 32 * PED_MEBIBYTE_SIZE, &error);
+    create_tmp_file("mmcblk0p2", path, 64 * PED_MEBIBYTE_SIZE, &error);
 
-    /*emmc = pu_emmc_new(path, config, &error);
+    emmc = pu_emmc_new(path, config, &error);
     g_assert_nonnull(emmc);
     g_assert_true(pu_flash_init_device(PU_FLASH(emmc), &error));
     g_assert_true(pu_flash_setup_layout(PU_FLASH(emmc), &error));
-    g_assert_true(pu_flash_write_data(PU_FLASH(emmc), &error));*/
-    //g_assert_true(g_file_delete(file, NULL, &error));
+    /*g_assert_true(pu_flash_write_data(PU_FLASH(emmc), &error));*/
+    g_assert_true(g_file_delete(g_strjoin("/", path, "mmcblk0")));
+    g_assert_true(g_file_delete(g_strjoin("/", path, "mmcblk0p1")));
+    g_assert_true(g_file_delete(g_strjoin("/", path, "mmcblk0p2")));
+    g_assert_cmpint(g_rmdir(path), ==, 0);
 }
 
 int
