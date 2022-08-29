@@ -45,7 +45,7 @@ static gboolean pu_config_parse_scalar(PuConfig *config,
 static gboolean pu_config_parse_mapping(PuConfig *config,
                                         GHashTable **mapping);
 static gboolean pu_config_parse_sequence(PuConfig *config,
-                                         GList **sequence);
+                                         GList *sequence);
 static void pu_config_free_mapping(GHashTable *mapping);
 static void pu_config_free_sequence(GList *sequence);
 
@@ -142,7 +142,7 @@ pu_config_parse_mapping(PuConfig *config,
             g_hash_table_insert(*mapping, key, value);
             break;
         case YAML_SEQUENCE_START_EVENT:
-            pu_config_parse_sequence(config, &value->data.sequence);
+            pu_config_parse_sequence(config, value->data.sequence);
             value->type = PU_CONFIG_VALUE_TYPE_SEQUENCE;
             g_hash_table_insert(*mapping, key, value);
             break;
@@ -161,7 +161,7 @@ pu_config_parse_mapping(PuConfig *config,
 
 gboolean
 pu_config_parse_sequence(PuConfig *config,
-                         GList **sequence)
+                         GList *sequence)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
     PuConfigValue *value;
@@ -169,7 +169,7 @@ pu_config_parse_sequence(PuConfig *config,
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(priv->event.type == YAML_SEQUENCE_START_EVENT, FALSE);
-    g_return_val_if_fail(*sequence == NULL, FALSE);
+    g_return_val_if_fail(sequence == NULL, FALSE);
 
     /* parse first node of sequence */
     g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
@@ -179,17 +179,17 @@ pu_config_parse_sequence(PuConfig *config,
         switch (priv->event.type) {
         case YAML_SCALAR_EVENT:
             pu_config_parse_scalar(config, value);
-            *sequence = g_list_prepend(*sequence, value);
+            sequence = g_list_prepend(sequence, value);
             break;
         case YAML_MAPPING_START_EVENT:
             pu_config_parse_mapping(config, &value->data.mapping);
             value->type = PU_CONFIG_VALUE_TYPE_MAPPING;
-            *sequence = g_list_prepend(*sequence, value);
+            sequence = g_list_prepend(sequence, value);
             break;
         case YAML_SEQUENCE_START_EVENT:
-            pu_config_parse_sequence(config, &value->data.sequence);
+            pu_config_parse_sequence(config, value->data.sequence);
             value->type = PU_CONFIG_VALUE_TYPE_SEQUENCE;
-            *sequence = g_list_prepend(*sequence, value);
+            sequence = g_list_prepend(sequence, value);
             break;
         default:
             g_critical("Unexpected YAML event %d occured", priv->event.type);
@@ -201,7 +201,7 @@ pu_config_parse_sequence(PuConfig *config,
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     } while (priv->event.type != YAML_SEQUENCE_END_EVENT);
 
-    *sequence = g_list_reverse(*sequence);
+    sequence = g_list_reverse(sequence);
 
     return TRUE;
 }
