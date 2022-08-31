@@ -60,7 +60,6 @@ emmc_create_partition(PuEmmc *self,
                       PedSector start,
                       GError **error)
 {
-    /* TODO: Rename to more distinct name to not collision with PuEmmcPartition */
     PedPartition *part;
     PedFileSystemType *fstype;
     PedConstraint *constraint;
@@ -302,6 +301,7 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcInput *input = self->emmc_boot_partitions->input;
         g_autofree gchar *path = NULL;
 
+        /* TODO: Use URI schemes, like file:// and fail if no scheme was used */
         if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
                          &path, NULL, NULL, error)) {
             g_prefix_error(error, "Failed parsing input URI for eMMC boot partition");

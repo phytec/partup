@@ -72,6 +72,8 @@ pu_make_filesystem(const gchar *part,
     return TRUE;
 }
 
+/* TODO: Use more g_file_* functions. This also allows for getting back the
+ * actually written data for verification of their checksum. */
 gboolean
 pu_write_raw(const gchar *input,
              const gchar *output,
@@ -161,7 +163,7 @@ pu_bootpart_enable(const gchar *device,
     return TRUE;
 }
 
-/* TODO: Move lookup functions to config object */
+/* TODO: Move lookup functions to config object or separate hashtable.c */
 
 gchar *
 pu_hash_table_lookup_string(GHashTable *hash_table,
