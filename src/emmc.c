@@ -7,7 +7,6 @@
 #include <glib/gstdio.h>
 #include "mount.h"
 #include "utils.h"
-#include "configemmc.h"
 #include "emmc.h"
 #include "error.h"
 
@@ -329,25 +328,32 @@ pu_emmc_init(G_GNUC_UNUSED PuEmmc *self)
 
 PuEmmc *
 pu_emmc_new(const gchar *device_path,
-            PuConfigEmmc *config)
+            PuConfig *config)
 {
     g_return_val_if_fail(device_path != NULL, NULL);
     g_return_val_if_fail(!g_str_equal(device_path, ""), NULL);
     g_return_val_if_fail(config != NULL, NULL);
-    g_return_val_if_fail(PU_IS_CONFIG_EMMC(config), NULL);
+    g_return_val_if_fail(PU_IS_CONFIG(config), NULL);
 
     PuEmmc *self = g_object_new(PU_TYPE_EMMC,
                                 "device-path", device_path,
-                                "config", PU_CONFIG(config),
+                                "config", config,
                                 NULL);
+    GHashTable *root = pu_config_get_root(config);
+
     self->device = ped_device_get(device_path);
     g_return_val_if_fail(self->device != NULL, NULL);
     self->num_expanded_parts = 0;
     self->disktype = ped_disk_type_get(pu_config_emmc_get_disklabel(config));
     g_return_val_if_fail(self->disktype != NULL, NULL);
 
+    g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", "msdos");
+    self->disktype = ped_disk_type_get(disklabel);
+    g_return_val_if_fail(self->disktype != NULL, NULL);
+
     PedSector fixed_parts_size = 0;
-    GList *partitions = pu_config_emmc_get_partitions(config);
+    GList *partitions = g_hash_table_lookup(root, "partitions");
+    g_return_val_if_fail(partitions != NULL, NULL);
 
     for (GList *p = partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
@@ -387,7 +393,8 @@ pu_emmc_new(const gchar *device_path,
                 self->num_expanded_parts, self->expanded_part_size);
     }
 
-    GList *raw = pu_config_emmc_get_raw(config);
+    GList *raw = g_hash_table_lookup(root, "raw");
+    g_return_val_if_fail(raw != NULL, NULL);
 
     for (GList *b = raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
@@ -400,7 +407,8 @@ pu_emmc_new(const gchar *device_path,
 
     self->raw = g_list_reverse(self->raw);
 
-    GHashTable *bootpart = pu_config_emmc_get_bootpart(config);
+    GHashTable *bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
+    g_return_val_if_fail(bootpart != NULL, NULL);
     self->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     self->emmc_boot_partitions->enable =
         pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);

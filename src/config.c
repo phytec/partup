@@ -6,239 +6,265 @@
 #include <glib.h>
 #include <gio/gio.h>
 #include <gmodule.h>
-#include <parted/parted.h>
 #include <yaml.h>
 #include "config.h"
-#include "configprivate.h"
 #include "error.h"
 
-typedef struct {
+typedef struct _PuConfigPrivate PuConfigPrivate;
+
+struct _PuConfigPrivate {
     yaml_parser_t parser;
     yaml_event_t event;
     gchar *contents;
     gsize contents_len;
 
-    gchar *path;
+    GHashTable *root;
     gint api_version;
-} PuConfigPrivate;
+};
+struct _PuConfig {
+    GObject parent;
+};
 
 enum {
     PROP_0,
-    PROP_PATH,
     PROP_API_VERSION,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
 
-G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE(PuConfig, pu_config, G_TYPE_OBJECT)
+#define PU_CONFIG_TAG_REGEX_NULL       "^(null|NULL|Null|~)$"
+#define PU_CONFIG_TAG_REGEX_BOOLEAN    "^(true|True|TRUE|false|False|FALSE)$"
+#define PU_CONFIG_TAG_REGEX_INTEGER_10 "^[-+]?[0-9]+$"
+#define PU_CONFIG_TAG_REGEX_INTEGER_16 "^0x[0-9a-fA-F]+$"
+#define PU_CONFIG_TAG_REGEX_FLOAT      "^[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?$"
+
+G_DEFINE_TYPE_WITH_PRIVATE(PuConfig, pu_config, G_TYPE_OBJECT)
+
+static gboolean pu_config_parse_scalar(PuConfig *config,
+                                       PuConfigValue *value);
+static gboolean pu_config_parse_mapping(PuConfig *config,
+                                        GHashTable **mapping);
+static gboolean pu_config_parse_sequence(PuConfig *config,
+                                         GList **sequence);
+static void pu_config_free_mapping(GHashTable *mapping);
+static void pu_config_free_sequence(GList *sequence);
 
 gboolean
-pu_config_parse(PuConfig *self)
+pu_config_parse_scalar(PuConfig *config,
+                       PuConfigValue *value)
 {
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
+    gchar *v = (gchar *) priv->event.data.scalar.value;
+    gchar *tag = (gchar *) priv->event.data.scalar.tag;
 
-    if (!yaml_parser_parse(&priv->parser, &priv->event)) {
-        g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
-                   priv->parser.error);
-        return FALSE;
+    g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
+
+    /* libyaml does not automatically assign a tag when none is explicitly
+     * specified. Check for the correct type manually in this case. */
+    if (priv->event.data.scalar.plain_implicit) {
+        if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_NULL, v, 0, 0)) {
+            value->data.string = NULL;
+            value->type = PU_CONFIG_VALUE_TYPE_NULL;
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_BOOLEAN, v, 0, 0)) {
+            value->data.boolean = g_str_equal(g_ascii_strdown(v, -1), "true");
+            value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_INTEGER_10, v, 0, 0)) {
+            value->data.integer = g_ascii_strtoll(v, NULL, 10);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_INTEGER_16, v, 0, 0)) {
+            value->data.integer = g_ascii_strtoll(v, NULL, 16);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_16;
+        } else if (g_regex_match_simple(PU_CONFIG_TAG_REGEX_FLOAT, v, 0, 0)) {
+            value->data.number = g_ascii_strtod(v, NULL);
+            value->type = PU_CONFIG_VALUE_TYPE_FLOAT;
+        } else {
+            value->data.string = g_strdup(v);
+            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+        }
+    } else if (priv->event.data.scalar.quoted_implicit) {
+        value->data.string = g_strdup(v);
+        value->type = PU_CONFIG_VALUE_TYPE_STRING;
+    } else {
+        if (g_str_equal(tag, YAML_STR_TAG)) {
+            value->data.string = g_strdup((gchar *) priv->event.data.scalar.value);
+            value->type = PU_CONFIG_VALUE_TYPE_STRING;
+        } else if (g_str_equal(tag, YAML_INT_TAG)) {
+            value->data.integer = g_ascii_strtoll((gchar *) priv->event.data.scalar.value, NULL, 10);
+            value->type = PU_CONFIG_VALUE_TYPE_INTEGER_10;
+        } else if (g_str_equal(tag, YAML_BOOL_TAG)) {
+            value->data.boolean = g_str_equal(g_ascii_strdown((gchar *) priv->event.data.scalar.value, -1), "true");
+            value->type = PU_CONFIG_VALUE_TYPE_BOOLEAN;
+        } else {
+            g_critical("Unexpected scalar tag '%s' occurred", priv->event.data.scalar.tag);
+            return FALSE;
+        }
     }
 
-    return TRUE;
-}
-
-gboolean
-pu_config_parse_int(PuConfig *self,
-                    gint *value)
-{
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
-
-    if (!yaml_parser_parse(&priv->parser, &priv->event)) {
-        g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
-                   priv->parser.error);
-        return FALSE;
-    }
-    *value = g_ascii_strtoll(pu_config_get_event_value(self), NULL, 10);
-
-    return TRUE;
-}
-
-gboolean
-pu_config_parse_string(PuConfig *self,
-                       gchar **value)
-{
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
-
-    if (!yaml_parser_parse(&priv->parser, &priv->event)) {
-        g_critical("%s: %s (error %d)", G_STRFUNC, priv->parser.problem,
-                   priv->parser.error);
-        return FALSE;
-    }
-    *value = g_strdup(pu_config_get_event_value(self));
+    g_debug("%s: value=%s type=%d", G_STRFUNC, v, value->type);
 
     return TRUE;
 }
 
 gboolean
 pu_config_parse_mapping(PuConfig *config,
-                        GHashTable **mapping,
-                        const gchar * const valid_keys[])
+                        GHashTable **mapping)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
-    g_autofree gchar *key = NULL;
+    gchar *key;
+    PuConfigValue *value;
 
-    /* Parse first mapping */
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
+    g_debug("%s: start", G_STRFUNC);
+
     g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+    g_return_val_if_fail(*mapping == NULL, FALSE);
 
-    /* Parse first key */
+    *mapping = g_hash_table_new(g_str_hash, g_str_equal);
+
+    /* parse first key */
     g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-    g_debug("new hash table");
 
     do {
         /* key */
-        if (priv->event.type != YAML_SCALAR_EVENT) {
-            g_critical("Expected YAML_SCALAR_EVENT (%d), got %d!",
-                       YAML_SCALAR_EVENT, priv->event.type);
-            //g_hash_table_destroy(*mapping);
-            return FALSE;
-        }
-
-        if (g_strv_contains(valid_keys, (char *) priv->event.data.scalar.value)) {
-            key = g_strdup((char *) priv->event.data.scalar.value);
-        } else {
-            g_warning("Unknown key \"%s\"!", priv->event.data.scalar.value);
-            /* skip value of unknown key */
-            /* Maybe we should not consume the value, in case there is no
-             * value. */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-            continue;
-        }
+        g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
+        key = g_strdup((gchar *) priv->event.data.scalar.value);
+        g_debug("%s: key=%s", G_STRFUNC, key);
 
         /* value */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_debug("Inserting key-value pair into hash table");
-        g_hash_table_insert(*mapping, g_strdup(key),
-                            g_strdup((char *) priv->event.data.scalar.value));
+        value = g_new0(PuConfigValue, 1);
+        switch (priv->event.type) {
+        case YAML_SCALAR_EVENT:
+            pu_config_parse_scalar(config, value);
+            g_hash_table_insert(*mapping, key, value);
+            break;
+        case YAML_MAPPING_START_EVENT:
+            pu_config_parse_mapping(config, &value->data.mapping);
+            value->type = PU_CONFIG_VALUE_TYPE_MAPPING;
+            g_hash_table_insert(*mapping, key, value);
+            break;
+        case YAML_SEQUENCE_START_EVENT:
+            pu_config_parse_sequence(config, &value->data.sequence);
+            value->type = PU_CONFIG_VALUE_TYPE_SEQUENCE;
+            g_hash_table_insert(*mapping, key, value);
+            break;
+        default:
+            g_critical("Unexpected YAML event %d occured", priv->event.type);
+            g_free(value);
+            break;
+        }
 
-        g_debug("Done inserting");
-
-        /* Parse next key or end of mapping */
+        /* parse next key or end of mapping */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     } while (priv->event.type != YAML_MAPPING_END_EVENT);
+
+    g_debug("%s: end", G_STRFUNC);
 
     return TRUE;
 }
 
 gboolean
-pu_config_parse_sequence_of_mappings(PuConfig *config,
-                                     const gchar *name,
-                                     GList **mappings,
-                                     const gchar * const valid_keys[])
+pu_config_parse_sequence(PuConfig *config,
+                         GList **sequence)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
-    g_autofree gchar *key = NULL;
-    GHashTable *hash_table;
+    PuConfigValue *value;
 
-    g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
+    g_debug("%s: start", G_STRFUNC);
+
     g_return_val_if_fail(priv->event.type == YAML_SEQUENCE_START_EVENT, FALSE);
+    g_return_val_if_fail(*sequence == NULL, FALSE);
 
-    /* Parse first mapping */
+    /* parse first node of sequence */
     g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
 
     do {
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_SCALAR_EVENT, FALSE);
-        g_return_val_if_fail(g_str_equal(priv->event.data.scalar.value, name), FALSE);
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_START_EVENT, FALSE);
+        value = g_new0(PuConfigValue, 1);
+        switch (priv->event.type) {
+        case YAML_SCALAR_EVENT:
+            pu_config_parse_scalar(config, value);
+            *sequence = g_list_prepend(*sequence, value);
+            break;
+        case YAML_MAPPING_START_EVENT:
+            pu_config_parse_mapping(config, &value->data.mapping);
+            value->type = PU_CONFIG_VALUE_TYPE_MAPPING;
+            *sequence = g_list_prepend(*sequence, value);
+            break;
+        case YAML_SEQUENCE_START_EVENT:
+            pu_config_parse_sequence(config, &value->data.sequence);
+            value->type = PU_CONFIG_VALUE_TYPE_SEQUENCE;
+            *sequence = g_list_prepend(*sequence, value);
+            break;
+        default:
+            g_critical("Unexpected YAML event %d occured", priv->event.type);
+            g_free(value);
+            break;
+        }
 
-        /* Parse first key */
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-        g_debug("new hash table");
-
-        do {
-            /* key */
-            if (priv->event.type != YAML_SCALAR_EVENT) {
-                g_critical("Expected YAML_SCALAR_EVENT (%d), got %d!",
-                           YAML_SCALAR_EVENT, priv->event.type);
-                g_hash_table_destroy(hash_table);
-                return FALSE;
-            }
-
-            if (g_strv_contains(valid_keys, (char *) priv->event.data.scalar.value)) {
-                key = g_strdup((char *) priv->event.data.scalar.value);
-            } else {
-                g_warning("Unknown key '%s'!", priv->event.data.scalar.value);
-                /* skip value of unknown key */
-                /* Maybe we should not consume the value, in case there is no
-                 * value. */
-                g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-                continue;
-            }
-
-            /* value */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-            g_debug("Inserting key-value pair into hash table");
-            g_hash_table_insert(hash_table, g_strdup(key),
-                                g_strdup((char *) priv->event.data.scalar.value));
-            g_debug("Done inserting");
-
-            /* Parse next key */
-            g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        } while (priv->event.type != YAML_MAPPING_END_EVENT);
-
-        g_debug("Prepending hash table to mappings");
-        *mappings = g_list_prepend(*mappings, hash_table);
-        g_debug("Added new mapping of type '%s'", name);
-
-        g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
-        g_return_val_if_fail(priv->event.type == YAML_MAPPING_END_EVENT, FALSE);
-
-        /* Parse next mapping or end of sequence */
+        /* parse next node or end of sequence */
         g_return_val_if_fail(yaml_parser_parse(&priv->parser, &priv->event), FALSE);
     } while (priv->event.type != YAML_SEQUENCE_END_EVENT);
 
-    *mappings = g_list_reverse(*mappings);
-    g_debug("Done adding all mappings of type '%s'", name);
+    *sequence = g_list_reverse(*sequence);
+
+    g_debug("%s: end", G_STRFUNC);
 
     return TRUE;
 }
 
-yaml_event_type_t
-pu_config_get_event_type(PuConfig *self)
+void
+pu_config_free_mapping(GHashTable *mapping)
 {
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    GHashTableIter iter;
+    gchar *key;
+    PuConfigValue *value;
 
-    return priv->event.type;
-}
+    g_hash_table_iter_init(&iter, mapping);
 
-gpointer
-pu_config_get_event_value(PuConfig *self)
-{
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    while (g_hash_table_iter_next(&iter, (gpointer *) &key, (gpointer *) &value)) {
+        g_free(key);
+        switch (value->type) {
+        case PU_CONFIG_VALUE_TYPE_STRING:
+            g_free(value->data.string);
+            break;
+        case PU_CONFIG_VALUE_TYPE_MAPPING:
+            pu_config_free_mapping(value->data.mapping);
+            break;
+        case PU_CONFIG_VALUE_TYPE_SEQUENCE:
+            pu_config_free_sequence(value->data.sequence);
+            break;
+        default:
+            break;
+        }
+        g_free(value);
+    }
 
-    return priv->event.data.scalar.value;
+    g_hash_table_destroy(mapping);
 }
 
 void
-pu_config_set_api_version(PuConfig *self,
-                          gint api_version)
+pu_config_free_sequence(GList *sequence)
 {
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    PuConfigValue *value;
 
-    priv->api_version = api_version;
-}
+    for (GList *node = sequence; node != NULL; node = node->next) {
+        value = node->data;
+        switch (value->type) {
+        case PU_CONFIG_VALUE_TYPE_STRING:
+            g_free(value->data.string);
+            break;
+        case PU_CONFIG_VALUE_TYPE_MAPPING:
+            pu_config_free_mapping(value->data.mapping);
+            break;
+        case PU_CONFIG_VALUE_TYPE_SEQUENCE:
+            pu_config_free_sequence(value->data.sequence);
+            break;
+        default:
+            break;
+        }
+        g_free(value);
+    }
 
-static gboolean
-pu_config_default_read(PuConfig *self,
-                       G_GNUC_UNUSED GError **error)
-{
-    g_critical("Config of type '%s' does not implement PuConfig::read",
-               G_OBJECT_TYPE_NAME(self));
-
-    return FALSE;
+    g_list_free(g_steal_pointer(&sequence));
 }
 
 static void
@@ -251,10 +277,6 @@ pu_config_set_property(GObject *object,
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
     switch (prop_id) {
-    case PROP_PATH:
-        g_free(priv->path);
-        priv->path = g_value_dup_string(value);
-        break;
     case PROP_API_VERSION:
         priv->api_version = g_value_get_int(value);
         break;
@@ -274,9 +296,6 @@ pu_config_get_property(GObject *object,
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
     switch (prop_id) {
-    case PROP_PATH:
-        g_value_set_string(value, priv->path);
-        break;
     case PROP_API_VERSION:
         g_value_set_int(value, priv->api_version);
         break;
@@ -293,7 +312,7 @@ pu_config_class_finalize(GObject *object)
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
     g_free(priv->contents);
-    g_free(priv->path);
+    pu_config_free_mapping(priv->root);
 
     yaml_event_delete(&priv->event);
     yaml_parser_delete(&priv->parser);
@@ -306,18 +325,10 @@ pu_config_class_init(PuConfigClass *class)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
-    class->read = pu_config_default_read;
-
     object_class->set_property = pu_config_set_property;
     object_class->get_property = pu_config_get_property;
     object_class->finalize = pu_config_class_finalize;
 
-    props[PROP_PATH] =
-        g_param_spec_string("path",
-                            "Configuration file path",
-                            "The path to the layout configuration file",
-                            NULL,
-                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
     props[PROP_API_VERSION] =
         g_param_spec_pointer("api-version",
                              "API version",
@@ -334,44 +345,74 @@ pu_config_init(G_GNUC_UNUSED PuConfig *self)
 
     priv->contents = NULL;
     priv->contents_len = 0;
+    priv->api_version = -1;
+    priv->root = NULL;
 }
 
-gboolean
-pu_config_read(PuConfig *self,
-               GError **error)
+PuConfig *
+pu_config_new_from_file(const gchar *filename,
+                        GError **error)
 {
-    return PU_CONFIG_GET_CLASS(self)->read(self, error);
-}
+    g_autoptr(GError) error_file = NULL;
 
-gint
-pu_config_get_api_version(PuConfig *self)
-{
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
+    g_return_val_if_fail(g_file_test(filename, G_FILE_TEST_IS_REGULAR), NULL);
+    g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
-    return priv->api_version;
-}
+    PuConfig *config = g_object_new(PU_TYPE_CONFIG, NULL);
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
 
-gboolean
-pu_config_set_parser_input(PuConfig *self,
-                           GError **error)
-{
-    PuConfigPrivate *priv = pu_config_get_instance_private(self);
-
-    g_debug(G_STRFUNC);
-
-    if (!yaml_parser_initialize(&priv->parser)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG,
-                    "Failed intializing YAML parser");
-        return FALSE;
+    if (!g_file_get_contents(filename, &priv->contents, &priv->contents_len, &error_file)) {
+        g_propagate_prefixed_error(error, error_file,
+                                   "Failed reading contents of file '%s'",
+                                   filename);
+        return NULL;
     }
 
-    if (!g_file_get_contents(priv->path, &priv->contents, &priv->contents_len, NULL)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG,
-                    "Failed reading contents of file '%s'", priv->path);
-        return FALSE;
+    if (!yaml_parser_initialize(&priv->parser)) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_INIT_FAILED,
+                    "Failed intializing YAML parser");
+        g_object_unref(config);
+        return NULL;
     }
 
     yaml_parser_set_input_string(&priv->parser, (guchar *) priv->contents, priv->contents_len);
 
-    return TRUE;
+    do {
+        if (!yaml_parser_parse(&priv->parser, &priv->event)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                        "Failed parsing event (type %d)", priv->event.type);
+            g_object_unref(config);
+            return NULL;
+        }
+        g_debug("Parsing event type %d", priv->event.type);
+
+        if (priv->event.type == YAML_MAPPING_START_EVENT) {
+            /* We expect a mapping as the root element in the config */
+            pu_config_parse_mapping(config, &priv->root);
+            break;
+        }
+    } while (priv->event.type != YAML_DOCUMENT_END_EVENT);
+
+    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
+    g_return_val_if_fail(value != NULL, NULL);
+    g_return_val_if_fail(value->type == PU_CONFIG_VALUE_TYPE_INTEGER_10, NULL);
+    priv->api_version = value->data.integer;
+
+    return g_steal_pointer(&config);
+}
+
+gint
+pu_config_get_api_version(PuConfig *config)
+{
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
+
+    return priv->api_version;
+}
+
+GHashTable *
+pu_config_get_root(PuConfig *config)
+{
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
+
+    return priv->root;
 }

@@ -20,7 +20,9 @@ typedef enum {
     PU_ERROR_FLASH_DATA,
 
     /* Config parsing errors */
-    PU_ERROR_CONFIG,
+    PU_ERROR_CONFIG_INIT_FAILED,
+    PU_ERROR_CONFIG_INVALID_ROOT,
+    PU_ERROR_CONFIG_PARSING_FAILED,
 
     /* Checksum errors */
     PU_ERROR_CHECKSUM

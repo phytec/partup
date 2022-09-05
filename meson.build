@@ -31,7 +31,6 @@ deps = [
 src = [
   'src/checksum.c',
   'src/config.c',
-  'src/configemmc.c',
   'src/emmc.c',
   'src/error.c',
   'src/flash.c',
