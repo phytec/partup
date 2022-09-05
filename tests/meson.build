@@ -1,6 +1,7 @@
 tests = [
   'checksum',
-  'config'
+  'config',
+  'emmc'
 ]
 
 foreach t : tests
