@@ -1,43 +1,60 @@
 api-version: 0
-disklabel: "msdos"
+disklabel: msdos
+
 emmc-boot-partitions:
   enable: true
   input-offset: 0
   output-offset: 0
-  input: "/root/imx-boot"
+  input:
+    uri: "/root/imx-boot"
+    md5sum: "8c01f42692d441b9c8bf1b24931a09a9"
+    sha256sum: "6e401a45d5a569b278452630c67e7745ccdcc98b998dd10236f2ff62f699a17c"
+
 raw:
-  - binary:
-      input-offset: 0
-      output-offset: 32KiB
-      input: "/root/imx-boot"
+  - input-offset: 0
+    output-offset: 32KiB
+    input:
+      uri: "/root/imx-boot"
+      md5sum: "8c01f42692d441b9c8bf1b24931a09a9"
+      sha256sum: "6e401a45d5a569b278452630c67e7745ccdcc98b998dd10236f2ff62f699a17c"
+
 partitions:
-  - partition:
-      label: "BOOT0"
-      type: "primary"
-      filesystem: "fat32"
-      size: 96MiB
-      offset: 4MiB
-      input: "/root/Image /root/oftree"
-  - partition:
-      label: "BOOT1"
-      type: "primary"
-      filesystem: "fat32"
-      size: 96MiB
-      input: "/root/Image /root/oftree"
-  - partition:
-      label: "CONFIG"
-      type: "primary"
-      filesystem: "ext4"
-      size: 64MiB
-  - partition:
-      label: "ROOT0"
-      type: "logical"
-      filesystem: "ext4"
-      expand: true
-      input: "/root/root.tar.gz"
-  - partition:
-      label: "ROOT1"
-      type: "logical"
-      filesystem: "ext4"
-      expand: true
-      input: "/root/root.tar.gz"
+  - label: "BOOT0"
+    type: "primary"
+    filesystem: "fat32"
+    size: 96MiB
+    offset: 4MiB
+    input:
+      - uri: "/root/Image"
+        md5sum: "7370f6ab91f63f7327225b2f2a1e5cfc"
+        sha256sum: "00b85ea9181cec3b29fa10affae45e3caddd6677d4374503a647564ed5952e2f"
+      - uri: "/root/oftree"
+        md5sum: "8232a59c1a4e4fc5bcc04e49f9058404"
+        sha256sum: "23606a10977ee2dbee78a3803a13bb50a9a16472bc391d50d7e2fcbb07c8a379"
+
+  - label: "BOOT1"
+    type: "primary"
+    filesystem: "fat32"
+    size: 96MiB
+    input:
+      - uri: "/root/Image"
+      - uri: "/root/oftree"
+
+  - label: "CONFIG"
+    type: "primary"
+    filesystem: "ext4"
+    size: 64MiB
+
+  - label: "ROOT0"
+    type: "logical"
+    filesystem: "ext4"
+    expand: true
+    input:
+      - uri: "/root/root.tar.gz"
+
+  - label: "ROOT1"
+    type: "logical"
+    filesystem: "ext4"
+    expand: true
+    input:
+      - uri: "/root/root.tar.gz"
