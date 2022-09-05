@@ -5,35 +5,37 @@
 
 #include <parted/parted.h>
 #include <glib/gstdio.h>
+#include "checksum.h"
+#include "error.h"
 #include "mount.h"
 #include "utils.h"
 #include "emmc.h"
-#include "error.h"
 
-struct _PuEmmcPartition {
+typedef struct _PuEmmcInput {
+    gchar *uri;
+    gchar *md5sum;
+    gchar *sha256sum;
+} PuEmmcInput;
+typedef struct _PuEmmcPartition {
     gchar *label;
     PedPartitionType type;
     gchar *filesystem;
     PedSector size;
     PedSector offset;
     gboolean expand;
-    gchar *input;
-};
-struct _PuEmmcBinary {
+    GList *input;
+} PuEmmcPartition;
+typedef struct _PuEmmcBinary {
     PedSector input_offset;
     PedSector output_offset;
-    gchar *input;
-};
-struct _PuEmmcBootPartitions {
+    PuEmmcInput *input;
+} PuEmmcBinary;
+typedef struct _PuEmmcBootPartitions {
     gboolean enable;
     PedSector input_offset;
     PedSector output_offset;
-    gchar *input;
-};
-
-typedef struct _PuEmmcPartition PuEmmcPartition;
-typedef struct _PuEmmcBinary PuEmmcBinary;
-typedef struct _PuEmmcBootPartitions PuEmmcBootPartitions;
+    PuEmmcInput *input;
+} PuEmmcBootPartitions;
 
 struct _PuEmmc {
     PuFlash parent_instance;
@@ -178,9 +180,9 @@ pu_emmc_setup_layout(PuFlash *flash,
             part->size = self->expanded_part_size;
         }
 
-        g_debug("type=%d filesystem=%s, start=%lld, size=%lld, offset=%lld, expand=%s",
-                part->type, part->filesystem, part_start, part->size, part->offset,
-                part->expand ? "y" : "n");
+        g_debug("%s: type=%d filesystem=%s start=%lld size=%lld offset=%lld expand=%s",
+                G_STRFUNC, part->type, part->filesystem, part_start, part->size,
+                part->offset, part->expand ? "true" : "false");
 
         if (!emmc_create_partition(self, part, part_start + part->offset, error)) {
             return FALSE;
@@ -189,8 +191,6 @@ pu_emmc_setup_layout(PuFlash *flash,
     }
 
     ped_disk_commit(self->disk);
-
-    g_debug("%s: Finished", G_STRFUNC);
 
     return TRUE;
 }
@@ -223,7 +223,7 @@ pu_emmc_write_data(PuFlash *flash,
         g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
         g_return_val_if_fail(pu_make_filesystem(part_path, part->filesystem), FALSE);
 
-        if (g_str_equal(part->input, "")) {
+        if (!part->input) {
             g_debug("No input specified. Skipping %s",
                     g_strdup_printf("%sp%u", self->device->path, i));
             continue;
@@ -235,44 +235,115 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        g_debug("Writing input data '%s' to %s (mounted at %s)",
-                part->input, part_path, part_mount);
-
         pu_mount(part_path, part_mount);
-        gchar **input_array = g_strsplit(part->input, " ", -1);
-        for (gchar **i = input_array; *i != NULL; i++) {
-            if (g_regex_match_simple(".tar", *i, G_REGEX_CASELESS, 0)) {
-                g_debug("Extracting '%s' to '%s'", *i, part_mount);
-                pu_archive_extract(*i, part_mount);
+        for (GList *i = part->input; i != NULL; i = i->next) {
+            PuEmmcInput *input = i->data;
+            g_autofree gchar *path = NULL;
+
+            if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
+                             &path, NULL, NULL, error)) {
+                g_prefix_error(error, "Failed parsing input URI for partition");
+                return FALSE;
+            }
+
+            if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
+                g_debug("Extracting '%s' to '%s'", path, part_mount);
+                pu_archive_extract(path, part_mount);
             } else {
-                g_debug("Copying '%s' to '%s'", *i, part_mount);
-                pu_copy_file(*i, part_mount);
+                g_debug("Copying '%s' to '%s'", path, part_mount);
+                pu_copy_file(path, part_mount);
+            }
+
+            g_autofree gchar *output =
+                g_build_filename(part_mount, g_path_get_basename(path), NULL);
+            if (!g_str_equal(input->md5sum, "")) {
+                g_debug("Checking MD5 sum of written file '%s'", output);
+                if (!pu_checksum_verify_file(output, input->md5sum,
+                                             G_CHECKSUM_MD5, error))
+                    return FALSE;
+            }
+            if (!g_str_equal(input->sha256sum, "")) {
+                g_debug("Checking SHA256 sum of written file '%s'", output);
+                if (!pu_checksum_verify_file(output, input->sha256sum,
+                                             G_CHECKSUM_SHA256, error))
+                    return FALSE;
             }
         }
-        g_strfreev(input_array);
         pu_umount(part_mount);
         g_rmdir(part_mount);
     }
 
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
-        if (g_str_equal(bin->input, "")) {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                        "No input specified for binary");
+        PuEmmcInput *input = bin->input;
+        g_autofree gchar *path = NULL;
+
+        if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
+                         &path, NULL, NULL, error)) {
+            g_prefix_error(error, "Failed parsing input URI for binary");
+            return FALSE;
+        }
+        g_debug("URI split: path=%s", path);
+
+        if (g_str_equal(path, "")) {
+            g_warning("No input specified for binary");
             continue;
         }
 
-        pu_write_raw(bin->input, self->device->path, self->device->sector_size,
+        if (!g_str_equal(input->md5sum, "")) {
+            g_debug("Checking MD5 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, input->md5sum,
+                                         G_CHECKSUM_MD5, error))
+                return FALSE;
+        }
+        if (!g_str_equal(input->sha256sum, "")) {
+            g_debug("Checking SHA256 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, input->sha256sum,
+                                         G_CHECKSUM_SHA256, error))
+                return FALSE;
+        }
+
+        pu_write_raw(path, self->device->path, self->device->sector_size,
                      bin->input_offset, bin->output_offset);
     }
 
-    pu_write_raw_bootpart(self->emmc_boot_partitions->input, self->device, 0,
-                          self->emmc_boot_partitions->input_offset,
-                          self->emmc_boot_partitions->output_offset);
-    pu_write_raw_bootpart(self->emmc_boot_partitions->input, self->device, 1,
-                          self->emmc_boot_partitions->input_offset,
-                          self->emmc_boot_partitions->output_offset);
-    pu_bootpart_enable(self->device->path, self->emmc_boot_partitions->enable);
+    if (self->emmc_boot_partitions) {
+        PuEmmcInput *input = self->emmc_boot_partitions->input;
+        g_autofree gchar *path = NULL;
+
+        if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
+                         &path, NULL, NULL, error)) {
+            g_prefix_error(error, "Failed parsing input URI for eMMC boot partition");
+            return FALSE;
+        }
+
+        if (g_str_equal(path, "")) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
+                        "No input specified for eMMC boot partition");
+            return FALSE;
+        }
+
+        if (!g_str_equal(input->md5sum, "")) {
+            g_debug("Checking MD5 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, input->md5sum,
+                                         G_CHECKSUM_MD5, error))
+                return FALSE;
+        }
+        if (!g_str_equal(input->sha256sum, "")) {
+            g_debug("Checking SHA256 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, input->sha256sum,
+                                         G_CHECKSUM_SHA256, error))
+                return FALSE;
+        }
+
+        pu_write_raw_bootpart(path, self->device, 0,
+                              self->emmc_boot_partitions->input_offset,
+                              self->emmc_boot_partitions->output_offset);
+        pu_write_raw_bootpart(path, self->device, 1,
+                              self->emmc_boot_partitions->input_offset,
+                              self->emmc_boot_partitions->output_offset);
+        pu_bootpart_enable(self->device->path, self->emmc_boot_partitions->enable);
+    }
 
     g_debug("%s: Finished", G_STRFUNC);
 
@@ -288,17 +359,33 @@ pu_emmc_class_finalize(GObject *object)
         PuEmmcPartition *part = p->data;
         g_free(part->label);
         g_free(part->filesystem);
-        g_free(part->input);
+        for (GList *i = part->input; i != NULL; i = i->next) {
+            PuEmmcInput *in = i->data;
+            g_free(in->uri);
+            g_free(in->md5sum);
+            g_free(in->sha256sum);
+            g_free(in);
+        }
     }
     g_list_free(g_steal_pointer(&emmc->partitions));
 
     for (GList *b = emmc->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
+        g_free(bin->input->uri);
+        g_free(bin->input->md5sum);
+        g_free(bin->input->sha256sum);
         g_free(bin->input);
     }
     g_list_free(g_steal_pointer(&emmc->raw));
 
-    g_free(emmc->emmc_boot_partitions->input);
+    if (emmc->emmc_boot_partitions) {
+        PuEmmcInput *input = emmc->emmc_boot_partitions->input;
+        g_free(input->uri);
+        g_free(input->md5sum);
+        g_free(input->sha256sum);
+        g_free(input);
+        g_free(emmc->emmc_boot_partitions);
+    }
 
     if (emmc->disk)
         ped_disk_destroy(emmc->disk);
@@ -326,99 +413,256 @@ pu_emmc_init(G_GNUC_UNUSED PuEmmc *self)
 {
 }
 
+static gboolean
+pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
+                            GHashTable *root,
+                            GError **error)
+{
+    PuConfigValue *value_bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
+
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!value_bootpart) {
+        g_debug("No entry 'emmc-boot-partitions' found. Skipping...");
+        return TRUE;
+    }
+
+    if (value_bootpart->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'emmc-boot-partitions' is not a valid YAML mapping");
+        return FALSE;
+    }
+
+    GHashTable *bootpart = value_bootpart->data.mapping;
+    emmc->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
+    emmc->emmc_boot_partitions->enable =
+        pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
+    emmc->emmc_boot_partitions->input_offset =
+        pu_hash_table_lookup_sector(bootpart, emmc->device, "input-offset", 0);
+    emmc->emmc_boot_partitions->output_offset =
+        pu_hash_table_lookup_sector(bootpart, emmc->device, "output-offset", 0);
+
+    g_debug("Parsed bootpart: enable=%s input-offset=%lld output-offset=%lld",
+            emmc->emmc_boot_partitions->enable ? "true" : "false",
+            emmc->emmc_boot_partitions->input_offset,
+            emmc->emmc_boot_partitions->output_offset);
+
+    PuConfigValue *value_input = g_hash_table_lookup(bootpart, "input");
+    if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'input' of binary does not contain a mapping");
+        return FALSE;
+    }
+    PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+    input->uri = pu_hash_table_lookup_string(value_input->data.mapping, "uri", "");
+    input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
+    input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+    emmc->emmc_boot_partitions->input = input;
+
+    g_debug("Parsed bootpart input: uri=%s md5sum=%s sha256sum=%s",
+            input->uri, input->md5sum, input->sha256sum);
+
+    return TRUE;
+}
+
+static gboolean
+pu_emmc_parse_raw(PuEmmc *emmc,
+                  GHashTable *root,
+                  GError **error)
+{
+    PuConfigValue *value_raw = g_hash_table_lookup(root, "raw");
+    GList *raw;
+
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!value_raw) {
+        g_debug("No entry 'raw' found. Skipping...");
+        return TRUE;
+    }
+
+    if (value_raw->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'raw' is not a sequence");
+        return FALSE;
+    }
+    raw = value_raw->data.sequence;
+
+    for (GList *b = raw; b != NULL; b = b->next) {
+        PuConfigValue *v = b->data;
+        PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
+        bin->input_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                        "input-offset", 0);
+        bin->output_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                         "output-offset", 0);
+        PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
+        if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "'input' of binary does not contain a mapping");
+            return FALSE;
+        }
+        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        input->uri = pu_hash_table_lookup_string(value_input->data.mapping, "uri", "");
+        input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
+        input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+        bin->input = input;
+        g_debug("Parsed raw input: uri=%s md5sum=%s sha256sum=%s",
+                input->uri, input->md5sum, input->sha256sum);
+
+        emmc->raw = g_list_prepend(emmc->raw, bin);
+    }
+
+    emmc->raw = g_list_reverse(emmc->raw);
+
+    return TRUE;
+}
+
+static gboolean
+pu_emmc_parse_partitions(PuEmmc *emmc,
+                         GHashTable *root,
+                         GError **error)
+{
+    PuConfigValue *value_partitions = g_hash_table_lookup(root, "partitions");
+    GList *partitions;
+    PedSector fixed_parts_size = 0;
+
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    emmc->num_expanded_parts = 0;
+
+    if (!value_partitions) {
+        g_debug("No entry 'partitions' found. Skipping...");
+        return TRUE;
+    }
+
+    if (value_partitions->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'partitions' is not a sequence");
+        return FALSE;
+    }
+    partitions = value_partitions->data.sequence;
+
+    for (GList *p = partitions; p != NULL; p = p->next) {
+        PuConfigValue *v = p->data;
+        if (v->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "'partitions' does not contain sequence of mappings");
+            return FALSE;
+        }
+
+        PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
+        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", "");
+        part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
+        part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
+        part->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "offset", 0);
+        part->expand = pu_hash_table_lookup_boolean(v->data.mapping, "expand", FALSE);
+
+        g_autofree gchar *type_str = pu_hash_table_lookup_string(v->data.mapping, "type", "primary");
+        if (g_str_equal(type_str, "primary")) {
+            part->type = PED_PARTITION_NORMAL;
+        } else if (g_str_equal(type_str, "logical")) {
+            part->type = PED_PARTITION_LOGICAL;
+        } else {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "Partition of invalid type '%s' specified", type_str);
+            return FALSE;
+        }
+
+        g_debug("Parsed partition: label=%s filesystem=%s type=%s size=%lld offset=%lld expand=%s",
+                part->label, part->filesystem, type_str, part->size, part->offset,
+                part->expand ? "true" : "false");
+
+        GList *input_list = pu_hash_table_lookup_list(v->data.mapping, "input", NULL);
+        if (input_list != NULL) {
+            for (GList *i = input_list; i != NULL; i = i->next) {
+                PuConfigValue *iv = i->data;
+                if (iv->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                "'input' does not contain sequence of mappings");
+                    return FALSE;
+                }
+
+                PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+                input->uri = pu_hash_table_lookup_string(iv->data.mapping, "uri", "");
+                input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
+                input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
+                part->input = g_list_prepend(part->input, input);
+
+                g_debug("Parsed partition input: uri=%s md5sum=%s sha256sum=%s",
+                        input->uri, input->md5sum, input->sha256sum);
+            }
+            part->input = g_list_reverse(part->input);
+        }
+
+        if (part->size == 0 && !part->expand) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "Partition with invalid fixed size zero specified");
+            return FALSE;
+        }
+
+        emmc->partitions = g_list_prepend(emmc->partitions, part);
+
+        fixed_parts_size += part->size + part->offset;
+        if (part->expand) {
+            emmc->num_expanded_parts++;
+        }
+    }
+
+    emmc->partitions = g_list_reverse(emmc->partitions);
+
+    if (emmc->num_expanded_parts > 0) {
+        emmc->expanded_part_size = (emmc->device->length - fixed_parts_size)
+                                    / emmc->num_expanded_parts;
+        g_debug("%u expanding partitions, each of size %llds",
+                emmc->num_expanded_parts, emmc->expanded_part_size);
+    }
+
+    return TRUE;
+}
+
 PuEmmc *
 pu_emmc_new(const gchar *device_path,
-            PuConfig *config)
+            PuConfig *config,
+            GError **error)
 {
+    PuEmmc *self;
+    GHashTable *root;
+
     g_return_val_if_fail(device_path != NULL, NULL);
     g_return_val_if_fail(!g_str_equal(device_path, ""), NULL);
     g_return_val_if_fail(config != NULL, NULL);
     g_return_val_if_fail(PU_IS_CONFIG(config), NULL);
+    g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
-    PuEmmc *self = g_object_new(PU_TYPE_EMMC,
-                                "device-path", device_path,
-                                "config", config,
-                                NULL);
-    GHashTable *root = pu_config_get_root(config);
+    self = g_object_new(PU_TYPE_EMMC,
+                        "device-path", device_path,
+                        "config", config,
+                        NULL);
+    root = pu_config_get_root(config);
 
     self->device = ped_device_get(device_path);
     g_return_val_if_fail(self->device != NULL, NULL);
-    self->num_expanded_parts = 0;
-    self->disktype = ped_disk_type_get(pu_config_emmc_get_disklabel(config));
-    g_return_val_if_fail(self->disktype != NULL, NULL);
+
     ped_unit_set_default(PED_UNIT_SECTOR);
 
     g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", "msdos");
     self->disktype = ped_disk_type_get(disklabel);
     g_return_val_if_fail(self->disktype != NULL, NULL);
 
-    PedSector fixed_parts_size = 0;
-    GList *partitions = g_hash_table_lookup(root, "partitions");
-    g_return_val_if_fail(partitions != NULL, NULL);
+    gboolean res_bootpart = pu_emmc_parse_emmc_bootpart(self, root, error);
+    gboolean res_raw = pu_emmc_parse_raw(self, root, error);
+    gboolean res_parts = pu_emmc_parse_partitions(self, root, error);
 
-    for (GList *p = partitions; p != NULL; p = p->next) {
-        PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
-        part->label = pu_hash_table_lookup_string(p->data, "label", "");
-        part->filesystem = pu_hash_table_lookup_string(p->data, "filesystem", "");
-        part->size = pu_hash_table_lookup_sector(p->data, self->device, "size", 0);
-        part->offset = pu_hash_table_lookup_sector(p->data, self->device, "offset", 0);
-        part->expand = pu_hash_table_lookup_boolean(p->data, "expand", FALSE);
-        part->input = pu_hash_table_lookup_string(p->data, "input", "");
-
-        g_autofree gchar *type_str = pu_hash_table_lookup_string(p->data, "type", "primary");
-        if (g_str_equal(type_str, "primary"))
-            part->type = PED_PARTITION_NORMAL;
-        else if (g_str_equal(type_str, "logical"))
-            part->type = PED_PARTITION_LOGICAL;
-        else
-            g_critical("Partition of invalid type '%s' specified", type_str);
-
-        if (part->size == 0 && !part->expand) {
-            g_critical("Partition with invalid fixed size zero specified");
-        }
-
-        self->partitions = g_list_prepend(self->partitions, part);
-
-        fixed_parts_size += part->size + part->offset;
-        if (part->expand) {
-            self->num_expanded_parts++;
-        }
+    if (!res_bootpart || !res_raw || !res_parts) {
+        g_prefix_error(error, "Parsing failed for emmc object");
+        g_object_unref(self);
+        return NULL;
     }
-
-    self->partitions = g_list_reverse(self->partitions);
-
-    if (self->num_expanded_parts > 0) {
-        self->expanded_part_size = (self->device->length - fixed_parts_size)
-                                    / self->num_expanded_parts;
-        g_debug("%u expanding partitions, each of size %llds",
-                self->num_expanded_parts, self->expanded_part_size);
-    }
-
-    GList *raw = g_hash_table_lookup(root, "raw");
-    g_return_val_if_fail(raw != NULL, NULL);
-
-    for (GList *b = raw; b != NULL; b = b->next) {
-        PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
-        bin->input_offset = pu_hash_table_lookup_sector(b->data, self->device, "input-offset", 0);
-        bin->output_offset = pu_hash_table_lookup_sector(b->data, self->device, "output-offset", 0);
-        bin->input = pu_hash_table_lookup_string(b->data, "input", "");
-
-        self->raw = g_list_prepend(self->raw, bin);
-    }
-
-    self->raw = g_list_reverse(self->raw);
-
-    GHashTable *bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
-    g_return_val_if_fail(bootpart != NULL, NULL);
-    self->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
-    self->emmc_boot_partitions->enable =
-        pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
-    self->emmc_boot_partitions->input_offset =
-        pu_hash_table_lookup_sector(bootpart, self->device, "input-offset", 0);
-    self->emmc_boot_partitions->output_offset =
-        pu_hash_table_lookup_sector(bootpart, self->device, "output-offset", 0);
-    self->emmc_boot_partitions->input =
-        pu_hash_table_lookup_string(bootpart, "input", "");
 
     return g_steal_pointer(&self);
 }

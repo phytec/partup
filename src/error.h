@@ -19,6 +19,9 @@ typedef enum {
     PU_ERROR_FLASH_LAYOUT,
     PU_ERROR_FLASH_DATA,
 
+    /* eMMC errors */
+    PU_ERROR_EMMC_PARSE,
+
     /* Config parsing errors */
     PU_ERROR_CONFIG_INIT_FAILED,
     PU_ERROR_CONFIG_INVALID_ROOT,

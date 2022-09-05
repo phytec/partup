@@ -125,8 +125,11 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    emmc = pu_emmc_new(arg_device, config);
-    g_debug("successfully created new PuEmmc instance");
+    emmc = pu_emmc_new(arg_device, config, &error);
+    if (emmc == NULL) {
+        g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
+        return 1;
+    }
     if (!pu_flash_init_device(PU_FLASH(emmc), &error)) {
         g_printerr("Failed initializing device: %s\n", error->message);
         return 1;
