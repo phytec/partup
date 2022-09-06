@@ -37,7 +37,6 @@ if doxygen.found() and sphinx.found()
     sphinx_file,
     'api.rst',
     'api-config.rst',
-    'api-config-emmc.rst',
     'api-flash.rst',
     'api-utils.rst',
     'layout-config.rst',
@@ -47,8 +46,6 @@ if doxygen.found() and sphinx.found()
     'changelog.rst',
     '../CHANGELOG.rst',
     '../src/config.h',
-    '../src/configprivate.h',
-    '../src/configemmc.h',
     '../src/flash.h'
   ]
   custom_target('documentation',
