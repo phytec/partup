@@ -28,7 +28,10 @@ typedef enum {
     PU_ERROR_CONFIG_PARSING_FAILED,
 
     /* Checksum errors */
-    PU_ERROR_CHECKSUM
+    PU_ERROR_CHECKSUM,
+
+    /* Utility errors */
+    PU_ERROR_UNKNOWN_FSTYPE
 } PuErrorEnum;
 
 GQuark pu_error_quark(void);

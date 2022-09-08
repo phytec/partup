@@ -221,7 +221,9 @@ pu_emmc_write_data(PuFlash *flash,
         part_path = g_strdup_printf("%sp%u", self->device->path, i);
 
         g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
-        g_return_val_if_fail(pu_make_filesystem(part_path, part->filesystem), FALSE);
+
+        if (!pu_make_filesystem(part_path, part->filesystem, error))
+            return FALSE;
 
         if (!part->input) {
             g_debug("No input specified. Skipping %s",
@@ -248,10 +250,10 @@ pu_emmc_write_data(PuFlash *flash,
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
-                pu_archive_extract(path, part_mount);
+                pu_archive_extract(path, part_mount, error);
             } else {
                 g_debug("Copying '%s' to '%s'", path, part_mount);
-                pu_copy_file(path, part_mount);
+                pu_file_copy(path, part_mount, error);
             }
 
             g_autofree gchar *output =
@@ -304,7 +306,7 @@ pu_emmc_write_data(PuFlash *flash,
         }
 
         pu_write_raw(path, self->device->path, self->device->sector_size,
-                     bin->input_offset, bin->output_offset);
+                     bin->input_offset, bin->output_offset, error);
     }
 
     if (self->emmc_boot_partitions) {
@@ -336,13 +338,21 @@ pu_emmc_write_data(PuFlash *flash,
                 return FALSE;
         }
 
-        pu_write_raw_bootpart(path, self->device, 0,
-                              self->emmc_boot_partitions->input_offset,
-                              self->emmc_boot_partitions->output_offset);
-        pu_write_raw_bootpart(path, self->device, 1,
-                              self->emmc_boot_partitions->input_offset,
-                              self->emmc_boot_partitions->output_offset);
-        pu_bootpart_enable(self->device->path, self->emmc_boot_partitions->enable);
+        if (!pu_write_raw_bootpart(path, self->device, 0,
+                                   self->emmc_boot_partitions->input_offset,
+                                   self->emmc_boot_partitions->output_offset,
+                                   error))
+            return FALSE;
+
+        if (!pu_write_raw_bootpart(path, self->device, 1,
+                                   self->emmc_boot_partitions->input_offset,
+                                   self->emmc_boot_partitions->output_offset,
+                                   error))
+            return FALSE;
+
+        if (!pu_bootpart_enable(self->device->path,
+                                self->emmc_boot_partitions->enable, error))
+            return FALSE;
     }
 
     g_debug("%s: Finished", G_STRFUNC);
