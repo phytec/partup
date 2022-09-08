@@ -9,24 +9,30 @@
 #include <glib.h>
 #include <parted/parted.h>
 
-gboolean pu_copy_file(const gchar *filename,
-                      const gchar *dest);
+gboolean pu_file_copy(const gchar *src,
+                      const gchar *dest,
+                      GError **error);
 gboolean pu_archive_extract(const gchar *filename,
-                            const gchar *dest);
+                            const gchar *dest,
+                            GError **error);
 gboolean pu_make_filesystem(const gchar *part,
-                            const gchar *type);
+                            const gchar *type,
+                            GError **error);
 gboolean pu_write_raw(const gchar *input,
                       const gchar *output,
                       PedSector block_size,
                       PedSector input_offset,
-                      PedSector output_offset);
+                      PedSector output_offset,
+                      GError **error);
 gboolean pu_write_raw_bootpart(const gchar *input,
                                PedDevice *device,
                                guint bootpart,
                                PedSector input_offset,
-                               PedSector output_offset);
+                               PedSector output_offset,
+                               GError **error);
 gboolean pu_bootpart_enable(const gchar *device,
-                            guint bootpart);
+                            guint bootpart,
+                            GError **error);
 gchar * pu_hash_table_lookup_string(GHashTable *hash_table,
                                     const gchar *key,
                                     const gchar *def);
