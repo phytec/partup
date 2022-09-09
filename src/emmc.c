@@ -7,6 +7,7 @@
 #include <glib/gstdio.h>
 #include "checksum.h"
 #include "error.h"
+#include "hashtable.h"
 #include "mount.h"
 #include "utils.h"
 #include "emmc.h"
