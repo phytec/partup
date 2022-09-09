@@ -34,6 +34,7 @@ src = [
   'src/emmc.c',
   'src/error.c',
   'src/flash.c',
+  'src/hashtable.c',
   'src/mount.c',
   'src/utils.c'
 ]
