@@ -1,0 +1,43 @@
+api-version: 0
+disklabel: msdos
+
+partitions:
+  - label: "BOOT0"
+    type: "primary"
+    filesystem: "fat32"
+    size: 20MiB
+    offset: 4MiB
+    input:
+      - uri: "/mnt/MLO"
+      - uri: "/mnt/barebox.bin"
+      - uri: "/mnt/zImage"
+      - uri: "/mnt/oftree"
+
+  - label: "BOOT1"
+    type: "primary"
+    filesystem: "fat32"
+    size: 20MiB
+    input:
+      - uri: "/mnt/MLO"
+      - uri: "/mnt/barebox.bin"
+      - uri: "/mnt/Image"
+      - uri: "/mnt/oftree"
+
+  - label: "CONFIG"
+    type: "primary"
+    filesystem: "ext4"
+    size: 64MiB
+
+  - label: "ROOT0"
+    type: "logical"
+    filesystem: "ext4"
+    expand: true
+    input:
+      - uri: "/mnt/root.tar.gz"
+
+  - label: "ROOT1"
+    type: "logical"
+    filesystem: "ext4"
+    expand: true
+    input:
+      - uri: "/mnt/root.tar.gz"
