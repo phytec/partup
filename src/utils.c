@@ -104,23 +104,84 @@ pu_make_filesystem(const gchar *part,
 }
 
 gboolean
-pu_write_raw(const gchar *input,
-             const gchar *output,
-             PedSector block_size,
+pu_write_raw(const gchar *input_path,
+             const gchar *output_path,
+             PedDevice *device,
              PedSector input_offset,
              PedSector output_offset,
              GError **error)
 {
-    g_autofree gchar *cmd = NULL;
+    g_autoptr(GFile) input_file = NULL;
+    g_autoptr(GFile) output_file = NULL;
+    g_autoptr(GFileInputStream) input_fistream = NULL;
+    g_autoptr(GFileIOStream) output_fiostream = NULL;
+    GOutputStream *output_ostream;
+    g_autoptr(GFileInfo) input_finfo = NULL;
+    g_autoptr(GFileInfo) output_finfo = NULL;
+    goffset input_size;
+    goffset output_size;
+    gsize buffer_size;
+    gssize num_read;
+    g_autofree guchar *buffer = NULL;
 
-    g_return_val_if_fail(input != NULL, FALSE);
-    g_return_val_if_fail(output != NULL, FALSE);
+    g_return_val_if_fail(input_path != NULL, FALSE);
+    g_return_val_if_fail(output_path != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    cmd = g_strdup_printf("dd if=%s of=%s bs=%lld skip=%lld seek=%lld",
-                          input, output, block_size, input_offset, output_offset);
+    /* glib uses bytes not sectors */
+    input_offset *= device->sector_size;
+    output_offset *= device->sector_size;
 
-    return pu_spawn_command_line_sync(cmd, error);
+    input_file = g_file_new_for_path(input_path);
+    input_finfo = g_file_query_info(input_file, G_FILE_ATTRIBUTE_STANDARD_SIZE,
+                                    G_FILE_QUERY_INFO_NONE, NULL, error);
+    if (input_finfo == NULL)
+        return FALSE;
+
+    input_size = g_file_info_get_size(input_finfo);
+    if (input_offset >= input_size) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Input offset exceeds input file size");
+        return FALSE;
+    }
+
+    output_file = g_file_new_for_path(output_path);
+
+    /* Open input and output stream */
+    input_fistream = g_file_read(input_file, NULL, error);
+    if (input_fistream == NULL)
+        return FALSE;
+
+    output_fiostream = g_file_open_readwrite(output_file, NULL, error);
+    if (output_fiostream == NULL)
+        return FALSE;
+    output_ostream = g_io_stream_get_output_stream(G_IO_STREAM(output_fiostream));
+
+    if (g_input_stream_skip(G_INPUT_STREAM(input_fistream), input_offset, NULL,
+                            error) < 0)
+        return FALSE;
+
+    if (!g_seekable_seek(G_SEEKABLE(output_fiostream), output_offset,
+                         G_SEEK_SET, NULL, error))
+        return FALSE;
+
+    /* Begin reading and writing */
+    buffer_size = input_size < PED_MEBIBYTE_SIZE ? input_size : PED_MEBIBYTE_SIZE;
+    buffer = g_new0(guchar, buffer_size);
+
+    while (1) {
+        num_read = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
+                                       buffer_size, NULL, error);
+        if (num_read < 0)
+            return FALSE;
+        if (num_read == 0)
+            break;
+
+        if (g_output_stream_write(output_ostream, buffer, num_read, NULL, error) < 0)
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
 static gboolean
@@ -173,7 +234,7 @@ pu_write_raw_bootpart(const gchar *input,
     if (!pu_bootpart_force_ro(bootpart_device, 0, error))
         return FALSE;
 
-    res = pu_write_raw(input, bootpart_device, device->sector_size,
+    res = pu_write_raw(input, bootpart_device, device,
                        input_offset, output_offset, error);
 
     if (!pu_bootpart_force_ro(bootpart_device, 1, error))
