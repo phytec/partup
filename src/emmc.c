@@ -307,7 +307,7 @@ pu_emmc_write_data(PuFlash *flash,
                 return FALSE;
         }
 
-        if (!pu_write_raw(path, self->device->path, self->device->sector_size,
+        if (!pu_write_raw(path, self->device->path, self->device,
                           bin->input_offset, bin->output_offset, error))
             return FALSE;
     }

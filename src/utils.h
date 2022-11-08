@@ -18,9 +18,9 @@ gboolean pu_archive_extract(const gchar *filename,
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
                             GError **error);
-gboolean pu_write_raw(const gchar *input,
-                      const gchar *output,
-                      PedSector block_size,
+gboolean pu_write_raw(const gchar *input_path,
+                      const gchar *output_path,
+                      PedDevice *device,
                       PedSector input_offset,
                       PedSector output_offset,
                       GError **error);
