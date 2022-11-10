@@ -97,9 +97,10 @@ emmc_create_partition(PuEmmc *self,
                 return FALSE;
             }
         }
+        /* EBR needs at least 2 sectors in front of a logical partition */
+        start += 2;
+        length -= 2;
         g_debug("logical partition: start=%lld, length=%lld", start, length);
-        start += 1;
-        length -= 1;
     }
 
     part = ped_partition_new(self->disk, partition->type, fstype,
