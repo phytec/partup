@@ -1,3 +1,20 @@
+0.2.1
+=====
+
+*Release date: 2022-11-11*
+
+.. rubric:: Changes
+
+* Improve the writing of raw data using GLib's streaming function instead of
+  calling a subprocess using ``dd``.
+* Improve error handling of the utilities functions.
+
+.. rubric:: Bug Fixes
+
+* Increase the padding of logical partitions to two sectors to allow storing the
+  EBR information. Previously, logical partitions may have overlapped because
+  the padding was too narrow.
+
 0.2.0
 =====
 
