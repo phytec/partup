@@ -3,6 +3,8 @@ doc_install_dir = get_option('datadir') / 'doc' / meson.project_name() + '-' + m
 doxygen = find_program('doxygen', required : get_option('doc'))
 sphinx = find_program('sphinx-build', required : get_option('doc'))
 
+subdir('data')
+
 if doxygen.found() and sphinx.found()
   doxyconfig = configuration_data({
     'PROJECT_VERSION' : meson.project_version(),

@@ -1,3 +1,5 @@
+.. image:: doc/data/partup-logo-2x.svg
+
 partup - System Initialization Program
 ######################################
 
