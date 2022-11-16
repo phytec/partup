@@ -80,7 +80,6 @@ pu_make_filesystem(const gchar *part,
     g_autoptr(GString) cmd = NULL;
 
     g_return_val_if_fail(part != NULL, FALSE);
-    g_return_val_if_fail(fstype != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     cmd = g_string_new(NULL);
@@ -93,6 +92,9 @@ pu_make_filesystem(const gchar *part,
         g_string_append(cmd, "mkfs.ext3 ");
     } else if (g_strcmp0(fstype, "ext4") == 0) {
         g_string_append(cmd, "mkfs.ext4 ");
+    } else if (g_strcmp0(fstype, "") <= 0) {
+        /* Skip formatting if no filesytem was specified */
+        return TRUE;
     } else {
         g_set_error(error, PU_ERROR, PU_ERROR_UNKNOWN_FSTYPE,
                     "Unknown filesystem type '%s' for partition '%s'", fstype, part);
