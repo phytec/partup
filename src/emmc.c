@@ -209,11 +209,14 @@ pu_emmc_write_data(PuFlash *flash,
     gboolean first_logical_part = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
+    g_autofree gchar *prefix = NULL;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash, "prefix", &prefix, NULL);
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -247,9 +250,9 @@ pu_emmc_write_data(PuFlash *flash,
             PuEmmcInput *input = i->data;
             g_autofree gchar *path = NULL;
 
-            if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
-                             &path, NULL, NULL, error)) {
-                g_prefix_error(error, "Failed parsing input URI for partition");
+            path = pu_path_from_uri(input->uri, prefix, error);
+            if (path == NULL) {
+                g_prefix_error(error, "Failed parsing input URI for partition: ");
                 return FALSE;
             }
 
@@ -292,9 +295,9 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcInput *input = bin->input;
         g_autofree gchar *path = NULL;
 
-        if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
-                         &path, NULL, NULL, error)) {
-            g_prefix_error(error, "Failed parsing input URI for binary");
+        path = pu_path_from_uri(input->uri, prefix, error);
+        if (path == NULL) {
+            g_prefix_error(error, "Failed parsing input URI for binary: ");
             return FALSE;
         }
         g_debug("URI split: path=%s", path);
@@ -326,9 +329,9 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcInput *input = self->emmc_boot_partitions->input;
         g_autofree gchar *path = NULL;
 
-        if (!g_uri_split(input->uri, G_URI_FLAGS_NONE, NULL, NULL, NULL, NULL,
-                         &path, NULL, NULL, error)) {
-            g_prefix_error(error, "Failed parsing input URI for eMMC boot partition");
+        path = pu_path_from_uri(input->uri, prefix, error);
+        if (path == NULL) {
+            g_prefix_error(error, "Failed parsing input URI for eMMC boot partition: ");
             return FALSE;
         }
 
@@ -651,6 +654,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 PuEmmc *
 pu_emmc_new(const gchar *device_path,
             PuConfig *config,
+            const gchar *prefix,
             GError **error)
 {
     PuEmmc *self;
@@ -665,6 +669,7 @@ pu_emmc_new(const gchar *device_path,
     self = g_object_new(PU_TYPE_EMMC,
                         "device-path", device_path,
                         "config", config,
+                        "prefix", prefix,
                         NULL);
     root = pu_config_get_root(config);
 

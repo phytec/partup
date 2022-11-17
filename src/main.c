@@ -18,6 +18,7 @@ static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
 static gchar *arg_config = NULL;
 static gchar *arg_device = NULL;
+static gchar *arg_prefix = NULL;
 
 static gboolean
 arg_parse_remaining(const gchar *option_name,
@@ -43,6 +44,9 @@ static GOptionEntry option_entries[] = {
         &arg_config, "Layout configuration file in YAML format", "CONFIG" },
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_debug, "Print debug messages", NULL },
+    { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
+        &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
+        "PREFIX" },
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_version, "Print the program version and exit", NULL },
     { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_CALLBACK,
@@ -125,7 +129,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    emmc = pu_emmc_new(arg_device, config, &error);
+    emmc = pu_emmc_new(arg_device, config, arg_prefix, &error);
     if (emmc == NULL) {
         g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
         return 1;

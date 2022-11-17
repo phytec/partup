@@ -15,6 +15,7 @@ G_DECLARE_FINAL_TYPE(PuEmmc, pu_emmc, PU, EMMC, PuFlash)
 
 PuEmmc * pu_emmc_new(const gchar *device_path,
                      PuConfig *config,
+                     const gchar *prefix,
                      GError **error);
 
 #endif /* PARTUP_EMMC_H */
