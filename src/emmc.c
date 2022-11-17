@@ -300,7 +300,6 @@ pu_emmc_write_data(PuFlash *flash,
             g_prefix_error(error, "Failed parsing input URI for binary: ");
             return FALSE;
         }
-        g_debug("URI split: path=%s", path);
 
         if (g_str_equal(path, "")) {
             g_warning("No input specified for binary");
