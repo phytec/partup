@@ -686,7 +686,7 @@ pu_emmc_new(const gchar *device_path,
     gboolean res_parts = pu_emmc_parse_partitions(self, root, error);
 
     if (!res_bootpart || !res_raw || !res_parts) {
-        g_prefix_error(error, "Parsing failed for emmc object");
+        g_prefix_error(error, "Parsing failed for emmc object: ");
         g_object_unref(self);
         return NULL;
     }
