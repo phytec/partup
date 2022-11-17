@@ -9,12 +9,14 @@
 typedef struct {
     gchar *device_path;
     PuConfig *config;
+    gchar *prefix;
 } PuFlashPrivate;
 
 enum {
     PROP_0,
     PROP_DEVICE_PATH,
     PROP_CONFIG,
+    PROP_PREFIX,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
@@ -68,6 +70,10 @@ pu_flash_set_property(GObject *object,
     case PROP_CONFIG:
         priv->config = g_value_get_pointer(value);
         break;
+    case PROP_PREFIX:
+        g_free(priv->prefix);
+        priv->prefix = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -89,6 +95,9 @@ pu_flash_get_property(GObject *object,
         break;
     case PROP_CONFIG:
         g_value_set_pointer(value, priv->config);
+        break;
+    case PROP_PREFIX:
+        g_value_set_string(value, priv->prefix);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -119,6 +128,12 @@ pu_flash_class_init(PuFlashClass *class)
                              "Layout configuration",
                              "The layout configuration to be used for the device",
                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+    props[PROP_PREFIX] =
+        g_param_spec_string("prefix",
+                            "URI prefix path",
+                            "Path to prefix all file URIs with in the layout configuration",
+                            NULL,
+                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
