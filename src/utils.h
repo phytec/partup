@@ -33,5 +33,8 @@ gboolean pu_write_raw_bootpart(const gchar *input,
 gboolean pu_bootpart_enable(const gchar *device,
                             guint bootpart,
                             GError **error);
+gchar * pu_path_from_uri(const gchar *uri,
+                         const gchar *prefix,
+                         GError **error);
 
 #endif /* PARTUP_UTILS_H */

@@ -259,3 +259,37 @@ pu_bootpart_enable(const gchar *device,
 
     return pu_spawn_command_line_sync(cmd, error);
 }
+
+gchar *
+pu_path_from_uri(const gchar *uri,
+                 const gchar *prefix,
+                 GError **error)
+{
+    g_autofree gchar *path = NULL;
+    g_autofree gchar *scheme = NULL;
+    g_autofree gchar *host = NULL;
+
+    g_return_val_if_fail(g_strcmp0(uri, "") > 0, NULL);
+    g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+    if (!g_uri_split(uri, G_URI_FLAGS_NONE, &scheme, NULL, &host, NULL, &path,
+                     NULL, NULL, error))
+        return NULL;
+
+    if (g_strcmp0(scheme, "file") != 0 && g_strcmp0(scheme, "") > 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Invalid scheme '%s' for file path", scheme);
+        return NULL;
+    }
+
+    if (g_strcmp0(path, "") <= 0)
+        path = g_strdup(host);
+
+    if (!g_path_is_absolute(path) && g_strcmp0(prefix, "") > 0) {
+        g_autofree gchar *tmp_path = g_strdup(path);
+        g_free(path);
+        path = g_build_filename(prefix, tmp_path, NULL);
+    }
+
+    return g_strdup(path);
+}
