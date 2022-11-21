@@ -44,6 +44,8 @@ partitions:
     type: "primary"
     filesystem: "ext4"
     size: 64MiB
+    imput:
+      - uri: "/root/config-partition.tar.gz"
 
   - label: "ROOT0"
     type: "logical"

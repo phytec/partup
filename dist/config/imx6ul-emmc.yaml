@@ -38,6 +38,8 @@ partitions:
     type: primary
     filesystem: ext4
     size: 32MiB
+    input:
+      - uri: file:///root/config-partition.tar.gz
 
   - label: ROOT0
     type: logical
