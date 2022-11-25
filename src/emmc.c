@@ -43,6 +43,7 @@ struct _PuEmmc {
 
     PedSector expanded_part_size;
     guint num_expanded_parts;
+    guint num_logical_parts;
 
     PedDevice *device;
     PedDisk *disk;
@@ -183,6 +184,12 @@ pu_emmc_setup_layout(PuFlash *flash,
 
         if (part->expand) {
             part->size = self->expanded_part_size;
+        }
+
+        /* Increase size of logical partitions by 2 sectors for EBR.
+         * The 2 sectors are removed during partition creation. */
+        if (part->type == PED_PARTITION_LOGICAL) {
+            part->size += 2;
         }
 
         g_debug("%s: type=%d filesystem=%s start=%lld size=%lld offset=%lld expand=%s",
@@ -636,12 +643,16 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         if (part->expand) {
             emmc->num_expanded_parts++;
         }
+        if (part->type == PED_PARTITION_LOGICAL) {
+            emmc->num_logical_parts++;
+        }
     }
 
     emmc->partitions = g_list_reverse(emmc->partitions);
 
     if (emmc->num_expanded_parts > 0) {
-        emmc->expanded_part_size = (emmc->device->length - fixed_parts_size)
+        emmc->expanded_part_size = (emmc->device->length - fixed_parts_size
+                                    - 2 * emmc->num_logical_parts)
                                     / emmc->num_expanded_parts;
         g_debug("%u expanding partitions, each of size %llds",
                 emmc->num_expanded_parts, emmc->expanded_part_size);
