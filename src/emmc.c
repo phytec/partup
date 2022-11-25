@@ -23,6 +23,7 @@ typedef struct _PuEmmcPartition {
     gchar *filesystem;
     PedSector size;
     PedSector offset;
+    PedSector block_size;
     gboolean expand;
     GList *input;
 } PuEmmcPartition;
@@ -186,15 +187,20 @@ pu_emmc_setup_layout(PuFlash *flash,
             part->size = self->expanded_part_size;
         }
 
+        if (part->block_size > 0) {
+            part->size -= part->size % part->block_size;
+        }
+
         /* Increase size of logical partitions by 2 sectors for EBR.
          * The 2 sectors are removed during partition creation. */
         if (part->type == PED_PARTITION_LOGICAL) {
             part->size += 2;
         }
 
-        g_debug("%s: type=%d filesystem=%s start=%lld size=%lld offset=%lld expand=%s",
+        g_debug("%s: type=%d filesystem=%s start=%lld size=%lld offset=%lld "
+                "block-size=%lld expand=%s",
                 G_STRFUNC, part->type, part->filesystem, part_start, part->size,
-                part->offset, part->expand ? "true" : "false");
+                part->offset, part->block_size, part->expand ? "true" : "false");
 
         if (!emmc_create_partition(self, part, part_start + part->offset, error)) {
             return FALSE;
@@ -602,6 +608,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
         part->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "offset", 0);
+        part->block_size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "block-size", 2);
         part->expand = pu_hash_table_lookup_boolean(v->data.mapping, "expand", FALSE);
 
         g_autofree gchar *type_str = pu_hash_table_lookup_string(v->data.mapping, "type", "primary");
@@ -615,9 +622,10 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
             return FALSE;
         }
 
-        g_debug("Parsed partition: label=%s filesystem=%s type=%s size=%lld offset=%lld expand=%s",
+        g_debug("Parsed partition: label=%s filesystem=%s type=%s size=%lld "
+                "offset=%lld block-size=%lld expand=%s",
                 part->label, part->filesystem, type_str, part->size, part->offset,
-                part->expand ? "true" : "false");
+                part->block_size, part->expand ? "true" : "false");
 
         GList *input_list = pu_hash_table_lookup_list(v->data.mapping, "input", NULL);
         if (input_list != NULL) {
