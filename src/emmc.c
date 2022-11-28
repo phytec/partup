@@ -691,15 +691,12 @@ pu_emmc_new(const gchar *device_path,
     self->disktype = ped_disk_type_get(disklabel);
     g_return_val_if_fail(self->disktype != NULL, NULL);
 
-    gboolean res_bootpart = pu_emmc_parse_emmc_bootpart(self, root, error);
-    gboolean res_raw = pu_emmc_parse_raw(self, root, error);
-    gboolean res_parts = pu_emmc_parse_partitions(self, root, error);
-
-    if (!res_bootpart || !res_raw || !res_parts) {
-        g_prefix_error(error, "Parsing failed for emmc object: ");
-        g_object_unref(self);
+    if (!pu_emmc_parse_emmc_bootpart(self, root, error))
         return NULL;
-    }
+    if (!pu_emmc_parse_raw(self, root, error))
+        return NULL;
+    if (!pu_emmc_parse_partitions(self, root, error))
+        return NULL;
 
     return g_steal_pointer(&self);
 }
