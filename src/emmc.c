@@ -475,6 +475,11 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
             emmc->emmc_boot_partitions->output_offset);
 
     PuConfigValue *value_input = g_hash_table_lookup(bootpart, "input");
+    if (value_input == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "No input specified for 'emmc-boot-partitions'");
+        return FALSE;
+    }
     if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                     "'input' of binary does not contain a mapping");
@@ -524,6 +529,11 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         bin->output_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
                                                          "output-offset", 0);
         PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
+        if (value_input == NULL) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "No input specified for 'raw'");
+            return FALSE;
+        }
         if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
             g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                         "'input' of binary does not contain a mapping");
