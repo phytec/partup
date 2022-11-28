@@ -18,6 +18,8 @@ gboolean pu_archive_extract(const gchar *filename,
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
                             GError **error);
+gboolean pu_resize_filesystem(const gchar *part,
+                              GError **error);
 gboolean pu_write_raw(const gchar *input_path,
                       const gchar *output_path,
                       PedDevice *device,

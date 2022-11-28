@@ -106,6 +106,20 @@ pu_make_filesystem(const gchar *part,
 }
 
 gboolean
+pu_resize_filesystem(const gchar *part,
+                     GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(part != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    cmd = g_strdup_printf("resize2fs %s", part);
+
+    return pu_spawn_command_line_sync(cmd, error);
+}
+
+gboolean
 pu_write_raw(const gchar *input_path,
              const gchar *output_path,
              PedDevice *device,
