@@ -264,6 +264,8 @@ pu_emmc_write_data(PuFlash *flash,
                 pu_umount(part_mount);
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, error))
                     return FALSE;
+                if (!pu_resize_filesystem(part_path, error))
+                    return FALSE;
                 pu_mount(part_path, part_mount);
                 continue;
             } else {
