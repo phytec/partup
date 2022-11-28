@@ -7,7 +7,7 @@ General Usage
 partup requires a configuration file specifying the layout and an output device
 to write to as its mandatory arguments. An example looks like the following::
 
-   partup -c /usr/share/partup/imx8mp-emmc.yaml /dev/mmcblk2
+   partup -c layout.yaml /dev/mmcblk2
 
 Option List
 -----------
