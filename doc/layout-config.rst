@@ -59,6 +59,10 @@ options:
 ``offset`` (integer/string)
    The offset of a partition.
 
+``block-size`` (integer/string)
+   Set the partition size to a multiple of the specified value. The default is
+   2 sectors, which is almost always equal to 1KiB.
+
 ``input`` (sequence)
    A sequence of input mappings. See :ref:`input-files`.
 
