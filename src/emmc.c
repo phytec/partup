@@ -252,7 +252,6 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        pu_mount(part_path, part_mount);
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *input = i->data;
             g_autofree gchar *path = NULL;
@@ -265,19 +264,21 @@ pu_emmc_write_data(PuFlash *flash,
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
+                pu_mount(part_path, part_mount);
                 pu_archive_extract(path, part_mount, error);
+                pu_umount(part_mount);
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
                 g_debug("Writing '%s' to '%s'", path, part_mount);
-                pu_umount(part_mount);
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, error))
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
-                pu_mount(part_path, part_mount);
                 continue;
             } else {
                 g_debug("Copying '%s' to '%s'", path, part_mount);
+                pu_mount(part_path, part_mount);
                 pu_file_copy(path, part_mount, error);
+                pu_umount(part_mount);
             }
 
             g_autofree gchar *output =
@@ -295,7 +296,6 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
             }
         }
-        pu_umount(part_mount);
         g_rmdir(part_mount);
     }
 
