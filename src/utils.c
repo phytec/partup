@@ -21,6 +21,7 @@ pu_spawn_command_line_sync(const gchar *command_line,
     gboolean res;
     GSpawnFlags spawn_flags;
     gchar **argv = NULL;
+    gint wait_status;
 
     g_return_val_if_fail(command_line != NULL, FALSE);
 
@@ -30,7 +31,14 @@ pu_spawn_command_line_sync(const gchar *command_line,
     spawn_flags = G_SPAWN_SEARCH_PATH |
                   G_SPAWN_STDOUT_TO_DEV_NULL |
                   G_SPAWN_STDERR_TO_DEV_NULL;
-    res = g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, NULL, NULL, NULL, error);
+    if (!g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, NULL, NULL,
+                      &wait_status, error)) {
+        g_prefix_error(error, "Failed spawning process: ");
+        g_strfreev(argv);
+        return FALSE;
+    }
+
+    res = g_spawn_check_exit_status(wait_status, error);
     g_strfreev(argv);
 
     return res;
