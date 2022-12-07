@@ -264,11 +264,9 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        part_mount = pu_create_mount_point(g_strdup_printf("p%u", i));
-        if (part_mount == NULL) {
-            g_warning("Failed creating mount point");
-            continue;
-        }
+        part_mount = pu_create_mount_point(g_strdup_printf("p%u", i), error);
+        if (part_mount == NULL)
+            return FALSE;
 
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *input = i->data;
@@ -282,10 +280,12 @@ pu_emmc_write_data(PuFlash *flash,
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
-                pu_mount(part_path, part_mount);
+                if (!pu_mount(part_path, part_mount, error))
+                    return FALSE;
                 if (!pu_archive_extract(path, part_mount, error))
                     return FALSE;
-                pu_umount(part_mount);
+                if (!pu_umount(part_mount, error))
+                    return FALSE;
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
                 g_debug("Writing '%s' to '%s'", path, part_mount);
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, error))
@@ -295,10 +295,12 @@ pu_emmc_write_data(PuFlash *flash,
                 continue;
             } else {
                 g_debug("Copying '%s' to '%s'", path, part_mount);
-                pu_mount(part_path, part_mount);
+                if (!pu_mount(part_path, part_mount, error))
+                    return FALSE;
                 if (!pu_file_copy(path, part_mount, error))
                     return FALSE;
-                pu_umount(part_mount);
+                if (!pu_umount(part_mount, error))
+                    return FALSE;
             }
 
             g_autofree gchar *output =
