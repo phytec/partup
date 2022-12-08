@@ -74,7 +74,7 @@ main(G_GNUC_UNUSED int argc,
     g_option_context_set_description(context, "Report any issues at "
                                      "<https://github.com/phytec/partup>");
     if (!g_option_context_parse_strv(context, &args, &error)) {
-        g_printerr("Failed parsing options: %s", error->message);
+        g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
     }
 
@@ -100,7 +100,7 @@ main(G_GNUC_UNUSED int argc,
     }
 
     if (g_strcmp0(arg_config, "") <= 0 || g_strcmp0(arg_device, "") <= 0) {
-        g_printerr("Not enough arguments!");
+        g_printerr("Not enough arguments!\n");
         g_print("%s", g_option_context_get_help(context, TRUE, NULL));
         return 1;
     }
