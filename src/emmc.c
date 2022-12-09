@@ -25,6 +25,7 @@ typedef struct _PuEmmcPartition {
     PedSector offset;
     PedSector block_size;
     gboolean expand;
+    GList *flags;
     GList *input;
 } PuEmmcPartition;
 typedef struct _PuEmmcBinary {
@@ -127,6 +128,15 @@ emmc_create_partition(PuEmmc *self,
 
     if (ped_disk_type_check_feature(part->disk->type, PED_DISK_TYPE_PARTITION_NAME)) {
         ped_partition_set_name(part, partition->label);
+    }
+
+    for (GList *f = partition->flags; f != NULL; f = f->next) {
+        if (!ped_partition_set_flag(part, GPOINTER_TO_INT(f->data), 1)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                        "Failed setting partition flag '%s'",
+                        ped_partition_flag_get_name(GPOINTER_TO_INT(f->data)));
+            return FALSE;
+        }
     }
 
     if (!ped_disk_add_partition(self->disk, part, constraint)) {
@@ -403,6 +413,7 @@ pu_emmc_class_finalize(GObject *object)
         PuEmmcPartition *part = p->data;
         g_free(part->label);
         g_free(part->filesystem);
+        g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *in = i->data;
             g_free(in->uri);
@@ -633,6 +644,27 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                 "offset=%lld block-size=%lld expand=%s",
                 part->label, part->filesystem, type_str, part->size, part->offset,
                 part->block_size, part->expand ? "true" : "false");
+
+        GList *flag_list = pu_hash_table_lookup_list(v->data.mapping, "flags", NULL);
+        if (flag_list != NULL) {
+            for (GList *f = flag_list; f != NULL; f = f->next) {
+                PuConfigValue *fv = f->data;
+                if (fv->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                "'flags' does not contain a sequence of strings");
+                    return FALSE;
+                }
+
+                PedPartitionFlag flag = ped_partition_flag_get_by_name(fv->data.string);
+                if (!flag) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                "Invalid partition flag '%s'", fv->data.string);
+                    continue;
+                }
+                part->flags = g_list_prepend(part->flags, GINT_TO_POINTER(flag));
+            }
+            part->flags = g_list_reverse(part->flags);
+        }
 
         GList *input_list = pu_hash_table_lookup_list(v->data.mapping, "input", NULL);
         if (input_list != NULL) {
