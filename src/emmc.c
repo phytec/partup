@@ -69,6 +69,8 @@ emmc_create_partition(PuEmmc *self,
     PedConstraint *constraint;
     PedSector length = partition->size - 1;
 
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
     if (g_strcmp0(partition->filesystem, "") > 0) {
         fstype = ped_file_system_type_get(partition->filesystem);
         if (fstype == NULL) {
