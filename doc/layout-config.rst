@@ -63,6 +63,11 @@ options:
    Set the partition size to a multiple of the specified value. The default is
    2 sectors, which is almost always equal to 1KiB.
 
+``flags`` (sequence)
+   Set flags for this partition. Flags to be enabled should be provided as a
+   sequence of strings. Possible flags are the same as specified by
+   `GNU parted's set command <https://www.gnu.org/software/parted/manual/parted.html#set>`_.
+
 ``input`` (sequence)
    A sequence of input mappings. See :ref:`input-files`.
 
