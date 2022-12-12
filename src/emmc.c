@@ -410,6 +410,7 @@ pu_emmc_class_finalize(GObject *object)
             g_free(in->sha256sum);
             g_free(in);
         }
+        g_list_free(g_steal_pointer(&part->input));
     }
     g_list_free(g_steal_pointer(&emmc->partitions));
 
