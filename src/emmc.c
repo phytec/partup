@@ -274,6 +274,7 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_umount(part_mount, error))
                     return FALSE;
+                continue;
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
                 g_debug("Writing '%s' to '%s'", path, part_mount);
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, error))
