@@ -291,6 +291,8 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
             }
 
+            if (!pu_mount(part_path, part_mount, error))
+                return FALSE;
             g_autofree gchar *output =
                 g_build_filename(part_mount, g_path_get_basename(path), NULL);
             if (!g_str_equal(input->md5sum, "")) {
@@ -305,6 +307,8 @@ pu_emmc_write_data(PuFlash *flash,
                                              G_CHECKSUM_SHA256, error))
                     return FALSE;
             }
+            if (!pu_umount(part_mount, error))
+                return FALSE;
         }
         g_rmdir(part_mount);
     }
