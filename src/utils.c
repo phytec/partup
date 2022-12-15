@@ -18,7 +18,6 @@ static gboolean
 pu_spawn_command_line_sync(const gchar *command_line,
                            GError **error)
 {
-    gboolean res;
     GSpawnFlags spawn_flags;
     gchar **argv = NULL;
     gint wait_status;
@@ -38,10 +37,14 @@ pu_spawn_command_line_sync(const gchar *command_line,
         return FALSE;
     }
 
-    res = g_spawn_check_exit_status(wait_status, error);
-    g_strfreev(argv);
+    if (!g_spawn_check_exit_status(wait_status, error)) {
+        g_prefix_error(error, "Command '%s' failed: ", command_line);
+        g_strfreev(argv);
+        return FALSE;
+    }
 
-    return res;
+    g_strfreev(argv);
+    return TRUE;
 }
 
 gboolean
@@ -77,7 +80,12 @@ pu_archive_extract(const gchar *filename,
 
     cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
 
-    return pu_spawn_command_line_sync(cmd, error);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
+	return FALSE;
+    }
+
+    return TRUE;
 }
 
 gboolean
@@ -110,7 +118,12 @@ pu_make_filesystem(const gchar *part,
     }
     g_string_append(cmd, part);
 
-    return pu_spawn_command_line_sync(cmd->str, error);
+    if (!pu_spawn_command_line_sync(cmd->str, error)) {
+        g_prefix_error(error, "Failed creating filesystem '%s' on '%s': ", fstype, part);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 gboolean
@@ -124,7 +137,12 @@ pu_resize_filesystem(const gchar *part,
 
     cmd = g_strdup_printf("resize2fs %s", part);
 
-    return pu_spawn_command_line_sync(cmd, error);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed resizing filesystem on '%s': ", part);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 gboolean
