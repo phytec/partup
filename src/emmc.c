@@ -278,6 +278,19 @@ pu_emmc_write_data(PuFlash *flash,
                 return FALSE;
             }
 
+            if (!g_str_equal(input->md5sum, "")) {
+                g_debug("Checking MD5 sum of input file '%s'", path);
+                if (!pu_checksum_verify_file(path, input->md5sum,
+                                             G_CHECKSUM_MD5, error))
+                    return FALSE;
+            }
+            if (!g_str_equal(input->sha256sum, "")) {
+                g_debug("Checking SHA256 sum of input file '%s'", path);
+                if (!pu_checksum_verify_file(path, input->sha256sum,
+                                             G_CHECKSUM_SHA256, error))
+                    return FALSE;
+            }
+
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
                 if (!pu_mount(part_path, part_mount, error))
@@ -292,7 +305,6 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
-                continue;
             } else {
                 g_debug("Copying '%s' to '%s'", path, part_mount);
                 if (!pu_mount(part_path, part_mount, error))
@@ -300,21 +312,6 @@ pu_emmc_write_data(PuFlash *flash,
                 if (!pu_file_copy(path, part_mount, error))
                     return FALSE;
                 if (!pu_umount(part_mount, error))
-                    return FALSE;
-            }
-
-            g_autofree gchar *output =
-                g_build_filename(part_mount, g_path_get_basename(path), NULL);
-            if (!g_str_equal(input->md5sum, "")) {
-                g_debug("Checking MD5 sum of written file '%s'", output);
-                if (!pu_checksum_verify_file(output, input->md5sum,
-                                             G_CHECKSUM_MD5, error))
-                    return FALSE;
-            }
-            if (!g_str_equal(input->sha256sum, "")) {
-                g_debug("Checking SHA256 sum of written file '%s'", output);
-                if (!pu_checksum_verify_file(output, input->sha256sum,
-                                             G_CHECKSUM_SHA256, error))
                     return FALSE;
             }
         }
