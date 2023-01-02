@@ -18,4 +18,5 @@ When executing partup, the following options can be specified:
 -c, --config=CONFIG     Layout configuration file in YAML format
 -d, --debug             Print debug messages
 -p, --prefix=PREFIX     Path to prefix all file URIs with in the layout configuration
+-s, --skip-checksums    Skip checksum verification for all input files
 -v, --version           Print the program version and exit
