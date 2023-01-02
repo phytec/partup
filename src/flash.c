@@ -10,6 +10,7 @@ typedef struct {
     gchar *device_path;
     PuConfig *config;
     gchar *prefix;
+    gboolean skip_checksums;
 } PuFlashPrivate;
 
 enum {
@@ -17,6 +18,7 @@ enum {
     PROP_DEVICE_PATH,
     PROP_CONFIG,
     PROP_PREFIX,
+    PROP_SKIP_CHECKSUMS,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
@@ -74,6 +76,9 @@ pu_flash_set_property(GObject *object,
         g_free(priv->prefix);
         priv->prefix = g_value_dup_string(value);
         break;
+    case PROP_SKIP_CHECKSUMS:
+        priv->skip_checksums = g_value_get_boolean(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -98,6 +103,9 @@ pu_flash_get_property(GObject *object,
         break;
     case PROP_PREFIX:
         g_value_set_string(value, priv->prefix);
+        break;
+    case PROP_SKIP_CHECKSUMS:
+        g_value_set_boolean(value, priv->skip_checksums);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -134,6 +142,12 @@ pu_flash_class_init(PuFlashClass *class)
                             "Path to prefix all file URIs with in the layout configuration",
                             NULL,
                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+    props[PROP_SKIP_CHECKSUMS] =
+        g_param_spec_boolean("skip-checksums",
+                             "Modifier to skip checksums",
+                             "Modifier to skip checksum verification for all files when writing",
+                             FALSE,
+                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
