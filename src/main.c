@@ -16,6 +16,7 @@
 
 static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
+static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_config = NULL;
 static gchar *arg_device = NULL;
 static gchar *arg_prefix = NULL;
@@ -47,6 +48,8 @@ static GOptionEntry option_entries[] = {
     { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
         "PREFIX" },
+    { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_skip_checksums, "Skip checksum verification for all input files", NULL },
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_version, "Print the program version and exit", NULL },
     { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_CALLBACK,
@@ -129,7 +132,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    emmc = pu_emmc_new(arg_device, config, arg_prefix, &error);
+    emmc = pu_emmc_new(arg_device, config, arg_prefix, arg_skip_checksums, &error);
     if (emmc == NULL) {
         g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
         return 1;
