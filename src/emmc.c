@@ -232,6 +232,7 @@ pu_emmc_write_data(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     guint i = 0;
     gboolean first_logical_part = FALSE;
+    gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
     g_autofree gchar *prefix = NULL;
@@ -241,7 +242,10 @@ pu_emmc_write_data(PuFlash *flash,
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    g_object_get(flash, "prefix", &prefix, NULL);
+    g_object_get(flash,
+                 "prefix", &prefix,
+                 "skip-checksums", &skip_checksums,
+                 NULL);
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -278,13 +282,13 @@ pu_emmc_write_data(PuFlash *flash,
                 return FALSE;
             }
 
-            if (!g_str_equal(input->md5sum, "")) {
+            if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
                 g_debug("Checking MD5 sum of input file '%s'", path);
                 if (!pu_checksum_verify_file(path, input->md5sum,
                                              G_CHECKSUM_MD5, error))
                     return FALSE;
             }
-            if (!g_str_equal(input->sha256sum, "")) {
+            if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
                 g_debug("Checking SHA256 sum of input file '%s'", path);
                 if (!pu_checksum_verify_file(path, input->sha256sum,
                                              G_CHECKSUM_SHA256, error))
@@ -334,13 +338,13 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        if (!g_str_equal(input->md5sum, "")) {
+        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
             g_debug("Checking MD5 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->md5sum,
                                          G_CHECKSUM_MD5, error))
                 return FALSE;
         }
-        if (!g_str_equal(input->sha256sum, "")) {
+        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
             g_debug("Checking SHA256 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->sha256sum,
                                          G_CHECKSUM_SHA256, error))
@@ -368,13 +372,13 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
         }
 
-        if (!g_str_equal(input->md5sum, "")) {
+        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
             g_debug("Checking MD5 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->md5sum,
                                          G_CHECKSUM_MD5, error))
                 return FALSE;
         }
-        if (!g_str_equal(input->sha256sum, "")) {
+        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
             g_debug("Checking SHA256 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->sha256sum,
                                          G_CHECKSUM_SHA256, error))
@@ -721,6 +725,7 @@ PuEmmc *
 pu_emmc_new(const gchar *device_path,
             PuConfig *config,
             const gchar *prefix,
+            gboolean skip_checksums,
             GError **error)
 {
     PuEmmc *self;
@@ -736,6 +741,7 @@ pu_emmc_new(const gchar *device_path,
                         "device-path", device_path,
                         "config", config,
                         "prefix", prefix,
+                        "skip-checksums", skip_checksums,
                         NULL);
     root = pu_config_get_root(config);
 
