@@ -49,6 +49,14 @@ Build the documentation::
 
    ninja -C build doc/html
 
+Installation
+============
+
+Install partup on the current system. If enabled, the documentation will be
+installed as well::
+
+   meson install -C build
+
 License
 =======
 
