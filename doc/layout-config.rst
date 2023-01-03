@@ -109,8 +109,8 @@ optional checksum can be provided with ``md5sum`` and/or ``sha256sum``.
 
 ``md5sum`` (string)
    The MD5 sum of the given file specified by ``uri``. This sum is checked
-   against the written file on the target partition or volume.
+   against the provided file before writing to the target partition or volume.
 
 ``sha256sum`` (string)
    The SHA256 sum of the given file specified by ``uri``. This sum is checked
-   against the written file on the target partition or volume.
+   against the provided file before writing to the target partition or volume.
