@@ -39,6 +39,10 @@ typedef struct _PuEmmcBootPartitions {
     PedSector output_offset;
     PuEmmcInput *input;
 } PuEmmcBootPartitions;
+typedef struct _PuEmmcClean {
+    PedSector size;
+    PedSector offset;
+} PuEmmcClean;
 
 struct _PuEmmc {
     PuFlash parent_instance;
@@ -52,6 +56,7 @@ struct _PuEmmc {
 
     PedDiskType *disktype;
     GList *partitions;
+    GList *clean;
     GList *raw;
     PuEmmcBootPartitions *emmc_boot_partitions;
 };
@@ -322,6 +327,20 @@ pu_emmc_write_data(PuFlash *flash,
         g_rmdir(part_mount);
     }
 
+    for (GList *c = self->clean; c != NULL; c = c->next) {
+        PuEmmcClean *clean = c->data;
+
+        if (clean->size == 0) {
+            g_warning("Size 0 specified. Skipping cleaning at %lld", clean->offset);
+            continue;
+        }
+
+        if (!pu_write_raw("/dev/zero", self->device->path, self->device, 0,
+                          clean->offset, clean->size, error)) {
+            return FALSE;
+        }
+    }
+
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         PuEmmcInput *input = bin->input;
@@ -428,6 +447,8 @@ pu_emmc_class_finalize(GObject *object)
     }
     g_list_free(g_steal_pointer(&emmc->partitions));
 
+    g_list_free(g_steal_pointer(&emmc->clean));
+
     for (GList *b = emmc->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         g_free(bin->input->uri);
@@ -527,6 +548,45 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
 
     g_debug("Parsed bootpart input: uri=%s md5sum=%s sha256sum=%s",
             input->uri, input->md5sum, input->sha256sum);
+
+    return TRUE;
+}
+
+static gboolean
+pu_emmc_parse_clean(PuEmmc *emmc,
+                    GHashTable *root,
+                    GError **error)
+{
+    PuConfigValue *value_clean = g_hash_table_lookup(root, "clean");
+    GList *clean;
+
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!value_clean) {
+        g_debug("No entry 'clean' found. Skipping...");
+        return TRUE;
+    }
+
+    if (value_clean->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'clean' is not a sequence");
+        return FALSE;
+    }
+    clean = value_clean->data.sequence;
+
+    for (GList *c = clean; c != NULL; c = c->next) {
+        PuConfigValue *v = c->data;
+        PuEmmcClean *remove = g_new0(PuEmmcClean, 1);
+        remove->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                     "offset", 0);
+        remove->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                   "size", 0);
+        emmc->clean = g_list_prepend(emmc->clean, remove);
+    }
+
+    emmc->clean = g_list_reverse(emmc->clean);
 
     return TRUE;
 }
@@ -759,6 +819,8 @@ pu_emmc_new(const gchar *device_path,
     if (!pu_emmc_parse_raw(self, root, error))
         return NULL;
     if (!pu_emmc_parse_partitions(self, root, error))
+        return NULL;
+    if (!pu_emmc_parse_clean(self, root, error))
         return NULL;
 
     return g_steal_pointer(&self);
