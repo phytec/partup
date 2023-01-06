@@ -57,6 +57,11 @@ installed as well::
 
    meson install -C build
 
+Yocto Integration
+-----------------
+
+A Yocto recipe is available in `meta-ampliphy <https://git.phytec.de/meta-ampliphy/tree/recipes-devtools/partup>`_.
+
 License
 =======
 
