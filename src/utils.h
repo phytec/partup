@@ -25,6 +25,7 @@ gboolean pu_write_raw(const gchar *input_path,
                       PedDevice *device,
                       PedSector input_offset,
                       PedSector output_offset,
+                      PedSector size,
                       GError **error);
 gboolean pu_write_raw_bootpart(const gchar *input,
                                PedDevice *device,

@@ -151,6 +151,7 @@ pu_write_raw(const gchar *input_path,
              PedDevice *device,
              PedSector input_offset,
              PedSector output_offset,
+             PedSector size,
              GError **error)
 {
     g_autoptr(GFile) input_file = NULL;
@@ -179,7 +180,11 @@ pu_write_raw(const gchar *input_path,
     if (input_finfo == NULL)
         return FALSE;
 
-    input_size = g_file_info_get_size(input_finfo);
+    if (size > 0)
+        input_size = size * device->sector_size;
+    else
+        input_size = g_file_info_get_size(input_finfo);
+
     if (input_offset >= input_size) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "Input offset exceeds input file size");
@@ -210,16 +215,18 @@ pu_write_raw(const gchar *input_path,
     buffer_size = input_size < PED_MEBIBYTE_SIZE ? input_size : PED_MEBIBYTE_SIZE;
     buffer = g_new0(guchar, buffer_size);
 
-    while (1) {
+    while (input_size > 0) {
+        if (input_size < buffer_size)
+            buffer_size = input_size;
+
         num_read = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
                                        buffer_size, NULL, error);
         if (num_read < 0)
             return FALSE;
-        if (num_read == 0)
-            break;
 
         if (g_output_stream_write(output_ostream, buffer, num_read, NULL, error) < 0)
             return FALSE;
+        input_size -= num_read;
     }
 
     return TRUE;
@@ -276,7 +283,7 @@ pu_write_raw_bootpart(const gchar *input,
         return FALSE;
 
     res = pu_write_raw(input, bootpart_device, device,
-                       input_offset, output_offset, error);
+                       input_offset, output_offset, 0, error);
 
     if (!pu_bootpart_force_ro(bootpart_device, 1, error))
         return FALSE;
