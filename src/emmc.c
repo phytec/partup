@@ -305,7 +305,7 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
                 g_debug("Writing '%s' to '%s'", path, part_mount);
-                if (!pu_write_raw(path, part_path, self->device, 0, 0, error))
+                if (!pu_write_raw(path, part_path, self->device, 0, 0, 0, error))
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
@@ -352,7 +352,7 @@ pu_emmc_write_data(PuFlash *flash,
         }
 
         if (!pu_write_raw(path, self->device->path, self->device,
-                          bin->input_offset, bin->output_offset, error))
+                          bin->input_offset, bin->output_offset, 0, error))
             return FALSE;
     }
 
