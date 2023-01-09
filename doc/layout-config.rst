@@ -14,6 +14,19 @@ API Version
 MMC Options
 -----------
 
+Clean Data
+..........
+
+The seciton ``clean`` contains a sequence of mappings describing where the mmc
+device is cleaned outside of partitions. Each entry should contain the
+following options:
+
+``offset`` (integer/string)
+   Offset of the cleaned space.
+
+``size`` (integer/string)
+   Size of the cleaned space.
+
 Raw Data
 ........
 
