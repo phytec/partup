@@ -147,6 +147,10 @@ main(G_GNUC_UNUSED int argc,
     }
     if (!pu_flash_write_data(PU_FLASH(emmc), &error)) {
         g_printerr("Failed writing data to device: %s\n", error->message);
+        g_clear_error(&error);
+        if (!pu_umount_all(arg_device, &error))
+            g_printerr("Failed unmounting partitions being used by %s: %s\n",
+                       prog_name, error->message);
         return 1;
     }
 
