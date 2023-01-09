@@ -22,8 +22,8 @@ jobs:
           virtualenv -p /usr/bin/python3 -v env
           source env/bin/activate
           pip install -r doc/requirements.txt
-          meson build -Ddoc=true
-          ninja -C build doc/html
+          meson setup build -Ddoc=true
+          meson compile -C build doc
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.ref_name == 'main' }}
