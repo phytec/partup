@@ -50,7 +50,7 @@ if doxygen.found() and sphinx.found()
     '../src/config.h',
     '../src/flash.h'
   ]
-  custom_target('documentation',
+  custom_target('doc',
                 command : [sphinx, '-W', '-b', 'html', '-c', meson.current_build_dir(),
                            meson.current_source_dir(), '@OUTPUT@'],
                 input : doc_sources,
