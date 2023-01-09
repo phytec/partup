@@ -17,6 +17,8 @@ gboolean pu_mount(const gchar *source,
                   GError **error);
 gboolean pu_umount(const gchar *mount_point,
                    GError **error);
+gboolean pu_umount_all(const gchar *device,
+                       GError **error);
 gboolean pu_device_mounted(const gchar *device);
 
 #endif /* PARTUP_MOUNT_H */
