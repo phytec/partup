@@ -21,7 +21,7 @@ Building
 
 Build *partup* using the `Meson Build system <https://mesonbuild.com>`_::
 
-   meson build
+   meson setup build
    meson compile -C build
 
 Running
@@ -43,7 +43,7 @@ Install the dependencies needed for building the documentation::
 
 Configure the build directory for building the documentation::
 
-   meson configure build -Ddoc=true
+   meson setup --reconfigure build -Ddoc=true
 
 Build the documentation::
 
