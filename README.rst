@@ -22,7 +22,7 @@ Building
 Build *partup* using the `Meson Build system <https://mesonbuild.com>`_::
 
    meson build
-   ninja -C build
+   meson compile -C build
 
 Running
 =======
@@ -47,7 +47,7 @@ Configure the build directory for building the documentation::
 
 Build the documentation::
 
-   ninja -C build doc/html
+   meson compile -C build doc
 
 License
 =======
