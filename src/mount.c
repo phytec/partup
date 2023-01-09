@@ -73,7 +73,7 @@ gboolean
 pu_device_mounted(const gchar *device)
 {
     g_autofree gchar *cmd = g_strdup("mount");
-    g_autofree gchar *output;
+    g_autofree gchar *output = NULL;
 
     g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL);
 
