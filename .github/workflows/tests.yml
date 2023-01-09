@@ -17,6 +17,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
       - name: Build unit tests and program
-        run: meson build -Dbuildtype=debug
+        run: meson setup build --buildtype=debug
       - name: Run unit tests
         run: meson test -C build
