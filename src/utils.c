@@ -82,7 +82,7 @@ pu_archive_extract(const gchar *filename,
 
     if (!pu_spawn_command_line_sync(cmd, error)) {
         g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
-	return FALSE;
+        return FALSE;
     }
 
     return TRUE;
