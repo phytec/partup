@@ -309,8 +309,13 @@ pu_path_from_uri(const gchar *uri,
     g_autofree gchar *scheme = NULL;
     g_autofree gchar *host = NULL;
 
-    g_return_val_if_fail(g_strcmp0(uri, "") > 0, NULL);
     g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+    if (g_strcmp0(uri, "") <= 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "URI is empty");
+        return NULL;
+    }
 
     if (!g_uri_split(uri, G_URI_FLAGS_NONE, &scheme, NULL, &host, NULL, &path,
                      NULL, NULL, error))
