@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (c) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
 #ifndef PARTUP_MOUNT_H
@@ -8,7 +8,7 @@
 
 #include <glib.h>
 
-#define PU_MOUNT_PREFIX "/mnt/partup"
+#define PU_MOUNT_PREFIX "/run/partup"
 
 gchar * pu_create_mount_point(const gchar *name,
                               GError **error);
