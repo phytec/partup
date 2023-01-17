@@ -71,7 +71,7 @@ information.
 
    partup - System Initialization Program
 
-   Copyright (C) 2022  PHYTEC Messtechnik GmbH
+   Copyright (C) 2023  PHYTEC Messtechnik GmbH
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
