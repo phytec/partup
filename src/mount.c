@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (c) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
 #include <glib.h>
@@ -75,7 +75,7 @@ pu_umount_all(const gchar *device,
 {
     g_autofree gchar *cmd_mount = g_strdup("mount");
     g_autofree gchar *output = NULL;
-    g_autofree gchar *expr = g_strdup_printf("^%sp[1-9]+", device);
+    g_autofree gchar *expr = g_strdup_printf("^%sp?[0-9]+", device);
     g_autoptr(GRegex) regex = NULL;
     g_autoptr(GMatchInfo) match_info = NULL;
     gint wait_status;
