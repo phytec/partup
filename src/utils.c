@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (c) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
 #include <fcntl.h>
@@ -344,4 +344,24 @@ pu_path_from_uri(const gchar *uri,
     }
 
     return g_strdup(path);
+}
+
+gchar *
+pu_device_get_partition_path(const gchar *device,
+                             guint index,
+                             GError **error)
+{
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, NULL);
+    g_return_val_if_fail(index > 0, NULL);
+    g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+    if (g_regex_match_simple("mmcblk[0-9]+", device, 0, 0)) {
+        return g_strdup_printf("%sp%u", device, index);
+    } else if (g_regex_match_simple("sd[a-z]+", device, 0, 0)) {
+        return g_strdup_printf("%s%u", device, index);
+    } else {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Invalid device name '%s'", device);
+        return NULL;
+    }
 }

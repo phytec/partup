@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (c) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
 #ifndef PARTUP_UTILS_H
@@ -39,5 +39,8 @@ gboolean pu_bootpart_enable(const gchar *device,
 gchar * pu_path_from_uri(const gchar *uri,
                          const gchar *prefix,
                          GError **error);
+gchar * pu_device_get_partition_path(const gchar *device,
+                                     guint index,
+                                     GError **error);
 
 #endif /* PARTUP_UTILS_H */
