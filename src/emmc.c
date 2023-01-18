@@ -260,7 +260,9 @@ pu_emmc_write_data(PuFlash *flash,
         } else {
             i++;
         }
-        part_path = g_strdup_printf("%sp%u", self->device->path, i);
+        part_path = pu_device_get_partition_path(self->device->path, i, error);
+        if (part_path == NULL)
+            return FALSE;
 
         g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
 
@@ -268,8 +270,7 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
 
         if (!part->input) {
-            g_debug("No input specified. Skipping %s",
-                    g_strdup_printf("%sp%u", self->device->path, i));
+            g_debug("No input specified. Skipping %s", part_path);
             continue;
         }
 
