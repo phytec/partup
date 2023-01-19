@@ -24,3 +24,31 @@ When executing partup, the following options can be specified:
 -p, --prefix=PREFIX     Path to prefix all file URIs with in the layout configuration
 -s, --skip-checksums    Skip checksum verification for all input files
 -v, --version           Print the program version and exit
+
+Supported Output Devices
+------------------------
+
+Writing is currently supported for block devices and those incorporating a flash
+translation layer. This includes:
+
+-  HDD
+-  SSD
+-  SD cards
+-  eMMC devices and their eMMC boot partitions
+
+The device must be named ``mmcblk*`` or ``sd*``, e.g. the following device names
+are valid::
+
+   /dev/mmcblk0
+   /dev/mmcblk9
+   /dev/sda
+   /dev/sdf
+
+.. warning::
+
+   Do *not* attempt to write to existing partitions, like ``/dev/mmcblk1p2``!
+   Specify the raw device, as mentioned above, instead.
+
+Devices with raw access to memory, not incorporating a flash translation layer,
+like those accessible through the `Linux MTD interface
+<http://www.linux-mtd.infradead.org/>`_, are currently not supported.
