@@ -5,7 +5,11 @@ General Usage
 -------------
 
 partup requires a configuration file specifying the layout and an output device
-to write to as its mandatory arguments. An example looks like the following::
+to write to as its mandatory arguments. The full syntax is as follows::
+
+   partup [OPTION?] -c CONFIG DEVICE
+
+An minimal example may look like the following::
 
    partup -c layout.yaml /dev/mmcblk2
 
