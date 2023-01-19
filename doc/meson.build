@@ -42,6 +42,8 @@ if doxygen.found() and sphinx.found()
     'api-flash.rst',
     'api-utils.rst',
     'layout-config.rst',
+    'layout-config-reference.rst',
+    'layout-config-examples.rst',
     'contributing.rst',
     'index.rst',
     'usage.rst',
