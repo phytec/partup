@@ -1,0 +1,74 @@
+api-version: 0
+disklabel: msdos
+
+emmc-boot-partitions:
+  enable: true
+  input-offset: 0
+  output-offset: 0
+  input:
+    uri: file://barebox.bin
+    md5sum: 46b1db79bc81e7af11b29436fb7a2515
+    sha256sum: a4d0b0802fc30fbdc987def1975f665190aa35af64fcd9dae26fc1b121c71966
+
+clean:
+  - offset: 3840KiB
+    size: 64KiB
+  - offset: 3960KiB
+    size: 64KiB
+
+raw:
+  - input-offset: 1kiB
+    output-offset: 1kiB
+    input:
+      uri: file://barebox.bin
+      md5sum: 46b1db79bc81e7af11b29436fb7a2515
+      sha256sum: a4d0b0802fc30fbdc987def1975f665190aa35af64fcd9dae26fc1b121c71966
+
+partitions:
+  - label: BOOT0
+    type: primary
+    filesystem: fat32
+    size: 64MiB
+    offset: 4MiB
+    input:
+      - uri: file://zImage
+        md5sum: 03d010a6850653344b7120da813ef282
+        sha256sum: 545420a94b3e7d92e61d87523fc263f5abe7820b144e5e444f59f345adb87762
+      - uri: file://oftree
+        md5sum: a48a06a5c3fbbfb89f0591710ca120c0
+        sha256sum: c40b7c2f6e669aea45385eaec60a0af4a7f7a328c0bef6ab2a173bf6143da61e
+
+  - label: BOOT1
+    type: primary
+    filesystem: fat32
+    size: 64MiB
+    input:
+      - uri: file://zImage
+        md5sum: 03d010a6850653344b7120da813ef282
+        sha256sum: 545420a94b3e7d92e61d87523fc263f5abe7820b144e5e444f59f345adb87762
+      - uri: file://oftree
+        md5sum: a48a06a5c3fbbfb89f0591710ca120c0
+        sha256sum: c40b7c2f6e669aea45385eaec60a0af4a7f7a328c0bef6ab2a173bf6143da61e
+
+  - label: CONFIG
+    type: primary
+    filesystem: ext4
+    size: 192MiB
+    input:
+      - uri: file://config-partition.tar.gz
+
+  - label: ROOT0
+    type: logical
+    filesystem: null
+    expand: true
+    block-size: 4kiB
+    input:
+      - uri: file://rootfs.ext4
+
+  - label: ROOT1
+    type: logical
+    filesystem: null
+    expand: true
+    block-size: 4kiB
+    input:
+      - uri: file://rootfs.ext4

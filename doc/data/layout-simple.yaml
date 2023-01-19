@@ -1,0 +1,24 @@
+api-version: 0
+disklabel: msdos
+
+raw:
+  - input-offset: 0
+    output-offset: 33kiB
+    input:
+      uri: file://u-boot.bin
+
+partitions:
+  - type: primary
+    filesystem: fat32
+    size: 128MiB
+    offset: 4MiB
+    input:
+      - uri: file://Image
+      - uri: file://oftree
+      - uri: file://bootenv.txt
+
+  - type: primary
+    filesystem: ext4
+    expand: true
+    input:
+      - uri: file://rootfs.tar.gz
