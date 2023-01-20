@@ -127,3 +127,19 @@ optional checksum can be provided with ``md5sum`` and/or ``sha256sum``.
 ``sha256sum`` (string)
    The SHA256 sum of the given file specified by ``uri``. This sum is checked
    against the provided file before writing to the target partition or volume.
+
+Supported File Types
+....................
+
+The provided input files are copied to the filesystem of the corresponding
+partition by default. However, if files are of one of the supported special file
+types, they are treated as following.
+
+``tar`` or ``tar.*``
+   Archives and compressed archives are extracted into the filesystem.
+
+``ext[234]``
+   Raw filesystem files are written directly to the partition. This overrides
+   any existing filesystem, so it should be specified as ``filesystem: null`` or
+   not be specified at all. Additionally ext filesystems are resized to utilize
+   the whole partition.
