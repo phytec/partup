@@ -14,10 +14,10 @@
 #include "utils.h"
 #include "version.h"
 
-static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_config = NULL;
+static gchar *arg_debug = NULL;
 static gchar *arg_device = NULL;
 static gchar *arg_prefix = NULL;
 
@@ -43,8 +43,9 @@ arg_parse_remaining(const gchar *option_name,
 static GOptionEntry option_entries[] = {
     { "config", 'c', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_config, "Layout configuration file in YAML format", "CONFIG" },
-    { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
-        &arg_debug, "Print debug messages", NULL },
+    { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING,
+        &arg_debug, "Comma separated list of modules for to enable debug output",
+        "DEBUG-DOMAINS" },
     { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
         "PREFIX" },
@@ -83,13 +84,19 @@ main(G_GNUC_UNUSED int argc,
 
     if (arg_debug) {
         const gchar *domains = g_getenv("G_MESSAGES_DEBUG");
-
-        if (domains != NULL) {
-            g_autofree gchar *new_domains = g_strdup_printf("%s %s", domains, prog_name);
-            g_setenv("G_MESSAGES_DEBUG", new_domains, TRUE);
+        g_autoptr(GString) new_domains = g_string_new(domains);
+        if (g_strcmp0(arg_debug, "all") == 0) {
+            g_string_append(new_domains,
+                            "partup partup-config partup-emmc partup-mount");
         } else {
-            g_setenv("G_MESSAGES_DEBUG", prog_name, TRUE);
+            gchar** debug_arr = g_strsplit(arg_debug, ",", 0);
+            for (int i = 0; debug_arr[i] != NULL; i++) {
+                g_string_append(new_domains,
+                                g_strdup_printf("partup-%s", debug_arr[i]));
+            }
+            g_strfreev(debug_arr);
         }
+        g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
     }
 
     if (arg_version) {
