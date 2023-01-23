@@ -96,7 +96,7 @@ emmc_create_partition(PuEmmc *self,
             return FALSE;
         }
         if (ped_disk_extended_partition(self->disk) == NULL) {
-            g_debug("Creating extended partition at %lld", start);
+            g_message("Creating extended partition at %lld", start);
             PedPartition *extpart;
             gint ret;
 
@@ -266,13 +266,13 @@ pu_emmc_write_data(PuFlash *flash,
         if (part_path == NULL)
             return FALSE;
 
-        g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
+        g_message("Creating filesystem %s on %s", part->filesystem, part_path);
 
         if (!pu_make_filesystem(part_path, part->filesystem, error))
             return FALSE;
 
         if (!part->input) {
-            g_debug("No input specified. Skipping %s", part_path);
+            g_message("No input specified. Skipping %s", part_path);
             continue;
         }
 
@@ -291,20 +291,20 @@ pu_emmc_write_data(PuFlash *flash,
             }
 
             if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-                g_debug("Checking MD5 sum of input file '%s'", path);
+                g_info("Checking MD5 sum of input file '%s'", path);
                 if (!pu_checksum_verify_file(path, input->md5sum,
                                              G_CHECKSUM_MD5, error))
                     return FALSE;
             }
             if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-                g_debug("Checking SHA256 sum of input file '%s'", path);
+                g_info("Checking SHA256 sum of input file '%s'", path);
                 if (!pu_checksum_verify_file(path, input->sha256sum,
                                              G_CHECKSUM_SHA256, error))
                     return FALSE;
             }
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
-                g_debug("Extracting '%s' to '%s'", path, part_mount);
+                g_message("Extracting '%s' to '%s'", path, part_mount);
                 if (!pu_mount(part_path, part_mount, error))
                     return FALSE;
                 if (!pu_archive_extract(path, part_mount, error))
@@ -312,13 +312,13 @@ pu_emmc_write_data(PuFlash *flash,
                 if (!pu_umount(part_mount, error))
                     return FALSE;
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
-                g_debug("Writing '%s' to '%s'", path, part_mount);
+                g_message("Writing '%s' to '%s'", path, part_mount);
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, 0, error))
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
             } else {
-                g_debug("Copying '%s' to '%s'", path, part_mount);
+                g_message("Copying '%s' to '%s'", path, part_mount);
                 if (!pu_mount(part_path, part_mount, error))
                     return FALSE;
                 if (!pu_file_copy(path, part_mount, error))
@@ -361,13 +361,13 @@ pu_emmc_write_data(PuFlash *flash,
         }
 
         if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
+            g_info("Checking MD5 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->md5sum,
                                          G_CHECKSUM_MD5, error))
                 return FALSE;
         }
         if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
+            g_info("Checking SHA256 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->sha256sum,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
@@ -395,13 +395,13 @@ pu_emmc_write_data(PuFlash *flash,
         }
 
         if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
+            g_info("Checking MD5 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->md5sum,
                                          G_CHECKSUM_MD5, error))
                 return FALSE;
         }
         if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
+            g_info("Checking SHA256 sum of input file '%s'", path);
             if (!pu_checksum_verify_file(path, input->sha256sum,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
@@ -508,7 +508,7 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     if (!value_bootpart) {
-        g_debug("No entry 'emmc-boot-partitions' found. Skipping...");
+        g_message("No entry 'emmc-boot-partitions' found. Skipping...");
         return TRUE;
     }
 
@@ -568,7 +568,7 @@ pu_emmc_parse_clean(PuEmmc *emmc,
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     if (!value_clean) {
-        g_debug("No entry 'clean' found. Skipping...");
+        g_message("No entry 'clean' found. Skipping...");
         return TRUE;
     }
 
@@ -607,7 +607,7 @@ pu_emmc_parse_raw(PuEmmc *emmc,
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     if (!value_raw) {
-        g_debug("No entry 'raw' found. Skipping...");
+        g_message("No entry 'raw' found. Skipping...");
         return TRUE;
     }
 
@@ -668,7 +668,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
     emmc->num_expanded_parts = 0;
 
     if (!value_partitions) {
-        g_debug("No entry 'partitions' found. Skipping...");
+        g_message("No entry 'partitions' found. Skipping...");
         return TRUE;
     }
 

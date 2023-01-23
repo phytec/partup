@@ -23,7 +23,7 @@ pu_create_mount_point(const gchar *name,
     g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
     if (g_file_test(mount_point, G_FILE_TEST_IS_DIR)) {
-        g_debug("Mount point '%s' already exists", mount_point);
+        g_info("Mount point '%s' already exists", mount_point);
         return mount_point;
     }
 
