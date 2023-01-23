@@ -10,6 +10,8 @@
 #include "config.h"
 #include "error.h"
 
+#define G_LOG_DOMAIN "partup-config"
+
 typedef struct _PuConfigPrivate PuConfigPrivate;
 
 struct _PuConfigPrivate {

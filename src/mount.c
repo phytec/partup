@@ -12,6 +12,8 @@
 #include "error.h"
 #include "mount.h"
 
+#define G_LOG_DOMAIN "partup-mount"
+
 gchar *
 pu_create_mount_point(const gchar *name,
                       GError **error)

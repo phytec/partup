@@ -12,6 +12,8 @@
 #include "utils.h"
 #include "emmc.h"
 
+#define G_LOG_DOMAIN "partup-emmc"
+
 typedef struct _PuEmmcInput {
     gchar *uri;
     gchar *md5sum;
