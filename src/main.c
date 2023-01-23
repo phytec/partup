@@ -14,6 +14,7 @@
 #include "utils.h"
 #include "version.h"
 
+static gboolean arg_quiet = FALSE;
 static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_config = NULL;
@@ -49,6 +50,8 @@ static GOptionEntry option_entries[] = {
     { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
         "PREFIX" },
+    { "quiet", 'q', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_quiet, "Print only error messages", NULL },
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_skip_checksums, "Skip checksum verification for all input files", NULL },
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
@@ -80,6 +83,10 @@ main(G_GNUC_UNUSED int argc,
     if (!g_option_context_parse_strv(context, &args, &error)) {
         g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
+    }
+
+    if (arg_quiet) {
+        g_log_set_writer_func(g_log_writer_journald, NULL, NULL);
     }
 
     if (arg_debug) {
