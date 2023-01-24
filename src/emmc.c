@@ -12,6 +12,8 @@
 #include "utils.h"
 #include "emmc.h"
 
+#define PARTITION_TABLE_SIZE_GPT 34
+
 typedef struct _PuEmmcInput {
     gchar *uri;
     gchar *md5sum;
@@ -772,9 +774,15 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
     emmc->partitions = g_list_reverse(emmc->partitions);
 
     if (emmc->num_expanded_parts > 0) {
-        emmc->expanded_part_size = (emmc->device->length - fixed_parts_size
-                                    - 2 * emmc->num_logical_parts)
-                                    / emmc->num_expanded_parts;
+        emmc->expanded_part_size = emmc->device->length - fixed_parts_size
+                                   - 2 * emmc->num_logical_parts;
+
+        /* Reserve blocks for secondary GPT */
+        if (g_str_equal(emmc->disktype->name, "gpt")) {
+            emmc->expanded_part_size -= PARTITION_TABLE_SIZE_GPT;
+        }
+
+        emmc->expanded_part_size /= emmc->num_expanded_parts;
         g_debug("%u expanding partitions, each of size %llds",
                 emmc->num_expanded_parts, emmc->expanded_part_size);
     }
