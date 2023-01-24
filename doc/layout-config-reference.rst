@@ -56,6 +56,10 @@ options:
 ``label`` (string)
    A partition label.
 
+``partuuid`` (string)
+   The PARTUUID of the partition. Only supported on GPT partitioned devices. A
+   random UUID is used by default.
+
 ``type`` (string)
    The partition type. May be one of ``primary`` or ``logical``. Note, that with
    the first occurrence of a logical partition the following ones must be
