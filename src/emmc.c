@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Copyright (c) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
 #include <parted/parted.h>
@@ -22,6 +22,7 @@ typedef struct _PuEmmcInput {
 } PuEmmcInput;
 typedef struct _PuEmmcPartition {
     gchar *label;
+    gchar *partuuid;
     PedPartitionType type;
     gchar *filesystem;
     PedSector size;
@@ -263,6 +264,16 @@ pu_emmc_write_data(PuFlash *flash,
         } else {
             i++;
         }
+
+        if (g_strcmp0(part->partuuid, "") > 0) {
+            if (g_str_equal(self->disktype->name, "gpt")) {
+                if (!pu_partition_set_partuuid(self->device->path, i, part->partuuid, error))
+                    return FALSE;
+            } else {
+                g_warning("Setting PARTUUID is only supported on GPT partitioned devices");
+            }
+        }
+
         part_path = pu_device_get_partition_path(self->device->path, i, error);
         if (part_path == NULL)
             return FALSE;
@@ -438,6 +449,7 @@ pu_emmc_class_finalize(GObject *object)
     for (GList *p = emmc->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
         g_free(part->label);
+        g_free(part->partuuid);
         g_free(part->filesystem);
         g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
@@ -691,6 +703,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
         part->label = pu_hash_table_lookup_string(v->data.mapping, "label", "");
+        part->partuuid = pu_hash_table_lookup_string(v->data.mapping, "partuuid", "");
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
         part->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "offset", 0);
