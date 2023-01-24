@@ -307,6 +307,31 @@ pu_bootpart_enable(const gchar *device,
     return pu_spawn_command_line_sync(cmd, error);
 }
 
+gboolean
+pu_partition_set_partuuid(const gchar *device,
+                          guint index,
+                          const gchar *partuuid,
+                          GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(index > 0, FALSE);
+    g_return_val_if_fail(g_strcmp0(partuuid, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    cmd = g_strdup_printf("sfdisk --part-uuid %s %d %s",
+                          device, index, partuuid);
+
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed setting PARTUUID on %s partition %d: ",
+                       device, index);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 gchar *
 pu_path_from_uri(const gchar *uri,
                  const gchar *prefix,
