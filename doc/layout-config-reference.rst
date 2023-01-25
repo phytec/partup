@@ -14,6 +14,10 @@ API Version
 MMC Options
 -----------
 
+``disklabel`` (string)
+   Partition table for the device. Currently supported options are ``msdos``
+   (default) and ``gpt``.
+
 Clean Data
 ..........
 
@@ -55,7 +59,8 @@ options:
 ``type`` (string)
    The partition type. May be one of ``primary`` or ``logical``. Note, that with
    the first occurrence of a logical partition the following ones must be
-   logical, too.
+   logical, too. Logical partitions are only supported with the ``msdos``
+   partition table.
 
 ``filessytem`` (string)
    The filesystem type to use during formatting of the partition, e.g. ``fat32``
