@@ -418,7 +418,7 @@ pu_device_get_partition_path(const gchar *device,
     g_return_val_if_fail(index > 0, NULL);
     g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
-    if (g_regex_match_simple("mmcblk[0-9]+", device, 0, 0)) {
+    if (g_regex_match_simple("(mmcblk|loop)[0-9]+", device, 0, 0)) {
         return g_strdup_printf("%sp%u", device, index);
     } else if (g_regex_match_simple("sd[a-z]+", device, 0, 0)) {
         return g_strdup_printf("%s%u", device, index);
