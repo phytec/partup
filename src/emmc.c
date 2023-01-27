@@ -12,7 +12,8 @@
 #include "utils.h"
 #include "emmc.h"
 
-#define PARTITION_TABLE_SIZE_GPT 34
+#define PARTITION_TABLE_SIZE_MSDOS 1
+#define PARTITION_TABLE_SIZE_GPT   34
 
 typedef struct _PuEmmcInput {
     gchar *uri;
@@ -660,6 +661,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
     PuConfigValue *value_partitions = g_hash_table_lookup(root, "partitions");
     GList *partitions;
     PedSector fixed_parts_size = 0;
+    gboolean first_partition = TRUE;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
     g_return_val_if_fail(root != NULL, FALSE);
@@ -704,6 +706,29 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
             g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                         "Partition of invalid type '%s' specified", type_str);
             return FALSE;
+        }
+
+        if (first_partition) {
+            first_partition = FALSE;
+            PedSector min_offset = 1;
+
+            if (g_str_equal(emmc->disktype->name, "msdos"))
+                min_offset = PARTITION_TABLE_SIZE_MSDOS;
+            else if (g_str_equal(emmc->disktype->name, "gpt"))
+                min_offset = PARTITION_TABLE_SIZE_GPT;
+
+            if (part->offset < min_offset && part->offset > 0) {
+                g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                            "Offset of first partition too small and would "
+                            "override partition table");
+                return FALSE;
+            }
+
+            if (part->offset == 0) {
+                g_warning("No offset specified for first partition (using "
+                          "default of %lld sectors)", min_offset);
+                part->offset = min_offset;
+            }
         }
 
         g_debug("Parsed partition: label=%s filesystem=%s type=%s size=%lld "
