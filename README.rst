@@ -16,6 +16,17 @@ partup - System Initialization Program
 |      | program may also change drastically until release version 1.0.0. |
 +------+------------------------------------------------------------------+
 
+Dependencies
+============
+
+The following tools and libraries must be installed on the target system for
+*partup* to run:
+
+-  `GLib <https://docs.gtk.org/glib/>`_ (minimum version 2.66.0)
+-  `libyaml <https://pyyaml.org/wiki/LibYAML>`_
+-  `libparted <https://www.gnu.org/software/parted/>`_
+-  `util-linux <https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git>`_
+
 Building
 ========
 
