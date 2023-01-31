@@ -853,7 +853,11 @@ pu_emmc_new(const gchar *device_path,
     root = pu_config_get_root(config);
 
     self->device = ped_device_get(device_path);
-    g_return_val_if_fail(self->device != NULL, NULL);
+    if (!self->device) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Failed getting device '%s'", device_path);
+        return NULL;
+    }
 
     ped_unit_set_default(PED_UNIT_SECTOR);
 
