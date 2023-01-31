@@ -859,7 +859,11 @@ pu_emmc_new(const gchar *device_path,
 
     g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", "msdos");
     self->disktype = ped_disk_type_get(disklabel);
-    g_return_val_if_fail(self->disktype != NULL, NULL);
+    if (!self->disktype) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Disklabel '%s' is not supported by libparted", disklabel);
+        return NULL;
+    }
 
     if (!pu_emmc_parse_emmc_bootpart(self, root, error))
         return NULL;
