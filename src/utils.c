@@ -332,6 +332,20 @@ pu_partition_set_partuuid(const gchar *device,
     return TRUE;
 }
 
+gboolean
+pu_is_drive(const gchar *device)
+{
+    g_autofree gchar *cmd = g_strdup("lsblk -dpno NAME");
+    g_autofree gchar *output = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+
+    g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL);
+
+    return g_regex_match_simple(g_strdup_printf("^%s$", device),
+                                output, G_REGEX_MULTILINE, 0);
+}
+
 gchar *
 pu_path_from_uri(const gchar *uri,
                  const gchar *prefix,

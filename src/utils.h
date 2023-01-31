@@ -40,6 +40,7 @@ gboolean pu_partition_set_partuuid(const gchar *device,
                                    guint index,
                                    const gchar *partuuid,
                                    GError **error);
+gboolean pu_is_drive(const gchar *device);
 gchar * pu_path_from_uri(const gchar *uri,
                          const gchar *prefix,
                          GError **error);
