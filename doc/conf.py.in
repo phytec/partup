@@ -3,7 +3,7 @@ import os
 # -- Project information -----------------------------------------------------
 
 project = '@PROJECT_NAME@'
-copyright = u'2022, PHYTEC Messtechnik GmbH'
+copyright = u'2023, PHYTEC Messtechnik GmbH'
 author = u'Martin Schwan'
 release = '@PROJECT_VERSION@'
 
