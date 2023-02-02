@@ -27,6 +27,13 @@ The following tools and libraries must be installed on the target system for
 -  `libparted <https://www.gnu.org/software/parted/>`_
 -  `util-linux <https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git>`_
 
+For building *partup* from source and generating its documentation the following
+additional dependencies are needed:
+
+-  `Meson Build <https://mesonbuild.com/>`_
+-  `Sphinx <https://www.sphinx-doc.org/>`_
+-  `Doxygen <https://www.doxygen.nl/>`_
+
 Building
 ========
 
