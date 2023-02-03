@@ -109,8 +109,8 @@ main(G_GNUC_UNUSED int argc,
     }
 
     if (!pu_is_drive(arg_device)) {
-       g_printerr("Device '%s' is not a drive!\n", arg_device);
-       return 1;
+        g_printerr("Device '%s' is not a drive!\n", arg_device);
+        return 1;
     }
 
     if (pu_device_mounted(arg_device)) {
