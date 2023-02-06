@@ -7,6 +7,7 @@
 #include <glib/gstdio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libmount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "error.h"
@@ -41,16 +42,31 @@ pu_mount(const gchar *source,
          const gchar *mount_point,
          GError **error)
 {
-    g_autofree gchar *cmd = g_strdup_printf("mount %s %s", source, mount_point);
+    gint ret;
+    struct libmnt_context *ctx;
 
+    g_return_val_if_fail(g_strcmp0(source, "") > 0, FALSE);
+    g_return_val_if_fail(g_strcmp0(mount_point, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (!g_spawn_command_line_sync(cmd, NULL, NULL, NULL, error)) {
-        g_prefix_error(error, "Failed mounting '%s' to '%s': ",
-                       source, mount_point);
+    ctx = mnt_new_context();
+    if (!ctx) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed creating mount context while mounting '%s' to '%s'",
+                    source, mount_point);
+        return FALSE;
+    }
+    mnt_context_set_target(ctx, mount_point);
+    mnt_context_set_source(ctx, source);
+    ret = mnt_context_mount(ctx);
+    if (ret || mnt_context_get_status(ctx) != 1) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed mounting '%s' to '%s'", source, mount_point);
+        mnt_free_context(ctx);
         return FALSE;
     }
 
+    mnt_free_context(ctx);
     return TRUE;
 }
 
@@ -58,15 +74,29 @@ gboolean
 pu_umount(const gchar *mount_point,
           GError **error)
 {
-    g_autofree gchar *cmd = g_strdup_printf("umount %s", mount_point);
+    gint ret;
+    struct libmnt_context *ctx;
 
+    g_return_val_if_fail(g_strcmp0(mount_point, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (!g_spawn_command_line_sync(cmd, NULL, NULL, NULL, error)) {
-        g_prefix_error(error, "Failed unmounting '%s': ", mount_point);
+    ctx = mnt_new_context();
+    if (!ctx) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed creating mount context while unmounting '%s'",
+                    mount_point);
+        return FALSE;
+    }
+    mnt_context_set_target(ctx, mount_point);
+    ret = mnt_context_umount(ctx);
+    if (ret || mnt_context_get_status(ctx) != 1) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed unmounting '%s'", mount_point);
+        mnt_free_context(ctx);
         return FALSE;
     }
 
+    mnt_free_context(ctx);
     return TRUE;
 }
 
