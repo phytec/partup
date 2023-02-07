@@ -164,6 +164,7 @@ pu_write_raw(const gchar *input_path,
     goffset input_size;
     gsize buffer_size;
     gssize num_read;
+    gssize input_remaining;
     g_autofree guchar *buffer = NULL;
 
     g_return_val_if_fail(input_path != NULL, FALSE);
@@ -212,12 +213,13 @@ pu_write_raw(const gchar *input_path,
         return FALSE;
 
     /* Begin reading and writing */
-    buffer_size = input_size < PED_MEBIBYTE_SIZE ? input_size : PED_MEBIBYTE_SIZE;
+    input_remaining = input_size - input_offset;
+    buffer_size = input_remaining < PED_MEBIBYTE_SIZE ? input_remaining : PED_MEBIBYTE_SIZE;
     buffer = g_new0(guchar, buffer_size);
 
-    while (input_size > 0) {
-        if (input_size < buffer_size)
-            buffer_size = input_size;
+    while (input_remaining > 0) {
+        if (input_remaining < buffer_size)
+            buffer_size = input_remaining;
 
         num_read = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
                                        buffer_size, NULL, error);
@@ -226,7 +228,8 @@ pu_write_raw(const gchar *input_path,
 
         if (g_output_stream_write(output_ostream, buffer, num_read, NULL, error) < 0)
             return FALSE;
-        input_size -= num_read;
+
+        input_remaining -= num_read;
     }
 
     return TRUE;
