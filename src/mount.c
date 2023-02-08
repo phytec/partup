@@ -12,7 +12,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "error.h"
-#include "glib-compat.h"
 #include "utils.h"
 #include "mount.h"
 
@@ -158,28 +157,21 @@ gboolean
 pu_umount_all(const gchar *device,
               GError **error)
 {
-    g_autofree gchar *cmd_mount = g_strdup("mount");
-    g_autofree gchar *output = NULL;
-    g_autofree gchar *expr = g_strdup_printf("^%sp?[0-9]+", device);
-    g_autoptr(GRegex) regex = NULL;
-    g_autoptr(GMatchInfo) match_info = NULL;
-    gint wait_status;
+    g_autoptr(GPtrArray) mounted = NULL;
 
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (!g_spawn_command_line_sync(cmd_mount, &output, NULL, &wait_status, error))
+    mounted = pu_find_mounted(device);
+    if (!mounted) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed finding mounted partitions of '%s'", device);
         return FALSE;
-    if (!g_spawn_check_wait_status(wait_status, error))
-        return FALSE;
+    }
 
-    regex = g_regex_new(expr, G_REGEX_MULTILINE, 0, NULL);
-    g_regex_match(regex, output, 0, &match_info);
-
-    while (g_match_info_matches(match_info)) {
-        g_autofree gchar *mount = g_match_info_fetch(match_info, 0);
-        if (!pu_umount(mount, error))
+    for (guint i = 0; i < mounted->len; i++) {
+        if (!pu_umount(mounted->pdata[i], error))
             return FALSE;
-        g_match_info_next(match_info, NULL);
     }
 
     return TRUE;
