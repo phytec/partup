@@ -8,6 +8,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <stdio.h>
+#include <blkid.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "pu-config.h"
@@ -344,15 +345,17 @@ pu_partition_set_partuuid(const gchar *device,
 gboolean
 pu_is_drive(const gchar *device)
 {
-    g_autofree gchar *cmd = g_strdup("lsblk -dpno NAME");
-    g_autofree gchar *output = NULL;
+    blkid_probe pr;
+    gboolean ret = FALSE;
 
     g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
 
-    g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL);
+    pr = blkid_new_probe_from_filename(device);
+    if (pr && blkid_probe_is_wholedisk(pr))
+        ret = TRUE;
 
-    return g_regex_match_simple(g_strdup_printf("^%s$", device),
-                                output, G_REGEX_MULTILINE, 0);
+    blkid_free_probe(pr);
+    return ret;
 }
 
 gboolean
