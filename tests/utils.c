@@ -123,6 +123,33 @@ test_write_raw_input_offset(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
 }
 
+static void
+test_path_from_uri(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_path_from_uri("lorem.txt", "data", &error);
+    g_assert_no_error(error);
+    g_assert_cmpstr("data/lorem.txt", ==, path);
+}
+
+static void
+test_path_from_uri_empty(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_path_from_uri("", "data", &error);
+    g_assert_error(error, PU_ERROR, PU_ERROR_FAILED);
+    g_assert_null(path);
+}
+
+static void
+test_path_from_uri_http(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_path_from_uri("http://lorem.txt", "data", &error);
+    g_assert_error(error, PU_ERROR, PU_ERROR_FAILED);
+    g_assert_null(path);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -142,6 +169,9 @@ main(int argc,
                test_write_raw, empty_file_tear_down);
     g_test_add("/utils/write_raw_input_offset", EmptyFileFixture, NULL, empty_file_set_up,
                test_write_raw_input_offset, empty_file_tear_down);
+    g_test_add_func("/utils/path_from_uri", test_path_from_uri);
+    g_test_add_func("/utils/path_from_uri_empty", test_path_from_uri_empty);
+    g_test_add_func("/utils/path_from_uri_http", test_path_from_uri_http);
 
     return g_test_run();
 }
