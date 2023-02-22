@@ -150,6 +150,33 @@ test_path_from_uri_http(void)
     g_assert_null(path);
 }
 
+static void
+test_device_get_partition_path_mmc(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_device_get_partition_path("/dev/mmcblk0", 1, &error);
+    g_assert_no_error(error);
+    g_assert_cmpstr("/dev/mmcblk0p1", ==, path);
+}
+
+static void
+test_device_get_partition_path_sd(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_device_get_partition_path("/dev/sda", 3, &error);
+    g_assert_no_error(error);
+    g_assert_cmpstr("/dev/sda3", ==, path);
+}
+
+static void
+test_device_get_partition_path_fail(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *path = pu_device_get_partition_path("/dev/null", 3, &error);
+    g_assert_error(error, PU_ERROR, PU_ERROR_FAILED);
+    g_assert_null(path);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -172,6 +199,12 @@ main(int argc,
     g_test_add_func("/utils/path_from_uri", test_path_from_uri);
     g_test_add_func("/utils/path_from_uri_empty", test_path_from_uri_empty);
     g_test_add_func("/utils/path_from_uri_http", test_path_from_uri_http);
+    g_test_add_func("/utils/device_get_partition_path_mmc",
+                    test_device_get_partition_path_mmc);
+    g_test_add_func("/utils/device_get_partition_path_sd",
+                    test_device_get_partition_path_sd);
+    g_test_add_func("/utils/device_get_partition_path_fail",
+                    test_device_get_partition_path_fail);
 
     return g_test_run();
 }
