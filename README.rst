@@ -26,6 +26,7 @@ The following tools and libraries must be installed on the target system for
 -  `libyaml <https://pyyaml.org/wiki/LibYAML>`_
 -  `libparted <https://www.gnu.org/software/parted/>`_
 -  `util-linux <https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git>`_
+-  `udev <https://git.kernel.org/pub/scm/linux/hotplug/udev.git>`_
 
 For building *partup* from source and generating its documentation the following
 additional dependencies are needed:
