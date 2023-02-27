@@ -231,6 +231,9 @@ pu_emmc_setup_layout(PuFlash *flash,
 
     ped_disk_commit(self->disk);
 
+    if (!pu_wait_for_partitions(error))
+        return FALSE;
+
     return TRUE;
 }
 
