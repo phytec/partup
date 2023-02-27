@@ -14,6 +14,8 @@
 #include "error.h"
 #include "utils.h"
 
+#define UDEVADM_SETTLE_TIMEOUT 10
+
 static gboolean
 pu_spawn_command_line_sync(const gchar *command_line,
                            GError **error)
@@ -348,6 +350,18 @@ pu_is_drive(const gchar *device)
 
     return g_regex_match_simple(g_strdup_printf("^%s$", device),
                                 output, G_REGEX_MULTILINE, 0);
+}
+
+gboolean
+pu_wait_for_partitions(GError **error)
+{
+    g_autofree gchar *udevadm_cmd = NULL;
+    udevadm_cmd = g_strdup_printf("udevadm settle --timeout %d", UDEVADM_SETTLE_TIMEOUT);
+
+    if (!pu_spawn_command_line_sync(udevadm_cmd, error))
+        return FALSE;
+
+    return TRUE;
 }
 
 gchar *
