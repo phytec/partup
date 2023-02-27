@@ -53,7 +53,7 @@ static GOptionEntry option_entries[] = {
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_version, "Print the program version and exit", NULL },
     { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_CALLBACK,
-        (void *) arg_parse_remaining, NULL, NULL },
+        arg_parse_remaining, NULL, NULL },
     { NULL }
 };
 
