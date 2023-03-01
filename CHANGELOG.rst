@@ -1,3 +1,26 @@
+0.3.1
+=====
+
+*Release date: 2023-03-03*
+
+.. rubric:: Changes
+
+-  Correct a spelling mistake in the configuration reference.
+-  Print the output message of failed processes spawned by partup.
+
+.. rubric:: Bug Fixes
+
+-  Fix a bug where partup would not return when specifying an ``input-offset``
+   greater than zero.
+-  Wait for partitions to show up after setting up the partition layout. This
+   prevents premature writing to partitions not yet known to the operating
+   system.
+
+.. rubric:: Contributors
+
+`Leonard Anderweit <https://github.com/landerweit-phytec>`__
+`Martin Schwan <https://github.com/mschwan-phytec>`__,
+
 0.3.0
 =====
 
