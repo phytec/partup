@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "error.h"
+#include "glib-compat.h"
 #include "mount.h"
 
 gchar *
@@ -84,7 +85,7 @@ pu_umount_all(const gchar *device,
 
     if (!g_spawn_command_line_sync(cmd_mount, &output, NULL, &wait_status, error))
         return FALSE;
-    if (!g_spawn_check_exit_status(wait_status, error))
+    if (!g_spawn_check_wait_status(wait_status, error))
         return FALSE;
 
     regex = g_regex_new(expr, G_REGEX_MULTILINE, 0, NULL);
