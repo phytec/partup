@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include "config.h"
 #include "error.h"
+#include "glib-compat.h"
 #include "utils.h"
 
 #define UDEVADM_SETTLE_TIMEOUT 10
@@ -39,7 +40,7 @@ pu_spawn_command_line_sync(const gchar *command_line,
         return FALSE;
     }
 
-    if (!g_spawn_check_exit_status(wait_status, error)) {
+    if (!g_spawn_check_wait_status(wait_status, error)) {
         g_prefix_error(error, "Command '%s' failed with error message: '%s': ",
                        command_line, errmsg);
         g_strfreev(argv);
