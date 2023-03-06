@@ -1,0 +1,30 @@
+api-version: 0
+disklabel: msdos
+
+raw:
+  - output-offset: 1kiB
+    input-offset: 1kiB
+    input:
+      uri: random.bin
+
+partitions:
+  - label: BOOT
+    filesystem: fat32
+    size: 16MiB
+    offset: 4MiB
+    flags:
+      - boot
+    input:
+      - uri: lorem.txt
+  - label: ROOT1
+    filesystem: ext4
+    expand: true
+    input:
+      - uri: lorem.tar
+  - label: ROOT2
+    type: logical
+    filesystem: null
+    block-size: 4kiB
+    expand: true
+    input:
+      - uri: root.ext4
