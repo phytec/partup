@@ -1,0 +1,50 @@
+name: system-tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  system-tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
+      - name: Build and install application
+        run: |
+          meson setup build --buildtype=release
+          meson install -C build
+      - name: Setup loopdev
+        run: |
+          dd if=/dev/zero of=loop-file bs=1M count=100
+          echo "loop_dev=$(sudo losetup -f --show -P loop-file)" >> $GITHUB_ENV
+      - name: Run system tests with loop device
+        timeout-minutes: 2
+        run: |
+          for f in tests/config/system-tests/*
+          do
+            echo "Testing with $f"
+            echo "Create package"
+            cp $f tests/data/layout.yaml
+            G_DEBUG=fatal-warnings partup -d -C tests/data package pkg.partup \
+              layout.yaml random.bin lorem.txt lorem.tar root.ext4
+            echo "Show package content"
+            sudo G_DEBUG=fatal-warnings partup -s show pkg.partup
+            echo "Install package to loop device"
+            sudo G_DEBUG=fatal-warnings partup -d install pkg.partup ${{ env.loop_dev }}
+            echo "Show loop device info"
+            sudo fdisk -l ${{ env.loop_dev }}
+            sudo blkid ${{ env.loop_dev }}
+            git clean -xdf -e loop-file
+          done
+      - name: Remove loopdev
+        if: always()
+        run: |
+          sudo losetup -d ${{ env.loop_dev }}
+          rm loop-file

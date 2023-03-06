@@ -1,0 +1,27 @@
+api-version: 0
+disklabel: gpt
+
+raw:
+  - output-offset: 17kiB
+    input-offset: 0kiB
+    input:
+      uri: random.bin
+
+partitions:
+  - label: BOOT
+    partuuid: "6a69db6b-0858-404c-b42c-a58f5fb498ff"
+    filesystem: fat32
+    size: 32MiB
+    offset: 4MiB
+    input:
+      - uri: lorem.txt
+  - label: ROOT1
+    filesystem: ext4
+    expand: true
+    input:
+      - uri: lorem.tar
+  - label: ROOT
+    filesystem: null
+    expand: true
+    input:
+      - uri: root.ext4
