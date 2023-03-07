@@ -160,6 +160,44 @@ emmc_create_partition(PuEmmc *self,
 }
 
 static gboolean
+validate_file(PuEmmcInput *input,
+              gchar *prefix,
+              gboolean skip_checksums,
+              GError **error)
+{
+    g_autofree gchar *path = NULL;
+
+    path = pu_path_from_uri(input->uri, prefix, error);
+    if (path == NULL) {
+        g_prefix_error(error, "Failed parsing input URI for partition: ");
+        return FALSE;
+    }
+
+    if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
+                    "Input file at '%s' does not exist", path);
+        return FALSE;
+    }
+
+    if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
+        g_debug("Checking MD5 sum of input file '%s'", path);
+        if (!pu_checksum_verify_file(path, input->md5sum, G_CHECKSUM_MD5, error))
+            return FALSE;
+    }
+
+    if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
+        g_debug("Checking SHA256 sum of input file '%s'", path);
+        if (!pu_checksum_verify_file(path, input->sha256sum, G_CHECKSUM_SHA256, error))
+            return FALSE;
+    }
+
+    g_free(input->uri);
+    input->uri = g_steal_pointer(&path);
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_init_device(PuFlash *flash,
                     GError **error)
 {
@@ -297,26 +335,11 @@ pu_emmc_write_data(PuFlash *flash,
 
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *input = i->data;
-            g_autofree gchar *path = NULL;
 
-            path = pu_path_from_uri(input->uri, prefix, error);
-            if (path == NULL) {
-                g_prefix_error(error, "Failed parsing input URI for partition: ");
+            if (!validate_file(input, prefix, skip_checksums, error))
                 return FALSE;
-            }
 
-            if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-                g_debug("Checking MD5 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->md5sum,
-                                             G_CHECKSUM_MD5, error))
-                    return FALSE;
-            }
-            if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-                g_debug("Checking SHA256 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->sha256sum,
-                                             G_CHECKSUM_SHA256, error))
-                    return FALSE;
-            }
+            gchar *path = input->uri;
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
@@ -362,31 +385,11 @@ pu_emmc_write_data(PuFlash *flash,
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         PuEmmcInput *input = bin->input;
-        g_autofree gchar *path = NULL;
 
-        path = pu_path_from_uri(input->uri, prefix, error);
-        if (path == NULL) {
-            g_prefix_error(error, "Failed parsing input URI for binary: ");
+        if (!validate_file(input, prefix, skip_checksums, error))
             return FALSE;
-        }
 
-        if (g_str_equal(path, "")) {
-            g_warning("No input specified for binary");
-            continue;
-        }
-
-        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->md5sum,
-                                         G_CHECKSUM_MD5, error))
-                return FALSE;
-        }
-        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->sha256sum,
-                                         G_CHECKSUM_SHA256, error))
-                return FALSE;
-        }
+        gchar *path = input->uri;
 
         if (!pu_write_raw(path, self->device->path, self->device,
                           bin->input_offset, bin->output_offset, 0, error))
@@ -395,32 +398,11 @@ pu_emmc_write_data(PuFlash *flash,
 
     if (self->emmc_boot_partitions) {
         PuEmmcInput *input = self->emmc_boot_partitions->input;
-        g_autofree gchar *path = NULL;
 
-        path = pu_path_from_uri(input->uri, prefix, error);
-        if (path == NULL) {
-            g_prefix_error(error, "Failed parsing input URI for eMMC boot partition: ");
+        if (!validate_file(input, prefix, skip_checksums, error))
             return FALSE;
-        }
 
-        if (g_str_equal(path, "")) {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                        "No input specified for eMMC boot partition");
-            return FALSE;
-        }
-
-        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->md5sum,
-                                         G_CHECKSUM_MD5, error))
-                return FALSE;
-        }
-        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->sha256sum,
-                                         G_CHECKSUM_SHA256, error))
-                return FALSE;
-        }
+        gchar *path = input->uri;
 
         if (!pu_write_raw_bootpart(path, self->device, 0,
                                    self->emmc_boot_partitions->input_offset,
