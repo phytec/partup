@@ -185,6 +185,8 @@ static GOptionEntry option_entries_main[] = {
 static GOptionEntry option_entries_install[] = {
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_install_skip_checksums, "Skip checksum verification for all input files", NULL },
+    { "dry-run", 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_install_dry_run, "Do not write to device", NULL },
     { NULL }
 };
 
