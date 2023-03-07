@@ -19,6 +19,7 @@
 #include "pu-version.h"
 
 static gboolean arg_debug = FALSE;
+static gboolean arg_install_dry_run = FALSE;
 static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
@@ -101,7 +102,7 @@ cmd_install(PuCommandContext *context,
     }
 
     emmc = pu_emmc_new(device_path, config, mount_path,
-                       arg_install_skip_checksums, error);
+                       arg_install_skip_checksums, arg_install_dry_run, error);
     if (emmc == NULL) {
         g_prefix_error(error, "Failed parsing eMMC info from config: ");
         return error_out(mount_path);

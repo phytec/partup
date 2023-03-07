@@ -245,11 +245,16 @@ pu_emmc_init_device(PuFlash *flash,
 {
     PuEmmc *self = PU_EMMC(flash);
     PedDisk *newdisk;
+    gboolean dry_run = FALSE;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "dry-run", &dry_run,
+                 NULL);
 
     newdisk = ped_disk_new_fresh(self->device, self->disktype);
     if (newdisk == NULL) {
@@ -262,6 +267,10 @@ pu_emmc_init_device(PuFlash *flash,
         ped_disk_destroy(self->disk);
     }
     self->disk = newdisk;
+
+    if (dry_run)
+        return TRUE;
+
     ped_disk_commit(self->disk);
 
     g_debug("%s: Finished", G_STRFUNC);
@@ -275,11 +284,16 @@ pu_emmc_setup_layout(PuFlash *flash,
 {
     PuEmmc *self = PU_EMMC(flash);
     PedSector part_start = 0;
+    gboolean dry_run = FALSE;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "dry-run", &dry_run,
+                 NULL);
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -309,6 +323,9 @@ pu_emmc_setup_layout(PuFlash *flash,
         part_start += part->size + part->offset;
     }
 
+    if (dry_run)
+        return TRUE;
+
     ped_disk_commit(self->disk);
 
     if (!pu_wait_for_partitions(error))
@@ -324,6 +341,7 @@ pu_emmc_write_data(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     guint i = 0;
     gboolean first_logical_part = FALSE;
+    gboolean dry_run = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
 
@@ -331,6 +349,13 @@ pu_emmc_write_data(PuFlash *flash,
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "dry-run", &dry_run,
+                 NULL);
+
+    if (dry_run)
+        return TRUE;
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -842,6 +867,7 @@ pu_emmc_new(const gchar *device_path,
             PuConfig *config,
             const gchar *prefix,
             gboolean skip_checksums,
+            gboolean dry_run,
             GError **error)
 {
     PuEmmc *self;
@@ -858,6 +884,7 @@ pu_emmc_new(const gchar *device_path,
                         "config", config,
                         "prefix", prefix,
                         "skip-checksums", skip_checksums,
+                        "dry-run", dry_run,
                         NULL);
     root = pu_config_get_root(config);
 
