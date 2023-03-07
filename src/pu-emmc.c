@@ -198,6 +198,48 @@ validate_file(PuEmmcInput *input,
 }
 
 static gboolean
+pu_emmc_validate_config(PuFlash *flash,
+                        GError **error)
+{
+    PuEmmc *self = PU_EMMC(flash);
+    g_autofree gchar *prefix = NULL;
+    gboolean skip_checksums = FALSE;
+
+    g_return_val_if_fail(flash != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "prefix", &prefix,
+                 "skip-checksums", &skip_checksums,
+                 NULL);
+
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
+
+        for (GList *i = part->input; i != NULL; i = i->next) {
+            PuEmmcInput *input = i->data;
+            if (!validate_file(input, prefix, skip_checksums, error))
+                return FALSE;
+        }
+    }
+
+    for (GList *b = self->raw; b != NULL; b = b->next) {
+        PuEmmcBinary *bin = b->data;
+        PuEmmcInput *input = bin->input;
+        if (!validate_file(input, prefix, skip_checksums, error))
+            return FALSE;
+    }
+
+    if (self->emmc_boot_partitions) {
+        PuEmmcInput *input = self->emmc_boot_partitions->input;
+        if (!validate_file(input, prefix, skip_checksums, error))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_init_device(PuFlash *flash,
                     GError **error)
 {
@@ -282,20 +324,13 @@ pu_emmc_write_data(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     guint i = 0;
     gboolean first_logical_part = FALSE;
-    gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
-    g_autofree gchar *prefix = NULL;
 
     g_debug(G_STRFUNC);
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_object_get(flash,
-                 "prefix", &prefix,
-                 "skip-checksums", &skip_checksums,
-                 NULL);
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -335,10 +370,6 @@ pu_emmc_write_data(PuFlash *flash,
 
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *input = i->data;
-
-            if (!validate_file(input, prefix, skip_checksums, error))
-                return FALSE;
-
             gchar *path = input->uri;
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
@@ -385,10 +416,6 @@ pu_emmc_write_data(PuFlash *flash,
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         PuEmmcInput *input = bin->input;
-
-        if (!validate_file(input, prefix, skip_checksums, error))
-            return FALSE;
-
         gchar *path = input->uri;
 
         if (!pu_write_raw(path, self->device->path, self->device,
@@ -398,10 +425,6 @@ pu_emmc_write_data(PuFlash *flash,
 
     if (self->emmc_boot_partitions) {
         PuEmmcInput *input = self->emmc_boot_partitions->input;
-
-        if (!validate_file(input, prefix, skip_checksums, error))
-            return FALSE;
-
         gchar *path = input->uri;
 
         if (!pu_write_raw_bootpart(path, self->device, 0,
@@ -482,6 +505,7 @@ pu_emmc_class_init(PuEmmcClass *class)
     PuFlashClass *flash_class = PU_FLASH_CLASS(class);
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
+    flash_class->validate_config = pu_emmc_validate_config;
     flash_class->init_device = pu_emmc_init_device;
     flash_class->setup_layout = pu_emmc_setup_layout;
     flash_class->write_data = pu_emmc_write_data;

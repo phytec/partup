@@ -106,6 +106,10 @@ cmd_install(PuCommandContext *context,
         g_prefix_error(error, "Failed parsing eMMC info from config: ");
         return error_out(mount_path);
     }
+    if (!pu_flash_validate_config(PU_FLASH(emmc), error)) {
+        g_prefix_error(error, "Failed validating config:");
+        return 1;
+    }
     if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
         g_prefix_error(error, "Failed initializing device: ");
         return error_out(mount_path);
