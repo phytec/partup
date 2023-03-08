@@ -12,9 +12,6 @@
 gboolean pu_file_copy(const gchar *src,
                       const gchar *dest,
                       GError **error);
-gboolean pu_archive_extract(const gchar *filename,
-                            const gchar *dest,
-                            GError **error);
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
                             GError **error);

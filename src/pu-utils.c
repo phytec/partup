@@ -72,27 +72,6 @@ pu_file_copy(const gchar *src,
 }
 
 gboolean
-pu_archive_extract(const gchar *filename,
-                   const gchar *dest,
-                   GError **error)
-{
-    g_autofree gchar *cmd = NULL;
-
-    g_return_val_if_fail(filename != NULL, FALSE);
-    g_return_val_if_fail(dest != NULL, FALSE);
-    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
-
-    if (!pu_spawn_command_line_sync(cmd, error)) {
-        g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-gboolean
 pu_make_filesystem(const gchar *part,
                    const gchar *fstype,
                    GError **error)

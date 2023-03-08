@@ -5,6 +5,7 @@
 
 #include <parted/parted.h>
 #include <glib/gstdio.h>
+#include "pu-archive.h"
 #include "pu-checksum.h"
 #include "pu-error.h"
 #include "pu-hashtable.h"

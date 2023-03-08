@@ -28,9 +28,11 @@ deps = [
   dependency('yaml-0.1'),
   dependency('libparted'),
   dependency('mount'),
-  dependency('blkid')
+  dependency('blkid'),
+  dependency('libarchive')
 ]
 src = [
+  'src/pu-archive.c',
   'src/pu-checksum.c',
   'src/pu-config.c',
   'src/pu-emmc.c',
