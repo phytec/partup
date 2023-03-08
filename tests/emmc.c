@@ -49,7 +49,7 @@ emmc_simple(void)
     mmcblk0p1 = create_tmp_file("mmcblk0p1", path, 32 * PED_MEBIBYTE_SIZE, &error);
     mmcblk0p2 = create_tmp_file("mmcblk0p2", path, 64 * PED_MEBIBYTE_SIZE, &error);
 
-    emmc = pu_emmc_new(g_file_get_path(mmcblk0), config, NULL, FALSE, &error);
+    emmc = pu_emmc_new(g_file_get_path(mmcblk0), config, NULL, FALSE, NULL, &error);
     g_assert_nonnull(emmc);
     g_assert_true(pu_flash_init_device(PU_FLASH(emmc), &error));
     g_assert_true(pu_flash_setup_layout(PU_FLASH(emmc), &error));

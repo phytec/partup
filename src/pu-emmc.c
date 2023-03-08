@@ -837,6 +837,7 @@ pu_emmc_new(const gchar *device_path,
             PuConfig *config,
             const gchar *prefix,
             gboolean skip_checksums,
+            const gchar *input_archive,
             GError **error)
 {
     PuEmmc *self;
@@ -851,6 +852,7 @@ pu_emmc_new(const gchar *device_path,
     self = g_object_new(PU_TYPE_EMMC,
                         "device-path", device_path,
                         "config", config,
+                        "input-archive", input_archive,
                         "prefix", prefix,
                         "skip-checksums", skip_checksums,
                         NULL);

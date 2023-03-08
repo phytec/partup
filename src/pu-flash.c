@@ -9,6 +9,7 @@
 typedef struct {
     gchar *device_path;
     PuConfig *config;
+    gchar *input_archive;
     gchar *prefix;
     gboolean skip_checksums;
 } PuFlashPrivate;
@@ -17,6 +18,7 @@ enum {
     PROP_0,
     PROP_DEVICE_PATH,
     PROP_CONFIG,
+    PROP_INPUT_ARCHIVE,
     PROP_PREFIX,
     PROP_SKIP_CHECKSUMS,
     NUM_PROPS
@@ -72,6 +74,10 @@ pu_flash_set_property(GObject *object,
     case PROP_CONFIG:
         priv->config = g_value_get_pointer(value);
         break;
+    case PROP_INPUT_ARCHIVE:
+        g_free(priv->input_archive);
+        priv->input_archive = g_value_dup_string(value);
+        break;
     case PROP_PREFIX:
         g_free(priv->prefix);
         priv->prefix = g_value_dup_string(value);
@@ -100,6 +106,9 @@ pu_flash_get_property(GObject *object,
         break;
     case PROP_CONFIG:
         g_value_set_pointer(value, priv->config);
+        break;
+    case PROP_INPUT_ARCHIVE:
+        g_value_set_string(value, priv->input_archive);
         break;
     case PROP_PREFIX:
         g_value_set_string(value, priv->prefix);
@@ -136,6 +145,12 @@ pu_flash_class_init(PuFlashClass *class)
                              "Layout configuration",
                              "The layout configuration to be used for the device",
                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+    props[PROP_INPUT_ARCHIVE] =
+        g_param_spec_string("input-archive",
+                            "Input archive",
+                            "Archive containing all required input files",
+                            NULL,
+                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
     props[PROP_PREFIX] =
         g_param_spec_string("prefix",
                             "URI prefix path",

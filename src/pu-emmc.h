@@ -17,6 +17,7 @@ PuEmmc * pu_emmc_new(const gchar *device_path,
                      PuConfig *config,
                      const gchar *prefix,
                      gboolean skip_checksums,
+                     const gchar *input_archive,
                      GError **error);
 
 #endif /* PARTUP_EMMC_H */

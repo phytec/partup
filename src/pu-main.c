@@ -19,6 +19,7 @@ static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_config = NULL;
 static gchar *arg_device = NULL;
+static gchar *arg_input_archive = NULL;
 static gchar *arg_prefix = NULL;
 
 static gboolean
@@ -45,6 +46,9 @@ static GOptionEntry option_entries[] = {
         &arg_config, "Layout configuration file in YAML format", "CONFIG" },
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_debug, "Print debug messages", NULL },
+    { "input-archive", 'i', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
+        &arg_input_archive, "Path to archive containing all required input files",
+        "ARCHIVE" },
     { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
         "PREFIX" },
@@ -118,6 +122,12 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
+    if (g_strcmp0(arg_input_archive, "") > 0 && g_strcmp0(arg_prefix, "") > 0) {
+        g_printerr("Simultaneously specifying an input archive and prefix path is not allowed!\n"
+                   "Input files should be provided by a single source!\n");
+        return 1;
+    }
+
     if (!g_str_has_suffix(arg_config, ".yaml") &&
         !g_str_has_suffix(arg_config, ".yml")) {
         g_printerr("Configuration file does not seem to be a YAML file!\n");
@@ -137,7 +147,8 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    emmc = pu_emmc_new(arg_device, config, arg_prefix, arg_skip_checksums, &error);
+    emmc = pu_emmc_new(arg_device, config, arg_prefix, arg_skip_checksums,
+                       arg_input_archive, &error);
     if (emmc == NULL) {
         g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
         return 1;
