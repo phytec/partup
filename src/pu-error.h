@@ -31,7 +31,11 @@ typedef enum {
     PU_ERROR_CHECKSUM,
 
     /* Utility errors */
-    PU_ERROR_UNKNOWN_FSTYPE
+    PU_ERROR_UNKNOWN_FSTYPE,
+
+    /* Archive errors */
+    PU_ERROR_ARCHIVE_READ,
+    PU_ERROR_ARCHIVE_WRITE
 } PuErrorEnum;
 
 GQuark pu_error_quark(void);
