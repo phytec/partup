@@ -6,8 +6,8 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
-#include "config.h"
-#include "error.h"
+#include "pu-config.h"
+#include "pu-error.h"
 
 static void
 config_simple(void)

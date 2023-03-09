@@ -6,8 +6,8 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
-#include "checksum.h"
-#include "error.h"
+#include "pu-checksum.h"
+#include "pu-error.h"
 
 #define LOREM_TXT_SHA256SUM "25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d"
 #define LOREM_TXT_MD5SUM    "3bc34a45d26784b5bea8529db533ae84"

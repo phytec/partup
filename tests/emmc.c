@@ -7,8 +7,8 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 #include <parted/parted.h>
-#include "emmc.h"
-#include "error.h"
+#include "pu-emmc.h"
+#include "pu-error.h"
 
 static GFile *
 create_tmp_file(const gchar *filename,

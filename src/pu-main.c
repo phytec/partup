@@ -7,12 +7,12 @@
 #include <glib/gstdio.h>
 #include <parted/parted.h>
 #include <unistd.h>
-#include "config.h"
-#include "emmc.h"
-#include "flash.h"
-#include "mount.h"
-#include "utils.h"
-#include "version.h"
+#include "pu-config.h"
+#include "pu-emmc.h"
+#include "pu-flash.h"
+#include "pu-mount.h"
+#include "pu-utils.h"
+#include "pu-version.h"
 
 static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;

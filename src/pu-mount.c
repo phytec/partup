@@ -11,9 +11,9 @@
 #include <libmount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "error.h"
-#include "utils.h"
-#include "mount.h"
+#include "pu-error.h"
+#include "pu-utils.h"
+#include "pu-mount.h"
 
 gchar *
 pu_create_mount_point(const gchar *name,

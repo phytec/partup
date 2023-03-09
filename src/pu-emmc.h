@@ -6,8 +6,8 @@
 #ifndef PARTUP_EMMC_H
 #define PARTUP_EMMC_H
 
-#include "config.h"
-#include "flash.h"
+#include "pu-config.h"
+#include "pu-flash.h"
 
 #define PU_TYPE_EMMC pu_emmc_get_type()
 

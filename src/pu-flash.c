@@ -3,8 +3,8 @@
  * Copyright (c) 2022 PHYTEC Messtechnik GmbH
  */
 
-#include "flash.h"
-#include "config.h"
+#include "pu-flash.h"
+#include "pu-config.h"
 
 typedef struct {
     gchar *device_path;

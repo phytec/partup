@@ -4,8 +4,8 @@
  */
 
 #include <gio/gio.h>
-#include "checksum.h"
-#include "error.h"
+#include "pu-checksum.h"
+#include "pu-error.h"
 
 gboolean
 pu_checksum_verify_file(const gchar *filename,
