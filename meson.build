@@ -17,8 +17,8 @@ version_data = configuration_data({
 })
 
 configure_file(
-  input : 'src/version.h.in',
-  output : 'version.h',
+  input : 'src/pu-version.h.in',
+  output : 'pu-version.h',
   configuration : version_data
 )
 
@@ -29,20 +29,20 @@ deps = [
   dependency('libparted')
 ]
 src = [
-  'src/checksum.c',
-  'src/config.c',
-  'src/emmc.c',
-  'src/error.c',
-  'src/flash.c',
-  'src/hashtable.c',
-  'src/mount.c',
-  'src/utils.c'
+  'src/pu-checksum.c',
+  'src/pu-config.c',
+  'src/pu-emmc.c',
+  'src/pu-error.c',
+  'src/pu-flash.c',
+  'src/pu-hashtable.c',
+  'src/pu-mount.c',
+  'src/pu-utils.c'
 ]
 
 exec = executable(
   meson.project_name(),
   c_args : ['-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())],
-  sources : [src, 'src/main.c'],
+  sources : [src, 'src/pu-main.c'],
   dependencies : deps,
   install : true
 )

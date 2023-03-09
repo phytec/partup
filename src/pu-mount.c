@@ -9,9 +9,9 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "error.h"
-#include "glib-compat.h"
-#include "mount.h"
+#include "pu-error.h"
+#include "pu-glib-compat.h"
+#include "pu-mount.h"
 
 gchar *
 pu_create_mount_point(const gchar *name,

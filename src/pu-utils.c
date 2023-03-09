@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "config.h"
-#include "error.h"
-#include "glib-compat.h"
-#include "utils.h"
+#include "pu-config.h"
+#include "pu-error.h"
+#include "pu-glib-compat.h"
+#include "pu-utils.h"
 
 #define UDEVADM_SETTLE_TIMEOUT 10
 
