@@ -3,9 +3,9 @@
  * Copyright (c) 2022 PHYTEC Messtechnik GmbH
  */
 
-#include "config.h"
-#include "error.h"
-#include "hashtable.h"
+#include "pu-config.h"
+#include "pu-error.h"
+#include "pu-hashtable.h"
 
 gchar *
 pu_hash_table_lookup_string(GHashTable *hash_table,

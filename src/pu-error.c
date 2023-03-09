@@ -3,7 +3,7 @@
  * Copyright (c) 2021 PHYTEC Messtechnik GmbH
  */
 
-#include "error.h"
+#include "pu-error.h"
 
 GQuark pu_error_quark(void)
 {

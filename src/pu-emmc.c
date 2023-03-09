@@ -5,12 +5,12 @@
 
 #include <parted/parted.h>
 #include <glib/gstdio.h>
-#include "checksum.h"
-#include "error.h"
-#include "hashtable.h"
-#include "mount.h"
-#include "utils.h"
-#include "emmc.h"
+#include "pu-checksum.h"
+#include "pu-error.h"
+#include "pu-hashtable.h"
+#include "pu-mount.h"
+#include "pu-utils.h"
+#include "pu-emmc.h"
 
 #define PARTITION_TABLE_SIZE_MSDOS 1
 #define PARTITION_TABLE_SIZE_GPT   34

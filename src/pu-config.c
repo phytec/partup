@@ -7,8 +7,8 @@
 #include <gio/gio.h>
 #include <gmodule.h>
 #include <yaml.h>
-#include "config.h"
-#include "error.h"
+#include "pu-config.h"
+#include "pu-error.h"
 
 typedef struct _PuConfigPrivate PuConfigPrivate;
 
