@@ -167,8 +167,9 @@ pu_write_raw(const gchar *input_path,
     g_autoptr(GFileInfo) output_finfo = NULL;
     goffset input_size;
     gsize buffer_size;
-    gssize num_read;
-    gssize input_remaining;
+    gsize num_read;
+    gsize input_remaining;
+    gssize ret;
     g_autofree guchar *buffer = NULL;
 
     g_return_val_if_fail(input_path != NULL, FALSE);
@@ -225,10 +226,11 @@ pu_write_raw(const gchar *input_path,
         if (input_remaining < buffer_size)
             buffer_size = input_remaining;
 
-        num_read = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
-                                       buffer_size, NULL, error);
-        if (num_read < 0)
+        ret = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
+                                  buffer_size, NULL, error);
+        if (ret < 0)
             return FALSE;
+        num_read = ret;
 
         if (g_output_stream_write(output_ostream, buffer, num_read, NULL, error) < 0)
             return FALSE;
