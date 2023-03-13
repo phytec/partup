@@ -188,10 +188,18 @@ pu_umount_all(const gchar *device,
 gboolean
 pu_device_mounted(const gchar *device)
 {
-    g_autofree gchar *cmd = g_strdup("mount");
-    g_autofree gchar *output = NULL;
+    g_autoptr(GPtrArray) mounted = NULL;
 
-    g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL);
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
 
-    return g_regex_match_simple(device, output, G_REGEX_MULTILINE, 0);
+    mounted = pu_find_mounted(device);
+    if (!mounted) {
+        g_printerr("Failed checking if device is mounted");
+        return TRUE;
+    }
+
+    if (!mounted->len)
+        return FALSE;
+
+    return TRUE;
 }
