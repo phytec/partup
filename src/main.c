@@ -66,6 +66,7 @@ main(G_GNUC_UNUSED int argc,
     g_autoptr(PuConfig) config = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
     g_autofree gchar **args;
+    gboolean is_mounted;
     gint api_version;
     const gchar *prog_name = g_path_get_basename(argv[0]);
 
@@ -113,7 +114,12 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    if (pu_device_mounted(arg_device)) {
+    if (!pu_device_mounted(arg_device, &is_mounted, &error)) {
+        g_printerr("Failed checking if device is in use: %s\n", error->message);
+        return 1;
+    }
+
+    if (is_mounted) {
         g_printerr("Device '%s' is in use!\n", arg_device);
         return 1;
     }
