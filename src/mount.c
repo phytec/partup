@@ -7,11 +7,13 @@
 #include <glib/gstdio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <blkid.h>
 #include <libmount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "error.h"
 #include "glib-compat.h"
+#include "utils.h"
 #include "mount.h"
 
 gchar *
@@ -35,6 +37,58 @@ pu_create_mount_point(const gchar *name,
     }
 
     return mount_point;
+}
+
+static GPtrArray *
+pu_find_mounted(const gchar *device)
+{
+    blkid_probe pr;
+    blkid_partlist ls;
+    gint i;
+    gint num_partitions;
+    struct libmnt_table *tb;
+    g_autoptr(GPtrArray) mounted = g_ptr_array_new_with_free_func(g_free);
+    g_autoptr(GError) error = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, NULL);
+
+    pr = blkid_new_probe_from_filename(device);
+    if (!pr)
+        return NULL;
+
+    ls = blkid_probe_get_partitions(pr);
+    if (!ls) {
+        blkid_free_probe(pr);
+        return NULL;
+    }
+    num_partitions = blkid_partlist_numof_partitions(ls);
+    if (num_partitions < 0) {
+        blkid_free_probe(pr);
+        return NULL;
+    }
+    blkid_free_probe(pr);
+
+    tb = mnt_new_table();
+    if (!tb)
+        return NULL;
+
+    if (mnt_table_parse_mtab(tb, NULL) < 0) {
+        mnt_unref_table(tb);
+        return NULL;
+    }
+
+    for (i = 0; i < num_partitions; i++) {
+        g_autofree gchar *partname = pu_device_get_partition_path(device, i + 1, &error);
+        if (!partname) {
+            mnt_unref_table(tb);
+            return NULL;
+        }
+        if (mnt_table_find_source(tb, partname, MNT_ITER_FORWARD))
+            g_ptr_array_add(mounted, g_steal_pointer(&partname));
+    }
+
+    mnt_unref_table(tb);
+    return g_steal_pointer(&mounted);
 }
 
 gboolean
