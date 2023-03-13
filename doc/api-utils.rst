@@ -1,4 +1,0 @@
-Utilities
-=========
-
-.. doxygenfile:: utils.h

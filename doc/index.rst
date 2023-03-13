@@ -14,5 +14,4 @@ a predefined layout.
    usage
    layout-config
    contributing
-   api
    changelog
