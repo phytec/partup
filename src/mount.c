@@ -186,7 +186,9 @@ pu_umount_all(const gchar *device,
 }
 
 gboolean
-pu_device_mounted(const gchar *device)
+pu_device_mounted(const gchar *device,
+                  gboolean *is_mounted,
+                  GError **error)
 {
     g_autoptr(GPtrArray) mounted = NULL;
 
@@ -194,12 +196,12 @@ pu_device_mounted(const gchar *device)
 
     mounted = pu_find_mounted(device);
     if (!mounted) {
-        g_printerr("Failed checking if device is mounted");
-        return TRUE;
+        g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
+                    "Failed checking if device '%s' is mounted", device);
+        return FALSE;
     }
 
-    if (!mounted->len)
-        return FALSE;
+    *is_mounted = mounted->len > 0;
 
     return TRUE;
 }
