@@ -27,7 +27,8 @@ deps = [
   dependency('gio-2.0'),
   dependency('yaml-0.1'),
   dependency('libparted'),
-  dependency('mount')
+  dependency('mount'),
+  dependency('blkid')
 ]
 src = [
   'src/checksum.c',
