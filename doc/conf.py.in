@@ -10,8 +10,7 @@ release = '@PROJECT_VERSION@'
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    'sphinx.ext.githubpages',
-    'breathe'
+    'sphinx.ext.githubpages'
 ]
 
 # -- Options for HTML output -------------------------------------------------
@@ -21,16 +20,4 @@ html_static_path = ['data']
 html_logo = 'data/partup-logo-2x-white.svg'
 html_theme_options = {
     'style_external_links': True
-}
-
-# -- Breathe configuration ---------------------------------------------------
-
-breathe_projects = {
-    '@PROJECT_NAME@': os.path.join('@CURRENT_BUILD_DIR@', 'xml')
-}
-breathe_default_project = '@PROJECT_NAME@'
-breathe_show_include = False
-breathe_domain_by_extension = {
-    'c': 'c',
-    'h': 'c'
 }

@@ -33,7 +33,6 @@ additional dependencies are needed:
 
 -  `Meson Build <https://mesonbuild.com/>`_
 -  `Sphinx <https://www.sphinx-doc.org/>`_
--  `Doxygen <https://www.doxygen.nl/>`_
 
 Building
 ========
