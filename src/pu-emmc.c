@@ -58,6 +58,7 @@ struct _PuEmmc {
 
     PedDevice *device;
     PedDisk *disk;
+    GPtrArray *input_archive_entries;
 
     PedDiskType *disktype;
     GList *partitions;
@@ -323,8 +324,14 @@ pu_emmc_write_data(PuFlash *flash,
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
                 if (!pu_mount(part_path, part_mount, error))
                     return FALSE;
-                if (!pu_archive_extract(path, part_mount, error))
-                    return FALSE;
+                if (g_strcmp0(self->input_archive, "") > 0) {
+                    if (!pu_archive_extract_archive(self->input_archive, path,
+                                                    part_mount, TRUE, error))
+                        return FALSE;
+                } else {
+                    if (!pu_archive_extract(path, part_mount, error))
+                        return FALSE;
+                }
                 if (!pu_umount(part_mount, error))
                     return FALSE;
             } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
@@ -873,6 +880,15 @@ pu_emmc_new(const gchar *device_path,
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "Disklabel '%s' is not supported by libparted", disklabel);
         return NULL;
+    }
+
+    if (!pu_archive_get_entries(input_archive, &self->input_archive_entries, error))
+        return NULL;
+
+    g_debug("SUCCESS");
+    for (gint i = 0; i < self->input_archive_entries->len; i++) {
+        const gchar *entry = g_ptr_array_index(self->input_archive_entries, i);
+        g_debug("input_archive_entries[%d] = '%s'", i, entry);
     }
 
     if (!pu_emmc_parse_emmc_bootpart(self, root, error))

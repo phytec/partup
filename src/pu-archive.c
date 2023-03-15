@@ -37,6 +37,43 @@ pu_archive_copy_data(struct archive *read,
 }
 
 gboolean
+pu_archive_get_entries(const gchar *filename,
+                       GPtrArray **entries,
+                       GError **error)
+{
+    struct archive *ar;
+    struct archive_entry *entry;
+    gint res;
+
+    g_return_val_if_fail(entries == NULL || *entries == NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    ar = archive_read_new();
+    archive_read_support_filter_all(ar);
+    archive_read_support_format_all(ar);
+    res = archive_read_open_filename(ar, filename, 10240);
+    *entries = g_ptr_array_new();
+
+    while (TRUE) {
+        res = archive_read_next_header(ar, &entry);
+
+        if (res == ARCHIVE_EOF)
+            break;
+
+        if (res < ARCHIVE_OK) {
+            g_set_error(error, PU_ERROR, PU_ERROR_ARCHIVE_READ,
+                        "Failed reading entry");
+            g_ptr_array_free(*entries, TRUE);
+            return FALSE;
+        }
+
+        g_ptr_array_add(*entries, g_strdup(archive_entry_pathname(entry)));
+    }
+
+    return TRUE;
+}
+
+gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
                    GError **error)
@@ -50,6 +87,8 @@ pu_archive_extract(const gchar *filename,
     gint read;
     gint write;
 
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
     flags = ARCHIVE_EXTRACT_TIME |
             ARCHIVE_EXTRACT_PERM |
             ARCHIVE_EXTRACT_OWNER |
@@ -62,7 +101,7 @@ pu_archive_extract(const gchar *filename,
     ext = archive_write_disk_new();
     archive_write_disk_set_options(ext, flags);
     archive_write_disk_set_standard_lookup(ext);
-    read = archive_read_open_filename(ar, filename, 1024);
+    read = archive_read_open_filename(ar, filename, 10240);
 
     if (read != ARCHIVE_OK) {
         g_set_error(error, PU_ERROR, PU_ERROR_ARCHIVE_READ,
@@ -110,6 +149,25 @@ pu_archive_extract(const gchar *filename,
     archive_write_close(ext);
     archive_write_free(ext);
     g_chdir(old_dest);
+
+    return TRUE;
+}
+
+gboolean
+pu_archive_extract_archive(const gchar *input_archive,
+                           const gchar *entry_archive,
+                           const gchar *destination,
+                           gboolean extract_entry,
+                           GError **error)
+{
+    // Check if entry exists in archive
+    // Find entry in archive
+    // Extract that entry to dest
+    // If extract_entry == TRUE, then also extract the entry archive in destination
+    g_autoptr(GPtrArray) *entries = NULL;
+
+    if (!pu_archive_get_entries(input_archive, &entries, error))
+        return FALSE;
 
     return TRUE;
 }

@@ -8,6 +8,9 @@
 
 #include <glib.h>
 
+gboolean pu_archive_get_entries(const gchar *filename,
+                                GPtrArray **entries,
+                                GError **error);
 gboolean pu_archive_extract(const gchar *filename,
                             const gchar *dest,
                             GError **error);
