@@ -4,3 +4,18 @@
  */
 
 #include "pu-package.h"
+
+gboolean
+pu_package_create(GPtrArray *files,
+                  const gchar *output,
+                  GError **error)
+{
+    return TRUE;
+}
+
+gboolean
+pu_package_mount(const gchar *package_path,
+                 GError **error)
+{
+    return TRUE;
+}

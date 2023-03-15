@@ -17,9 +17,7 @@
 static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
-static gchar *arg_config = NULL;
 static gchar *arg_device = NULL;
-static gchar *arg_prefix = NULL;
 
 static gboolean
 arg_parse_remaining(const gchar *option_name,
@@ -40,14 +38,11 @@ arg_parse_remaining(const gchar *option_name,
     return TRUE;
 }
 
+// TODO: Add subcommand "package" for creating partup packages
+
 static GOptionEntry option_entries[] = {
-    { "config", 'c', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
-        &arg_config, "Layout configuration file in YAML format", "CONFIG" },
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_debug, "Print debug messages", NULL },
-    { "prefix", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
-        &arg_prefix, "Path to prefix all file URIs with in the layout configuration",
-        "PREFIX" },
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_skip_checksums, "Skip checksum verification for all input files", NULL },
     { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
@@ -130,6 +125,8 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
+    if (!pu_package_mount(arg_package, PARTUP_PACKAGE_MOUNT))
+
     config = pu_config_new_from_file(arg_config, &error);
     if (config == NULL) {
         g_printerr("Failed creating configuration object for file '%s': %s\n",
@@ -142,6 +139,9 @@ main(G_GNUC_UNUSED int argc,
                    "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
         return 1;
     }
+
+    // TODO: Mount squashfs image (partup package) to /run/partup
+    // Input files and configuration layout are now available in mounted dir
 
     emmc = pu_emmc_new(arg_device, config, arg_prefix, arg_skip_checksums, &error);
     if (emmc == NULL) {

@@ -38,6 +38,7 @@ src = [
   'src/pu-flash.c',
   'src/pu-hashtable.c',
   'src/pu-mount.c',
+  'src/pu-package.c',
   'src/pu-utils.c'
 ]
 

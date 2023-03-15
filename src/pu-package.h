@@ -6,8 +6,14 @@
 #ifndef PARTUP_PACKAGE_H
 #define PARTUP_PACKAGE_H
 
-gboolean pu_package_create(const gchar *input_dir,
-                           const gchar *output_dir,
+#include <glib.h>
+
+#define PU_PACKAGE_PREFIX PU_MOUNT_PREFIX "/package"
+
+gboolean pu_package_create(GPtrArray *files,
+                           const gchar *output,
                            GError **error);
+gboolean pu_package_mount(const gchar *package_path,
+                          GError **error);
 
 #endif /* PARTUP_PACKAGE_H */
