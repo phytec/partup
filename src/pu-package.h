@@ -13,7 +13,8 @@
 gboolean pu_package_create(GPtrArray *files,
                            const gchar *output,
                            GError **error);
-gboolean pu_package_mount(const gchar *package_path,
+gboolean pu_package_mount(const gchar *package,
+                          const gchar *mount,
                           GError **error);
 
 #endif /* PARTUP_PACKAGE_H */

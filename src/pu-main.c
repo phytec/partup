@@ -19,6 +19,8 @@ static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_device = NULL;
 
+GPtrArray *arg_remaining = NULL;
+
 static gboolean
 arg_parse_remaining(const gchar *option_name,
                     const gchar *value,
@@ -27,18 +29,13 @@ arg_parse_remaining(const gchar *option_name,
 {
     g_debug("%s(option_name=\"%s\" value=\"%s\")", __func__, option_name, value);
 
-    if (arg_device == NULL) {
-        arg_device = g_strdup(value);
-    } else {
-        g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_FAILED,
-                    "%s", "Excess values in remaining arguments!");
-        return FALSE;
-    }
+    g_ptr_array_add(arg_remaining, g_strdup(value));
 
     return TRUE;
 }
 
 // TODO: Add subcommand "package" for creating partup packages
+// Add subcommand "show"/"inspect" for validating and showing package content
 
 static GOptionEntry option_entries[] = {
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
@@ -68,7 +65,7 @@ main(G_GNUC_UNUSED int argc,
     /* Support unicode filenames */
     args = g_strdupv(argv);
 
-    context = g_option_context_new("-c CONFIG DEVICE");
+    context = g_option_context_new(NULL);
     g_option_context_add_main_entries(context, option_entries, NULL);
     g_option_context_set_description(context, "Report any issues at "
                                      "<https://github.com/phytec/partup>");
@@ -76,6 +73,8 @@ main(G_GNUC_UNUSED int argc,
         g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
     }
+
+    g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
 
     if (arg_debug) {
         const gchar *domains = g_getenv("G_MESSAGES_DEBUG");
@@ -119,13 +118,13 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    if (!g_str_has_suffix(arg_config, ".yaml") &&
-        !g_str_has_suffix(arg_config, ".yml")) {
-        g_printerr("Configuration file does not seem to be a YAML file!\n");
+    // TODO: Mount squashfs image (partup package) to /run/partup
+    if (!pu_package_mount(arg_package, PARTUP_PACKAGE_MOUNT, &error)) {
+        g_printerr("%s\n", error->message);
         return 1;
     }
-
-    if (!pu_package_mount(arg_package, PARTUP_PACKAGE_MOUNT))
+    // Input files and configuration layout are now available in mounted dir
+    // Assign variable, like arg_config, the right paths
 
     config = pu_config_new_from_file(arg_config, &error);
     if (config == NULL) {
@@ -139,9 +138,6 @@ main(G_GNUC_UNUSED int argc,
                    "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
         return 1;
     }
-
-    // TODO: Mount squashfs image (partup package) to /run/partup
-    // Input files and configuration layout are now available in mounted dir
 
     emmc = pu_emmc_new(arg_device, config, arg_prefix, arg_skip_checksums, &error);
     if (emmc == NULL) {
@@ -167,6 +163,7 @@ main(G_GNUC_UNUSED int argc,
 
     g_free(arg_config);
     g_free(arg_device);
+    g_ptr_array_free(arg_remaining, TRUE);
 
     return 0;
 }
