@@ -49,10 +49,18 @@ static GOptionEntry option_entries[] = {
     { NULL }
 };
 
-static const gchar * const *commands = {
-    "install",
-    "package",
-    "show"
+static PuCommandEntry command_entries[] = {
+    { "install", PU_COMMAND_ARG_FILENAME_ARRAY, &cmd_install_filenames,
+        "Install a package to a device" },
+    { "package", PU_COMMAND_ARG_FILENAME_ARRAY, &cmd_package_filenames,
+        "Create a package from files" },
+    { "show", PU_COMMAND_ARG_FILENAME, &cmd_show_filename,
+        "List the contents of a package" },
+    { "version", PU_COMMAND_ARG_NONE, NULL,
+        "Print the program version" },
+    { "help", PU_COMMAND_ARG_NONE, NULL,
+        "Print the help options" },
+    { NULL }
 };
 static const gchar *description = "\
 Commands:\n\
@@ -64,12 +72,13 @@ Report any issues at <https://github.com/phytec/partup>\
 ";
 
 static gboolean
-parse_commands(GPtrArray *args,
-               GError **error)
+parse_command(GPtrArray *args,
+              gchar **cmd,
+              GPtrArray **remainder,
+              GError **error)
 {
-    gchar *cmd;
-
     g_return_val_if_fail(args != NULL, FALSE);
+    g_return_val_if_fail(*cmd == NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     if (!g_strv_contains(commands, g_ptr_array_index(args, 0))) {
@@ -77,9 +86,10 @@ parse_commands(GPtrArray *args,
                     "Unknown command '%s'");
         return FALSE;
     }
-    cmd = g_ptr_array_index(args, 0);
 
-    for (guint i = 0; i < args->len; i++) {
+    *cmd = g_strdup(g_ptr_array_index(args, 0));
+
+    if (commands) {
         
     }
 
@@ -96,18 +106,24 @@ main(G_GNUC_UNUSED int argc,
     g_autofree gchar *config_path = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
     g_autofree gchar **args;
+    g_autofree gchar *cmd = NULL;
     gboolean is_mounted;
     gint api_version;
 
     /* Support unicode filenames */
     args = g_strdupv(argv);
 
-    arg_remaining = g_ptr_array_new();
     context = g_option_context_new(NULL);
     g_option_context_add_main_entries(context, option_entries, NULL);
     g_option_context_set_description(context, description);
     if (!g_option_context_parse_strv(context, &args, &error)) {
         g_printerr("Failed parsing options: %s\n", error->message);
+        return 1;
+    }
+
+    arg_remaining = g_ptr_array_new();
+    if (!parse_command(arg_remaining, &cmd, &error)) {
+        g_printerr("Failed parsing command: %s\n", error->message);
         return 1;
     }
 
