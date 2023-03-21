@@ -17,11 +17,37 @@ typedef enum {
     PU_COMMAND_ARG_FILENAME_ARRAY
 } PuCommandArg;
 
-struct PuCommandEntry {
+typedef gboolean (*PuCommandFunc)(const gchar *name,
+                                  gpointer data,
+                                  GError **error);
+
+#define PU_COMMAND_ERROR (pu_command_error_quark())
+
+typedef enum {
+    PU_COMMAND_ERROR_UNKNOWN_COMMAND,
+    PU_COMMAND_ERROR_BAD_VALUE,
+    PU_COMMAND_ERROR_FAILED
+} PuCommandError;
+
+GQuark pu_command_error_quark(void);
+
+struct _PuCommandEntry {
     const gchar *name;
-    GCommandArg arg;
-    gpointer arg_data;
+    PuCommandArg arg;
+    PuCommandFunc func;
     const gchar *description;
 };
+
+PuCommandContext * pu_command_context_new(void);
+void pu_command_context_free(PuCommandContext *context);
+void pu_command_context_add_entries(PuCommandContext *context,
+                                    const PuCommandEntry *entries);
+gboolean pu_command_context_parse(PuCommandContext *context,
+                                  gint *argc,
+                                  gchar ***argv,
+                                  GError **error);
+gboolean pu_command_context_parse_strv(PuCommandContext *context,
+                                       gchar ***arguments,
+                                       GError **error);
 
 #endif /* PARTUP_COMMAND_H */

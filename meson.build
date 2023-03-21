@@ -32,6 +32,7 @@ deps = [
 ]
 src = [
   'src/pu-checksum.c',
+  'src/pu-command.c',
   'src/pu-config.c',
   'src/pu-emmc.c',
   'src/pu-error.c',

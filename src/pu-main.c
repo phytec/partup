@@ -7,6 +7,7 @@
 #include <glib/gstdio.h>
 #include <parted/parted.h>
 #include <unistd.h>
+#include "pu-command.h"
 #include "pu-config.h"
 #include "pu-emmc.h"
 #include "pu-flash.h"
@@ -71,42 +72,17 @@ Commands:\n\
 Report any issues at <https://github.com/phytec/partup>\
 ";
 
-static gboolean
-parse_command(GPtrArray *args,
-              gchar **cmd,
-              GPtrArray **remainder,
-              GError **error)
-{
-    g_return_val_if_fail(args != NULL, FALSE);
-    g_return_val_if_fail(*cmd == NULL, FALSE);
-    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    if (!g_strv_contains(commands, g_ptr_array_index(args, 0))) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Unknown command '%s'");
-        return FALSE;
-    }
-
-    *cmd = g_strdup(g_ptr_array_index(args, 0));
-
-    if (commands) {
-        
-    }
-
-    return TRUE;
-}
-
 int
 main(G_GNUC_UNUSED int argc,
      char **argv)
 {
     g_autoptr(GError) error = NULL;
     g_autoptr(GOptionContext) context = NULL;
+    g_autoptr(PuCommandContext) context_cmd = NULL;
     g_autoptr(PuConfig) config = NULL;
     g_autofree gchar *config_path = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
     g_autofree gchar **args;
-    g_autofree gchar *cmd = NULL;
     gboolean is_mounted;
     gint api_version;
 
@@ -122,7 +98,9 @@ main(G_GNUC_UNUSED int argc,
     }
 
     arg_remaining = g_ptr_array_new();
-    if (!parse_command(arg_remaining, &cmd, &error)) {
+    context_cmd = pu_command_context_new();
+    pu_command_context_add_entries(context_cmd, command_entries);
+    if (!pu_command_context_parse_strv(context_cmd, &args, &error)) {
         g_printerr("Failed parsing command: %s\n", error->message);
         return 1;
     }
