@@ -4,6 +4,7 @@
  */
 
 #include "pu-package.h"
+#include "pu-utils.h"
 
 gboolean
 pu_package_create(GPtrArray *files,

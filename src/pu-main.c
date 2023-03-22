@@ -5,6 +5,7 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <locale.h>
 #include <parted/parted.h>
 #include <unistd.h>
 #include "pu-command.h"
@@ -25,11 +26,53 @@ static gchar *arg_package = NULL;
 GPtrArray *arg_remaining = NULL;
 
 static gboolean
+cmd_install(const gchar *name,
+            gpointer data,
+            GError **error)
+{
+    return TRUE;
+}
+
+static gboolean
+cmd_package(const gchar *name,
+            gpointer data,
+            GError **error)
+{
+    return TRUE;
+}
+
+static gboolean
+cmd_show(const gchar *name,
+         gpointer data,
+         GError **error)
+{
+    return TRUE;
+}
+
+static gboolean
+cmd_version(const gchar *name,
+            gpointer data,
+            GError **error)
+{
+    g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
+    return TRUE;
+}
+
+static gboolean
+cmd_help(const gchar *name,
+         gpointer data,
+         GError **error)
+{
+    return TRUE;
+}
+
+static gboolean
 arg_parse_remaining(const gchar *option_name,
                     const gchar *value,
                     G_GNUC_UNUSED gpointer data,
                     GError **error)
 {
+    g_debug("array add=%s", value);
     g_ptr_array_add(arg_remaining, g_strdup(value));
 
     return TRUE;
@@ -51,15 +94,15 @@ static GOptionEntry option_entries[] = {
 };
 
 static PuCommandEntry command_entries[] = {
-    { "install", PU_COMMAND_ARG_FILENAME_ARRAY, &cmd_install_filenames,
+    { "install", PU_COMMAND_ARG_FILENAME_ARRAY, cmd_install,
         "Install a package to a device" },
-    { "package", PU_COMMAND_ARG_FILENAME_ARRAY, &cmd_package_filenames,
+    { "package", PU_COMMAND_ARG_FILENAME_ARRAY, cmd_package,
         "Create a package from files" },
-    { "show", PU_COMMAND_ARG_FILENAME, &cmd_show_filename,
+    { "show", PU_COMMAND_ARG_FILENAME, cmd_show,
         "List the contents of a package" },
-    { "version", PU_COMMAND_ARG_NONE, NULL,
+    { "version", PU_COMMAND_ARG_NONE, cmd_version,
         "Print the program version" },
-    { "help", PU_COMMAND_ARG_NONE, NULL,
+    { "help", PU_COMMAND_ARG_NONE, cmd_help,
         "Print the help options" },
     { NULL }
 };
@@ -87,8 +130,10 @@ main(G_GNUC_UNUSED int argc,
     gint api_version;
 
     /* Support unicode filenames */
+    setlocale(LC_ALL, "");
     args = g_strdupv(argv);
 
+    arg_remaining = g_ptr_array_new();
     context = g_option_context_new(NULL);
     g_option_context_add_main_entries(context, option_entries, NULL);
     g_option_context_set_description(context, description);
@@ -96,14 +141,7 @@ main(G_GNUC_UNUSED int argc,
         g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
     }
-
-    arg_remaining = g_ptr_array_new();
-    context_cmd = pu_command_context_new();
-    pu_command_context_add_entries(context_cmd, command_entries);
-    if (!pu_command_context_parse_strv(context_cmd, &args, &error)) {
-        g_printerr("Failed parsing command: %s\n", error->message);
-        return 1;
-    }
+    g_ptr_array_add(arg_remaining, NULL);
 
     if (arg_debug) {
         const gchar *domains = g_getenv("G_MESSAGES_DEBUG");
@@ -116,10 +154,16 @@ main(G_GNUC_UNUSED int argc,
         }
     }
 
-    if (arg_version) {
-        g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
-        return 0;
+    g_print("argv=%s\n", g_strjoinv(" ", argv));
+    g_print("args=%s\n", g_strjoinv(" ", args));
+    g_print("arg_remaining=%s\n", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
+    context_cmd = pu_command_context_new();
+    pu_command_context_add_entries(context_cmd, command_entries);
+    if (!pu_command_context_parse_strv(context_cmd, (gchar ***) &arg_remaining->pdata, &error)) {
+        g_printerr("Failed parsing command: %s\n", error->message);
+        return 1;
     }
+    g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
 
     g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
     g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));

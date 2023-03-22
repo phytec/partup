@@ -40,6 +40,7 @@ struct _PuCommandEntry {
 
 PuCommandContext * pu_command_context_new(void);
 void pu_command_context_free(PuCommandContext *context);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(PuCommandContext, pu_command_context_free)
 void pu_command_context_add_entries(PuCommandContext *context,
                                     const PuCommandEntry *entries);
 gboolean pu_command_context_parse(PuCommandContext *context,
