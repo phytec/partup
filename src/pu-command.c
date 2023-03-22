@@ -7,10 +7,7 @@
 
 struct _PuCommandContext {
     PuCommandEntry *command;
-    union {
-        gchar *str;
-        gchar **str_array;
-    } args;
+    gchar **args;
 
     PuCommandEntry *entries;
     gsize entries_len;
@@ -33,7 +30,13 @@ pu_command_context_free(PuCommandContext *context)
 {
     g_return_if_fail(context != NULL);
 
+    context->command = NULL;
+    g_strfreev(context->args);
     // TODO: Free individual entries and their content
+    for (gint i = 0; context->entries != NULL; i++) {
+        g_free(context->entries[i].name);
+        g_free(context->entries[i].description);
+    }
 }
 
 void
@@ -72,6 +75,8 @@ pu_command_context_parse(PuCommandContext *context,
 {
     g_debug(G_STRFUNC);
 
+    g_return_val_if_fail(context != NULL, FALSE);
+
     if (!argc || !argv) {
         g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,
                     "No command provided");
@@ -108,29 +113,13 @@ pu_command_context_parse(PuCommandContext *context,
 
     // Depending on command type, save additional argv to value
     g_debug("Save additional args to value");
-    switch (context->command->arg) {
-    case PU_COMMAND_ARG_NONE:
-        if (*argc > 0) {
-            g_autofree gchar *excess_args = g_strjoinv(" ", *argv);
-            g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,
-                        "Excess arguments for command '%s': %s",
-                        context->command->name, excess_args);
-            return FALSE;
-        }
-        break;
-    case PU_COMMAND_ARG_FILENAME:
-        if (*argc > 1) {
-            g_autofree gchar *excess_args = g_strjoinv(" ", *argv);
-            g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,
-                        "Excess arguments for command '%s': %s",
-                        context->command->name, excess_args);
-            return FALSE;
-        }
-        context->args.str = g_strdup((*argv)[0]);
-        break;
-    case PU_COMMAND_ARG_FILENAME_ARRAY:
-        context->args.str_array = g_strdupv(*argv);
-        break;
+    if ((*argc > 0 && context->command->arg == PU_COMMAND_ARG_FILENAME_ARRAY) ||
+        (*argc > 1 && context->command->arg == PU_COMMAND_ARG_FILENAME)) {
+        g_autofree gchar *excess_args = g_strjoinv(" ", *argv);
+        g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,
+                    "Excess arguments for command '%s': %s",
+                    context->command->name, excess_args);
+        return FALSE;
     }
 
     return TRUE;
@@ -138,7 +127,7 @@ pu_command_context_parse(PuCommandContext *context,
 
 gboolean
 pu_command_context_parse_strv(PuCommandContext *context,
-                              gchar ***arguments,
+                              gchar ***args,
                               GError **error)
 {
     gboolean res;
@@ -146,8 +135,15 @@ pu_command_context_parse_strv(PuCommandContext *context,
 
     g_return_val_if_fail(context != NULL, FALSE);
 
-    argc = arguments && *arguments ? g_strv_length(*arguments) : 0;
-    res = pu_command_context_parse(context, &argc, arguments, error);
+    argc = args && *args ? g_strv_length(*args) : 0;
+    res = pu_command_context_parse(context, &argc, args, error);
 
     return res;
+}
+
+gboolean
+pu_command_context_invoke(PuCommandContext *context,
+                          GError **error)
+{
+    return context->command->func(context->args, error);
 }

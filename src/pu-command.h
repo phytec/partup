@@ -17,8 +17,7 @@ typedef enum {
     PU_COMMAND_ARG_FILENAME_ARRAY
 } PuCommandArg;
 
-typedef gboolean (*PuCommandFunc)(const gchar *name,
-                                  gpointer data,
+typedef gboolean (*PuCommandFunc)(gchar **args,
                                   GError **error);
 
 #define PU_COMMAND_ERROR (pu_command_error_quark())
@@ -48,7 +47,9 @@ gboolean pu_command_context_parse(PuCommandContext *context,
                                   gchar ***argv,
                                   GError **error);
 gboolean pu_command_context_parse_strv(PuCommandContext *context,
-                                       gchar ***arguments,
+                                       gchar ***args,
                                        GError **error);
+gboolean pu_command_context_invoke(PuCommandContext *context,
+                                   GError **error);
 
 #endif /* PARTUP_COMMAND_H */

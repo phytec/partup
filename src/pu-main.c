@@ -26,32 +26,98 @@ static gchar *arg_package = NULL;
 GPtrArray *arg_remaining = NULL;
 
 static gboolean
-cmd_install(const gchar *name,
-            gpointer data,
+cmd_install(gchar **args,
+            GError **error)
+{
+    if (getuid() != 0) {
+        g_printerr("%s must be run as root!\n", g_get_prgname());
+        return 1;
+    }
+
+    /*if (g_strcmp0(arg_config, "") <= 0 || g_strcmp0(arg_device, "") <= 0) {
+        g_printerr("Not enough arguments!\n");
+        g_print("%s", g_option_context_get_help(context, TRUE, NULL));
+        return 1;
+    }*/
+
+    if (!pu_is_drive(arg_device)) {
+        g_printerr("Device '%s' is not a drive!\n", arg_device);
+        return 1;
+    }
+
+    if (!pu_device_mounted(arg_device, &is_mounted, &error)) {
+        g_printerr("Failed checking if device is in use: %s\n", error->message);
+        return 1;
+    }
+
+    if (is_mounted) {
+        g_printerr("Device '%s' is in use!\n", arg_device);
+        return 1;
+    }
+
+    // TODO: Mount squashfs image (partup package) to /run/partup
+    if (!pu_package_mount(arg_package, PU_PACKAGE_PREFIX, &error)) {
+        g_printerr("%s\n", error->message);
+        return 1;
+    }
+    // Input files and configuration layout are now available in mounted dir
+    // Assign variable, like arg_config, the right paths
+    config_path = g_strdup(PU_PACKAGE_PREFIX "/layout.yaml");
+
+    config = pu_config_new_from_file(config_path, &error);
+    if (config == NULL) {
+        g_printerr("Failed creating configuration object for file '%s': %s\n",
+                   config_path, error->message);
+        return 1;
+    }
+    api_version = pu_config_get_api_version(config);
+    if (api_version > PARTUP_VERSION_MAJOR) {
+        g_printerr("API version %d of configuration file is not compatible "
+                   "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
+        return 1;
+    }
+
+    emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, &error);
+    if (emmc == NULL) {
+        g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
+        return 1;
+    }
+    if (!pu_flash_init_device(PU_FLASH(emmc), &error)) {
+        g_printerr("Failed initializing device: %s\n", error->message);
+        return 1;
+    }
+    if (!pu_flash_setup_layout(PU_FLASH(emmc), &error)) {
+        g_printerr("Failed setting up layout on device: %s\n", error->message);
+        return 1;
+    }
+    if (!pu_flash_write_data(PU_FLASH(emmc), &error)) {
+        g_printerr("Failed writing data to device: %s\n", error->message);
+        g_clear_error(&error);
+        if (!pu_umount_all(arg_device, &error))
+            g_printerr("Failed unmounting partitions being used by %s: %s\n",
+                       g_get_prgname(), error->message);
+        return 1;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+cmd_package(gchar **args,
             GError **error)
 {
     return TRUE;
 }
 
 static gboolean
-cmd_package(const gchar *name,
-            gpointer data,
-            GError **error)
-{
-    return TRUE;
-}
-
-static gboolean
-cmd_show(const gchar *name,
-         gpointer data,
+cmd_show(gchar **args,
          GError **error)
 {
     return TRUE;
 }
 
 static gboolean
-cmd_version(const gchar *name,
-            gpointer data,
+cmd_version(gchar **args,
             GError **error)
 {
     g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
@@ -59,8 +125,7 @@ cmd_version(const gchar *name,
 }
 
 static gboolean
-cmd_help(const gchar *name,
-         gpointer data,
+cmd_help(gchar **args,
          GError **error)
 {
     return TRUE;
@@ -167,76 +232,8 @@ main(G_GNUC_UNUSED int argc,
 
     g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
     g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
-
-    return 0;
-
-    if (getuid() != 0) {
-        g_printerr("%s must be run as root!\n", g_get_prgname());
-        return 1;
-    }
-
-    /*if (g_strcmp0(arg_config, "") <= 0 || g_strcmp0(arg_device, "") <= 0) {
-        g_printerr("Not enough arguments!\n");
-        g_print("%s", g_option_context_get_help(context, TRUE, NULL));
-        return 1;
-    }*/
-
-    if (!pu_is_drive(arg_device)) {
-        g_printerr("Device '%s' is not a drive!\n", arg_device);
-        return 1;
-    }
-
-    if (!pu_device_mounted(arg_device, &is_mounted, &error)) {
-        g_printerr("Failed checking if device is in use: %s\n", error->message);
-        return 1;
-    }
-
-    if (is_mounted) {
-        g_printerr("Device '%s' is in use!\n", arg_device);
-        return 1;
-    }
-
-    // TODO: Mount squashfs image (partup package) to /run/partup
-    if (!pu_package_mount(arg_package, PU_PACKAGE_PREFIX, &error)) {
-        g_printerr("%s\n", error->message);
-        return 1;
-    }
-    // Input files and configuration layout are now available in mounted dir
-    // Assign variable, like arg_config, the right paths
-    config_path = g_strdup(PU_PACKAGE_PREFIX "/layout.yaml");
-
-    config = pu_config_new_from_file(config_path, &error);
-    if (config == NULL) {
-        g_printerr("Failed creating configuration object for file '%s': %s\n",
-                   config_path, error->message);
-        return 1;
-    }
-    api_version = pu_config_get_api_version(config);
-    if (api_version > PARTUP_VERSION_MAJOR) {
-        g_printerr("API version %d of configuration file is not compatible "
-                   "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
-        return 1;
-    }
-
-    emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, &error);
-    if (emmc == NULL) {
-        g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
-        return 1;
-    }
-    if (!pu_flash_init_device(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed initializing device: %s\n", error->message);
-        return 1;
-    }
-    if (!pu_flash_setup_layout(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed setting up layout on device: %s\n", error->message);
-        return 1;
-    }
-    if (!pu_flash_write_data(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed writing data to device: %s\n", error->message);
-        g_clear_error(&error);
-        if (!pu_umount_all(arg_device, &error))
-            g_printerr("Failed unmounting partitions being used by %s: %s\n",
-                       g_get_prgname(), error->message);
+    if (!pu_command_context_invoke(context_cmd, &error)) {
+        g_printerr("Failed invoking command: %s\n", error->message);
         return 1;
     }
 
