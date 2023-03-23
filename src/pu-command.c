@@ -105,10 +105,11 @@ pu_command_context_parse(PuCommandContext *context,
     for (gint i = 0; i < *argc - 1; i++) {
         g_debug("pre %d: %s", i, (*argv)[i]);
         (*argv)[i] = (*argv)[i + 1];
-        (*argv)[i + 1] = NULL;
+        //(*argv)[i + 1] = NULL;
         g_debug("post %d: %s", i, (*argv)[i]);
     }
     (*argc)--;
+    (*argv)[*argc] = NULL;
     g_debug("left args=%s", g_strjoinv(" ", *argv));
 
     // Depending on command type, save additional argv to value
@@ -145,5 +146,7 @@ gboolean
 pu_command_context_invoke(PuCommandContext *context,
                           GError **error)
 {
+    g_debug("Invoking command '%s' with args='%s'",
+            context->command->name, context->args);
     return context->command->func(context->args, error);
 }

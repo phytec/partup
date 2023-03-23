@@ -29,6 +29,12 @@ static gboolean
 cmd_install(gchar **args,
             GError **error)
 {
+    g_autoptr(PuConfig) config = NULL;
+    g_autofree gchar *config_path = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+    gint api_version;
+    gboolean is_mounted;
+
     if (getuid() != 0) {
         g_printerr("%s must be run as root!\n", g_get_prgname());
         return 1;
@@ -45,8 +51,8 @@ cmd_install(gchar **args,
         return 1;
     }
 
-    if (!pu_device_mounted(arg_device, &is_mounted, &error)) {
-        g_printerr("Failed checking if device is in use: %s\n", error->message);
+    if (!pu_device_mounted(arg_device, &is_mounted, error)) {
+        g_printerr("Failed checking if device is in use: %s\n", (*error)->message);
         return 1;
     }
 
@@ -56,18 +62,18 @@ cmd_install(gchar **args,
     }
 
     // TODO: Mount squashfs image (partup package) to /run/partup
-    if (!pu_package_mount(arg_package, PU_PACKAGE_PREFIX, &error)) {
-        g_printerr("%s\n", error->message);
+    if (!pu_package_mount(arg_package, PU_PACKAGE_PREFIX, error)) {
+        g_printerr("%s\n", (*error)->message);
         return 1;
     }
     // Input files and configuration layout are now available in mounted dir
     // Assign variable, like arg_config, the right paths
     config_path = g_strdup(PU_PACKAGE_PREFIX "/layout.yaml");
 
-    config = pu_config_new_from_file(config_path, &error);
+    config = pu_config_new_from_file(config_path, error);
     if (config == NULL) {
         g_printerr("Failed creating configuration object for file '%s': %s\n",
-                   config_path, error->message);
+                   config_path, (*error)->message);
         return 1;
     }
     api_version = pu_config_get_api_version(config);
@@ -77,25 +83,25 @@ cmd_install(gchar **args,
         return 1;
     }
 
-    emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, &error);
+    emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, error);
     if (emmc == NULL) {
-        g_printerr("Failed parsing eMMC info from config: %s\n", error->message);
+        g_printerr("Failed parsing eMMC info from config: %s\n", (*error)->message);
         return 1;
     }
-    if (!pu_flash_init_device(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed initializing device: %s\n", error->message);
+    if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
+        g_printerr("Failed initializing device: %s\n", (*error)->message);
         return 1;
     }
-    if (!pu_flash_setup_layout(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed setting up layout on device: %s\n", error->message);
+    if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
+        g_printerr("Failed setting up layout on device: %s\n", (*error)->message);
         return 1;
     }
-    if (!pu_flash_write_data(PU_FLASH(emmc), &error)) {
-        g_printerr("Failed writing data to device: %s\n", error->message);
-        g_clear_error(&error);
-        if (!pu_umount_all(arg_device, &error))
+    if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
+        g_printerr("Failed writing data to device: %s\n", (*error)->message);
+        g_clear_error(error);
+        if (!pu_umount_all(arg_device, error))
             g_printerr("Failed unmounting partitions being used by %s: %s\n",
-                       g_get_prgname(), error->message);
+                       g_get_prgname(), (*error)->message);
         return 1;
     }
 
@@ -128,6 +134,7 @@ static gboolean
 cmd_help(gchar **args,
          GError **error)
 {
+    g_debug(G_STRFUNC);
     return TRUE;
 }
 
@@ -187,12 +194,7 @@ main(G_GNUC_UNUSED int argc,
     g_autoptr(GError) error = NULL;
     g_autoptr(GOptionContext) context = NULL;
     g_autoptr(PuCommandContext) context_cmd = NULL;
-    g_autoptr(PuConfig) config = NULL;
-    g_autofree gchar *config_path = NULL;
-    g_autoptr(PuEmmc) emmc = NULL;
     g_autofree gchar **args;
-    gboolean is_mounted;
-    gint api_version;
 
     /* Support unicode filenames */
     setlocale(LC_ALL, "");
@@ -237,9 +239,13 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
+    g_debug(G_STRLOC);
     g_free(arg_device);
+    g_debug(G_STRLOC);
     g_free(arg_package);
+    g_debug(G_STRLOC);
     g_ptr_array_free(arg_remaining, TRUE);
+    g_debug(G_STRLOC);
 
     return 0;
 }
