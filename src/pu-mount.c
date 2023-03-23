@@ -46,10 +46,14 @@ pu_find_mounted(const gchar *device)
     gint i;
     gint num_partitions;
     struct libmnt_table *tb;
+    struct libmnt_fs *fs;
     g_autoptr(GPtrArray) mounted = g_ptr_array_new_with_free_func(g_free);
     g_autoptr(GError) error = NULL;
 
     g_return_val_if_fail(g_strcmp0(device, "") > 0, NULL);
+
+    if (!pu_wait_for_partitions(&error))
+        return NULL;
 
     pr = blkid_new_probe_from_filename(device);
     if (!pr)
@@ -82,8 +86,9 @@ pu_find_mounted(const gchar *device)
             mnt_unref_table(tb);
             return NULL;
         }
-        if (mnt_table_find_source(tb, partname, MNT_ITER_FORWARD))
-            g_ptr_array_add(mounted, g_steal_pointer(&partname));
+        fs = mnt_table_find_source(tb, partname, MNT_ITER_FORWARD);
+        if (fs)
+            g_ptr_array_add(mounted, g_strdup(mnt_fs_get_target(fs)));
     }
 
     mnt_unref_table(tb);
@@ -170,7 +175,8 @@ pu_umount_all(const gchar *device,
     }
 
     for (guint i = 0; i < mounted->len; i++) {
-        if (!pu_umount(mounted->pdata[i], error))
+        gchar *mount_point = mounted->pdata[i];
+        if (!pu_umount(mount_point, error))
             return FALSE;
     }
 
