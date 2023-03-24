@@ -23,6 +23,7 @@ static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_device = NULL;
 static gchar *arg_package = NULL;
 
+GOptionContext *option_context = NULL;
 GPtrArray *arg_remaining = NULL;
 
 static gboolean
@@ -40,11 +41,11 @@ cmd_install(gchar **args,
         return 1;
     }
 
-    /*if (g_strcmp0(arg_config, "") <= 0 || g_strcmp0(arg_device, "") <= 0) {
-        g_printerr("Not enough arguments!\n");
-        g_print("%s", g_option_context_get_help(context, TRUE, NULL));
+    if (g_strcmp0(arg_device, "") <= 0) {
+        g_printerr("No device specified!\n");
+        g_print("%s", g_option_context_get_help(option_context, TRUE, NULL));
         return 1;
-    }*/
+    }
 
     if (!pu_is_drive(arg_device)) {
         g_printerr("Device '%s' is not a drive!\n", arg_device);
@@ -126,6 +127,7 @@ static gboolean
 cmd_version(gchar **args,
             GError **error)
 {
+    g_debug("A=%s", g_strjoinv(" ", args));
     g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
     return TRUE;
 }
@@ -134,7 +136,11 @@ static gboolean
 cmd_help(gchar **args,
          GError **error)
 {
-    g_debug(G_STRFUNC);
+    g_autofree gchar *help = NULL;
+
+    help = g_option_context_get_help(option_context, TRUE, NULL);
+    g_print("%s", help);
+
     return TRUE;
 }
 
@@ -192,7 +198,6 @@ main(G_GNUC_UNUSED int argc,
      char **argv)
 {
     g_autoptr(GError) error = NULL;
-    g_autoptr(GOptionContext) context = NULL;
     g_autoptr(PuCommandContext) context_cmd = NULL;
     g_autofree gchar **args;
 
@@ -201,10 +206,10 @@ main(G_GNUC_UNUSED int argc,
     args = g_strdupv(argv);
 
     arg_remaining = g_ptr_array_new();
-    context = g_option_context_new(NULL);
-    g_option_context_add_main_entries(context, option_entries, NULL);
-    g_option_context_set_description(context, description);
-    if (!g_option_context_parse_strv(context, &args, &error)) {
+    option_context = g_option_context_new(NULL);
+    g_option_context_add_main_entries(option_context, option_entries, NULL);
+    g_option_context_set_description(option_context, description);
+    if (!g_option_context_parse_strv(option_context, &args, &error)) {
         g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
     }
@@ -232,13 +237,14 @@ main(G_GNUC_UNUSED int argc,
     }
     g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
 
-    g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
-    g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
+    //g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
+    //g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("Failed invoking command: %s\n", error->message);
         return 1;
     }
 
+    g_option_context_free(option_context);
     g_debug(G_STRLOC);
     g_free(arg_device);
     g_debug(G_STRLOC);
