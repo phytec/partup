@@ -23,11 +23,11 @@ static gboolean arg_skip_checksums = FALSE;
 static gchar *arg_device = NULL;
 static gchar *arg_package = NULL;
 
-GOptionContext *option_context = NULL;
 GPtrArray *arg_remaining = NULL;
 
 static gboolean
 cmd_install(gchar **args,
+            GOptionContext *option_context,
             GError **error)
 {
     g_autoptr(PuConfig) config = NULL;
@@ -111,13 +111,29 @@ cmd_install(gchar **args,
 
 static gboolean
 cmd_package(gchar **args,
+            GOptionContext *option_context,
             GError **error)
 {
+    g_autofree gchar *package = NULL;
+    g_autoptr(GPtrArray) input_files = NULL;
+
+    g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
+
+    package = g_strdup(args[0]);
+    input_files = g_ptr_array_new();
+    for (gint i = 1; args[i] != NULL; i++)
+        g_ptr_array_add(input_files, args[i]);
+    g_ptr_array_add(input_files, NULL);
+
+    if (!pu_package_create(input_files, package, error))
+        return FALSE;
+
     return TRUE;
 }
 
 static gboolean
 cmd_show(gchar **args,
+         GOptionContext *option_context,
          GError **error)
 {
     return TRUE;
@@ -125,15 +141,17 @@ cmd_show(gchar **args,
 
 static gboolean
 cmd_version(gchar **args,
+            GOptionContext *option_context,
             GError **error)
 {
-    g_debug("A=%s", g_strjoinv(" ", args));
     g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
+
     return TRUE;
 }
 
 static gboolean
 cmd_help(gchar **args,
+         GOptionContext *option_context,
          GError **error)
 {
     g_autofree gchar *help = NULL;
@@ -145,12 +163,11 @@ cmd_help(gchar **args,
 }
 
 static gboolean
-arg_parse_remaining(const gchar *option_name,
+arg_parse_remaining(G_GNUC_UNUSED const gchar *option_name,
                     const gchar *value,
                     G_GNUC_UNUSED gpointer data,
-                    GError **error)
+                    G_GNUC_UNUSED GError **error)
 {
-    g_debug("array add=%s", value);
     g_ptr_array_add(arg_remaining, g_strdup(value));
 
     return TRUE;
@@ -189,6 +206,8 @@ Commands:\n\
   install PACKAGE DEVICE   Install a partup PACKAGE to DEVICE\n\
   package PACKAGE FILES…   Create a partup PACKAGE with the contents FILES\n\
   show PACKAGE             List the contents of a partup PACKAGE\n\
+  version                  Print the program version\n\
+  help                     Print the help options\n\
 \n\
 Report any issues at <https://github.com/phytec/partup>\
 ";
@@ -199,6 +218,7 @@ main(G_GNUC_UNUSED int argc,
 {
     g_autoptr(GError) error = NULL;
     g_autoptr(PuCommandContext) context_cmd = NULL;
+    g_autoptr(GOptionContext) option_context = NULL;
     g_autofree gchar **args;
     g_autofree gchar *default_cmd = NULL;
 
@@ -227,16 +247,17 @@ main(G_GNUC_UNUSED int argc,
         }
     }
 
-    g_print("argv=%s\n", g_strjoinv(" ", argv));
-    g_print("args=%s\n", g_strjoinv(" ", args));
+    //g_print("argv=%s\n", g_strjoinv(" ", argv));
+    //g_print("args=%s\n", g_strjoinv(" ", args));
     g_print("arg_remaining=%s\n", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
-    context_cmd = pu_command_context_new();
+    // TODO: Pass GOptionContext here to command context
+    context_cmd = pu_command_context_new(option_context);
     pu_command_context_add_entries(context_cmd, command_entries);
     if (!pu_command_context_parse_strv(context_cmd, (gchar ***) &arg_remaining->pdata, &error)) {
         g_printerr("Failed parsing command: %s\n", error->message);
         return 1;
     }
-    g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
+    //g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
 
     if (arg_remaining->len == 0) {
         default_cmd = g_strdup(command_entries[0].name);
@@ -247,11 +268,10 @@ main(G_GNUC_UNUSED int argc,
     //g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
     //g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
     if (!pu_command_context_invoke(context_cmd, &error)) {
-        g_printerr("Failed invoking command: %s\n", error->message);
+        g_printerr("%s\n", error->message);
         return 1;
     }
 
-    g_option_context_free(option_context);
     g_debug(G_STRLOC);
     g_free(arg_device);
     g_debug(G_STRLOC);

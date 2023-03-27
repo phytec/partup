@@ -9,6 +9,8 @@ struct _PuCommandContext {
     PuCommandEntry *command;
     gchar **args;
 
+    GOptionContext *option_context;
+
     PuCommandEntry *entries;
     gsize entries_len;
 };
@@ -16,11 +18,12 @@ struct _PuCommandContext {
 G_DEFINE_QUARK(pu-command-context-error-quark, pu_command_error)
 
 PuCommandContext *
-pu_command_context_new(void)
+pu_command_context_new(GOptionContext *option_context)
 {
     PuCommandContext *context;
 
     context = g_new0(PuCommandContext, 1);
+    context->option_context = option_context;
 
     return context;
 }
@@ -91,14 +94,17 @@ pu_command_context_parse(PuCommandContext *context,
     (*argc)--;
     (*argv)[*argc] = NULL;
 
-    if ((*argc > 0 && context->command->arg == PU_COMMAND_ARG_FILENAME_ARRAY) ||
-        (*argc > 1 && context->command->arg == PU_COMMAND_ARG_FILENAME)) {
+    g_debug("*argc=%d", *argc);
+    if ((*argc > 0 && context->command->arg == PU_COMMAND_ARG_NONE) ||
+        (*argc != 1 && context->command->arg == PU_COMMAND_ARG_FILENAME)) {
         g_autofree gchar *excess_args = g_strjoinv(" ", *argv);
         g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,
                     "Excess arguments for command '%s': %s",
                     context->command->name, excess_args);
         return FALSE;
     }
+
+    context->args = g_strdupv(*argv);
 
     return TRUE;
 }
@@ -127,5 +133,5 @@ pu_command_context_invoke(PuCommandContext *context,
     g_return_val_if_fail(context != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    return context->command->func(context->args, error);
+    return context->command->func(context->args, context->option_context, error);
 }

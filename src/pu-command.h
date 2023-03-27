@@ -18,6 +18,7 @@ typedef enum {
 } PuCommandArg;
 
 typedef gboolean (*PuCommandFunc)(gchar **args,
+                                  GOptionContext *option_context,
                                   GError **error);
 
 #define PU_COMMAND_ERROR (pu_command_error_quark())
@@ -37,7 +38,7 @@ struct _PuCommandEntry {
     const gchar *description;
 };
 
-PuCommandContext * pu_command_context_new(void);
+PuCommandContext * pu_command_context_new(GOptionContext *option_context);
 void pu_command_context_free(PuCommandContext *context);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(PuCommandContext, pu_command_context_free)
 void pu_command_context_add_entries(PuCommandContext *context,
