@@ -200,6 +200,7 @@ main(G_GNUC_UNUSED int argc,
     g_autoptr(GError) error = NULL;
     g_autoptr(PuCommandContext) context_cmd = NULL;
     g_autofree gchar **args;
+    g_autofree gchar *default_cmd = NULL;
 
     /* Support unicode filenames */
     setlocale(LC_ALL, "");
@@ -236,6 +237,12 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
     g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
+
+    if (arg_remaining->len == 0) {
+        default_cmd = g_strdup(command_entries[0].name);
+        g_warning("Not specifying a command is deprecated, defaulting to '%s'", default_cmd);
+        g_ptr_array_add(arg_remaining, default_cmd);
+    }
 
     //g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
     //g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
