@@ -88,13 +88,19 @@ pu_command_context_parse(PuCommandContext *context,
         return FALSE;
     }
 
-    g_free((*argv)[0]);
-    for (gint i = 0; i < *argc - 1; i++)
-        (*argv)[i] = (*argv)[i + 1];
+    //(*argv)[0] = NULL;
+    for (gint i = 0; i < *argc - 1; i++) {
+        g_debug("Freeing %d with old content '%s'", i, (*argv)[i]);
+        g_free((*argv)[i]);
+        g_debug("Assigning %d with new content '%s'", i, (*argv)[i + 1]);
+        (*argv)[i] = g_strdup((*argv)[i + 1]);
+    }
     (*argc)--;
+    g_debug("Freeing %d with old content '%s'", *argc, (*argv)[*argc]);
+    g_free((*argv)[*argc]);
     (*argv)[*argc] = NULL;
 
-    g_debug("*argc=%d", *argc);
+    g_debug("*argc=%d ***argv=%s", *argc, g_strjoinv(" ", *argv));
     if ((*argc > 0 && context->command->arg == PU_COMMAND_ARG_NONE) ||
         (*argc != 1 && context->command->arg == PU_COMMAND_ARG_FILENAME)) {
         g_autofree gchar *excess_args = g_strjoinv(" ", *argv);
