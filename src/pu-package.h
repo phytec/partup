@@ -7,6 +7,7 @@
 #define PARTUP_PACKAGE_H
 
 #include <glib.h>
+#include "pu-mount.h"
 
 #define PU_PACKAGE_PREFIX PU_MOUNT_PREFIX "/package"
 

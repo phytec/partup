@@ -57,13 +57,41 @@ pu_package_mount(const gchar *package,
     g_return_val_if_fail(g_strcmp0(mount, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    cmd = g_strdup_printf("mount -t squashfs -o loop %s %s", package, mount);
+    if (!pu_create_mount_point(mount, error))
+        return FALSE;
+
+    cmd = g_strdup_printf("mount -t squashfs -o loop,ro %s %s", package, mount);
 
     if (!pu_spawn_command_line_sync(cmd, error)) {
-        g_prefix_error(error, "Failed mounting package '%s' to '%s': ",
-                       package, mount);
+        g_prefix_error(error, "Failed mounting package '%s' to '%s': ", package, mount);
         return FALSE;
     }
+
+    return TRUE;
+}
+
+gboolean
+pu_package_list_contents(const gchar *package,
+                         GError **error)
+{
+    g_autofree gchar *mount = NULL;
+
+    // Mount the package
+    mount = g_strdup_printf("%s.%08x", PU_PACKAGE_PREFIX, g_random_int());
+    g_debug("Temporarily mounting to %s", mount);
+
+    if (!pu_create_mount_point(mount, error))
+        return FALSE;
+
+    if (!pu_package_mount(package, mount, error))
+        return FALSE;
+
+    // TODO: List files using g_file_enumerate_children()
+
+
+    // Unmount the package
+    if (!pu_umount(mount, error))
+        return FALSE;
 
     return TRUE;
 }

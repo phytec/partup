@@ -207,7 +207,7 @@ Commands:\n\
   package PACKAGE FILES…   Create a partup PACKAGE with the contents FILES\n\
   show PACKAGE             List the contents of a partup PACKAGE\n\
   version                  Print the program version\n\
-  help                     Print the help options\n\
+  help                     Show help options\n\
 \n\
 Report any issues at <https://github.com/phytec/partup>\
 ";
@@ -227,7 +227,7 @@ main(G_GNUC_UNUSED int argc,
     args = g_strdupv(argv);
 
     arg_remaining = g_ptr_array_new();
-    option_context = g_option_context_new(NULL);
+    option_context = g_option_context_new("COMMAND");
     g_option_context_add_main_entries(option_context, option_entries, NULL);
     g_option_context_set_description(option_context, description);
     if (!g_option_context_parse_strv(option_context, &args, &error)) {

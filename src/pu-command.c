@@ -36,8 +36,13 @@ pu_command_context_free(PuCommandContext *context)
     context->command = NULL;
     g_strfreev(context->args);
 
-    for (gint i = 0; context->entries != NULL; i++)
-        g_free(&context->entries[i]);
+    /*g_debug("context->entries_len=%ld", context->entries_len);
+    for (gsize i = 0; i < context->entries_len; i++) {
+        g_debug("%s: freeing %ld '%s'", G_STRFUNC, i, context->entries[i].name);
+        //g_free(context->entries[i].name);
+        //g_free(context->entries[i].description);
+    }*/
+    g_free(context->entries);
 }
 
 void
@@ -52,6 +57,8 @@ pu_command_context_add_entries(PuCommandContext *context,
     for (entries_len = 0; entries[entries_len].name != NULL; entries_len++);
     g_return_if_fail(entries_len <= G_MAXSIZE - context->entries_len);
 
+    g_debug("entries_len=%ld context->entries_len=%ld",
+            entries_len, context->entries_len);
     context->entries = g_renew(PuCommandEntry, context->entries,
                                context->entries_len + entries_len);
 
@@ -61,6 +68,8 @@ pu_command_context_add_entries(PuCommandContext *context,
     }
 
     context->entries_len += entries_len;
+    g_debug("entries_len=%ld context->entries_len=%ld",
+            entries_len, context->entries_len);
 }
 
 gboolean
