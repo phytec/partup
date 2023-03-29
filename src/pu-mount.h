@@ -8,12 +8,14 @@
 
 #include <glib.h>
 
-#define PU_MOUNT_PREFIX "/run/partup"
+#define PU_MOUNT_PREFIX "/tmp/partup"
 
 gchar * pu_create_mount_point(const gchar *name,
                               GError **error);
 gboolean pu_mount(const gchar *source,
                   const gchar *mount_point,
+                  const gchar *type,
+                  const gchar *options,
                   GError **error);
 gboolean pu_umount(const gchar *mount_point,
                    GError **error);

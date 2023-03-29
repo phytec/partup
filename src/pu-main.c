@@ -11,6 +11,7 @@
 #include "pu-command.h"
 #include "pu-config.h"
 #include "pu-emmc.h"
+#include "pu-error.h"
 #include "pu-flash.h"
 #include "pu-mount.h"
 #include "pu-package.h"
@@ -38,34 +39,34 @@ cmd_install(gchar **args,
 
     if (getuid() != 0) {
         g_printerr("%s must be run as root!\n", g_get_prgname());
-        return 1;
+        return FALSE;
     }
 
     if (g_strcmp0(arg_device, "") <= 0) {
         g_printerr("No device specified!\n");
         g_print("%s", g_option_context_get_help(option_context, TRUE, NULL));
-        return 1;
+        return FALSE;
     }
 
     if (!pu_is_drive(arg_device)) {
         g_printerr("Device '%s' is not a drive!\n", arg_device);
-        return 1;
+        return FALSE;
     }
 
     if (!pu_device_mounted(arg_device, &is_mounted, error)) {
         g_printerr("Failed checking if device is in use: %s\n", (*error)->message);
-        return 1;
+        return FALSE;
     }
 
     if (is_mounted) {
         g_printerr("Device '%s' is in use!\n", arg_device);
-        return 1;
+        return FALSE;
     }
 
-    // TODO: Mount squashfs image (partup package) to /run/partup
-    if (!pu_package_mount(arg_package, PU_PACKAGE_PREFIX, error)) {
+    // TODO: Mount squashfs image (partup package) to /run/partup/package
+    if (!pu_mount(arg_package, PU_PACKAGE_PREFIX, "squashfs", "loop,ro", error)) {
         g_printerr("%s\n", (*error)->message);
-        return 1;
+        return FALSE;
     }
     // Input files and configuration layout are now available in mounted dir
     // Assign variable, like arg_config, the right paths
@@ -75,27 +76,27 @@ cmd_install(gchar **args,
     if (config == NULL) {
         g_printerr("Failed creating configuration object for file '%s': %s\n",
                    config_path, (*error)->message);
-        return 1;
+        return FALSE;
     }
     api_version = pu_config_get_api_version(config);
     if (api_version > PARTUP_VERSION_MAJOR) {
         g_printerr("API version %d of configuration file is not compatible "
                    "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
-        return 1;
+        return FALSE;
     }
 
     emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, error);
     if (emmc == NULL) {
         g_printerr("Failed parsing eMMC info from config: %s\n", (*error)->message);
-        return 1;
+        return FALSE;
     }
     if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
         g_printerr("Failed initializing device: %s\n", (*error)->message);
-        return 1;
+        return FALSE;
     }
     if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
         g_printerr("Failed setting up layout on device: %s\n", (*error)->message);
-        return 1;
+        return FALSE;
     }
     if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
         g_printerr("Failed writing data to device: %s\n", (*error)->message);
@@ -103,7 +104,7 @@ cmd_install(gchar **args,
         if (!pu_umount_all(arg_device, error))
             g_printerr("Failed unmounting partitions being used by %s: %s\n",
                        g_get_prgname(), (*error)->message);
-        return 1;
+        return FALSE;
     }
 
     return TRUE;
@@ -121,8 +122,10 @@ cmd_package(gchar **args,
 
     package = g_strdup(args[0]);
     input_files = g_ptr_array_new();
-    for (gint i = 1; args[i] != NULL; i++)
-        g_ptr_array_add(input_files, args[i]);
+    for (gint i = 1; args[i] != NULL; i++) {
+        g_debug("Adding %d '%s'", i, args[i]);
+        g_ptr_array_add(input_files, g_strdup(args[i]));
+    }
     g_ptr_array_add(input_files, NULL);
 
     if (!pu_package_create(input_files, package, error))
@@ -136,6 +139,19 @@ cmd_show(gchar **args,
          GOptionContext *option_context,
          GError **error)
 {
+    g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
+
+    if (g_strv_length(args) != 1) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Invalid number of arguments");
+        return FALSE;
+    }
+
+    if (!pu_package_list_contents(args[0], error)) {
+        g_prefix_error(error, "Failed listing package contents: ");
+        return FALSE;
+    }
+
     return TRUE;
 }
 

@@ -9,13 +9,13 @@
 #include <glib.h>
 #include "pu-mount.h"
 
-#define PU_PACKAGE_PREFIX PU_MOUNT_PREFIX "/package"
+#define PU_PACKAGE_BASENAME "package"
+#define PU_PACKAGE_PREFIX   PU_MOUNT_PREFIX "/" PU_PACKAGE_BASENAME
 
 gboolean pu_package_create(GPtrArray *files,
                            const gchar *output,
                            GError **error);
-gboolean pu_package_mount(const gchar *package,
-                          const gchar *mount,
-                          GError **error);
+gboolean pu_package_list_contents(const gchar *package,
+                                  GError **error);
 
 #endif /* PARTUP_PACKAGE_H */
