@@ -48,7 +48,7 @@ pu_package_create(GPtrArray *files,
     return TRUE;
 }
 
-static gsize
+/*static gsize
 calc_max_len_name(GFile *dir,
                   gboolean recursive)
 {
@@ -101,6 +101,25 @@ print_child(GFileInfo *info,
 
     g_print("  %s%*s %s\n", name, (gint) (max_len + 4 - g_utf8_strlen(name, -1)),
             "", g_format_size(size));
+}*/
+
+static gchar *
+pu_str_pre_remove(gchar *string,
+                  guint n)
+{
+    guchar *start;
+
+    g_return_val_if_fail(string != NULL, NULL);
+
+    if (n >= strlen(string))
+        n = strlen(string);
+
+    start = (guchar *) string;
+    start += n;
+
+    memmove(string, start, strlen((gchar *) start) + 1);
+
+    return string;
 }
 
 static gboolean
@@ -109,18 +128,23 @@ pu_package_print_dir_content(GFile *dir,
                              GError **error)
 {
     g_autoptr(GFileEnumerator) dir_enum = NULL;
-    g_autoptr(GFileInfo) dir_info = NULL;
-    gsize max_len;
+    g_autofree gchar *dir_path = NULL;
+    guint prefix_len = strlen(PU_PACKAGE_PREFIX) + 10;
+    guint64 child_size;
+    //g_autoptr(GFileInfo) dir_info = NULL;
+    //gsize max_len;
     const gchar *file_attr = G_FILE_ATTRIBUTE_STANDARD_NAME ","
                              G_FILE_ATTRIBUTE_STANDARD_SIZE;
 
-    max_len = calc_max_len_name(dir, recursive);
+    //max_len = calc_max_len_name(dir, recursive);
 
-    dir_info = g_file_query_info(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
-    g_print("%s%*s %s\n", g_file_info_get_name(dir_info),
-            (gint) (max_len + 6 - g_utf8_strlen(g_file_info_get_name(dir_info), -1)),
-            "", g_format_size(g_file_info_get_size(dir_info)));
+    //dir_info = g_file_query_info(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
+    //g_print("%s/\n", g_file_get_relative_path(dir));
 
+    dir_path = g_file_get_path(dir);
+    pu_str_pre_remove(dir_path, prefix_len);
+    if (strlen(dir_path))
+        g_print("%s\n", dir_path);
     dir_enum = g_file_enumerate_children(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
     if (!dir_enum) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
@@ -150,7 +174,11 @@ pu_package_print_dir_content(GFile *dir,
             if (!pu_package_print_dir_content(subdir, TRUE, error))
                 return FALSE;
         } else {
-            print_child(child_info, max_len);
+            //print_child(child_info, max_len);
+            // TODO: print like "find" would do
+            pu_str_pre_remove(child_path, prefix_len);
+            child_size = g_file_info_get_size(child_info);
+            g_print("%s (%s)\n", child_path, g_format_size(child_size));
         }
     }
 

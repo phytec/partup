@@ -38,34 +38,37 @@ cmd_install(gchar **args,
     gboolean is_mounted;
 
     if (getuid() != 0) {
-        g_printerr("%s must be run as root!\n", g_get_prgname());
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "%s must be run as root", g_get_prgname());
         return FALSE;
     }
 
     if (g_strcmp0(arg_device, "") <= 0) {
-        g_printerr("No device specified!\n");
-        g_print("%s", g_option_context_get_help(option_context, TRUE, NULL));
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "No device specified");
         return FALSE;
     }
 
     if (!pu_is_drive(arg_device)) {
-        g_printerr("Device '%s' is not a drive!\n", arg_device);
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Device '%s' is not a drive", arg_device);
         return FALSE;
     }
 
     if (!pu_device_mounted(arg_device, &is_mounted, error)) {
-        g_printerr("Failed checking if device is in use: %s\n", (*error)->message);
+        g_prefix_error(error, "Failed checking if device is in use: ");
         return FALSE;
     }
 
     if (is_mounted) {
-        g_printerr("Device '%s' is in use!\n", arg_device);
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Device '%s' is in use", arg_device);
         return FALSE;
     }
 
     // TODO: Mount squashfs image (partup package) to /run/partup/package
     if (!pu_mount(arg_package, PU_PACKAGE_PREFIX, "squashfs", "loop,ro", error)) {
-        g_printerr("%s\n", (*error)->message);
+        g_prefix_error(error, "Failed mounting package: ");
         return FALSE;
     }
     // Input files and configuration layout are now available in mounted dir
@@ -74,36 +77,39 @@ cmd_install(gchar **args,
 
     config = pu_config_new_from_file(config_path, error);
     if (config == NULL) {
-        g_printerr("Failed creating configuration object for file '%s': %s\n",
-                   config_path, (*error)->message);
+        g_prefix_error(error, "Failed creating configuration object for file '%s': ",
+                       config_path);
         return FALSE;
     }
     api_version = pu_config_get_api_version(config);
     if (api_version > PARTUP_VERSION_MAJOR) {
-        g_printerr("API version %d of configuration file is not compatible "
-                   "with program version %d!\n", api_version, PARTUP_VERSION_MAJOR);
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "API version %d of configuration file is not compatible "
+                    "with program version %d", api_version, PARTUP_VERSION_MAJOR);
         return FALSE;
     }
 
     emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, error);
     if (emmc == NULL) {
-        g_printerr("Failed parsing eMMC info from config: %s\n", (*error)->message);
+        g_prefix_error(error, "Failed parsing eMMC info from config: ");
         return FALSE;
     }
     if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
-        g_printerr("Failed initializing device: %s\n", (*error)->message);
+        g_prefix_error(error, "Failed initializing device: ");
         return FALSE;
     }
     if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
-        g_printerr("Failed setting up layout on device: %s\n", (*error)->message);
+        g_prefix_error(error, "Failed setting up layout on device: ");
         return FALSE;
     }
     if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
-        g_printerr("Failed writing data to device: %s\n", (*error)->message);
+        g_prefix_error(error, "Failed writing data to device: ");
+        g_printerr("%s\n", (*error)->message);
         g_clear_error(error);
-        if (!pu_umount_all(arg_device, error))
-            g_printerr("Failed unmounting partitions being used by %s: %s\n",
-                       g_get_prgname(), (*error)->message);
+        if (!pu_umount_all(arg_device, error)) {
+            g_prefix_error(error, "Failed unmounting partitions being used by %s: ",
+                           g_get_prgname());
+        }
         return FALSE;
     }
 
