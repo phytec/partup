@@ -48,61 +48,6 @@ pu_package_create(GPtrArray *files,
     return TRUE;
 }
 
-/*static gsize
-calc_max_len_name(GFile *dir,
-                  gboolean recursive)
-{
-    g_autoptr(GFileEnumerator) dir_enum = NULL;
-    gsize len = 0;
-    gsize max_len = 0;
-
-    // TODO: Consider name length of this dir
-
-    dir_enum = g_file_enumerate_children(dir, G_FILE_ATTRIBUTE_STANDARD_NAME,
-                                         G_FILE_QUERY_INFO_NONE, NULL, NULL);
-    if (!dir_enum) {
-        g_critical("Failed creating enumerator for '%s'", g_file_get_path(dir));
-        return 0;
-    }
-
-    while (TRUE) {
-        GFileInfo *child_info;
-        g_autofree gchar *child_path = NULL;
-
-        if (!g_file_enumerator_iterate(dir_enum, &child_info, NULL, NULL, NULL)) {
-            g_critical("Failed iterating file enumerator for '%s'",
-                       g_file_get_path(dir));
-            return FALSE;
-        }
-
-        if (!child_info)
-            break;
-
-        len = g_utf8_strlen(g_file_info_get_name(child_info), -1);
-        child_path = g_build_filename(g_file_get_path(dir), g_file_info_get_name(child_info), NULL);
-        if (g_file_test(child_path, G_FILE_TEST_IS_DIR) && recursive) {
-            g_autoptr(GFile) subdir = g_file_new_for_path(child_path);
-
-            max_len = MAX(calc_max_len_name(subdir, TRUE), len);
-        } else {
-            max_len = MAX(max_len, len);
-        }
-    }
-
-    return max_len;
-}
-
-static void
-print_child(GFileInfo *info,
-            gsize max_len)
-{
-    const gchar *name = g_file_info_get_name(info);
-    goffset size = g_file_info_get_size(info);
-
-    g_print("  %s%*s %s\n", name, (gint) (max_len + 4 - g_utf8_strlen(name, -1)),
-            "", g_format_size(size));
-}*/
-
 static gboolean
 pu_package_print_dir_content(GFile *dir,
                              gboolean recursive,
@@ -110,17 +55,10 @@ pu_package_print_dir_content(GFile *dir,
 {
     g_autoptr(GFileEnumerator) dir_enum = NULL;
     g_autofree gchar *dir_path = NULL;
-    guint prefix_len = strlen(PU_PACKAGE_PREFIX) + 10;
+    guint prefix_len = strlen(PU_PACKAGE_PREFIX) + 10; /* additional length of "-00000000/" */
     guint64 child_size;
-    //g_autoptr(GFileInfo) dir_info = NULL;
-    //gsize max_len;
     const gchar *file_attr = G_FILE_ATTRIBUTE_STANDARD_NAME ","
                              G_FILE_ATTRIBUTE_STANDARD_SIZE;
-
-    //max_len = calc_max_len_name(dir, recursive);
-
-    //dir_info = g_file_query_info(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
-    //g_print("%s/\n", g_file_get_relative_path(dir));
 
     dir_path = g_file_get_path(dir);
     pu_str_pre_remove(dir_path, prefix_len);
