@@ -21,18 +21,18 @@
 static gboolean arg_debug = FALSE;
 static gboolean arg_version = FALSE;
 static gboolean arg_skip_checksums = FALSE;
-static gchar *arg_device = NULL;
-static gchar *arg_package = NULL;
 
 GPtrArray *arg_remaining = NULL;
 
 static gboolean
 cmd_install(gchar **args,
-            GOptionContext *option_context,
+            G_GNUC_UNUSED GOptionContext *option_context,
             GError **error)
 {
     g_autoptr(PuConfig) config = NULL;
     g_autofree gchar *config_path = NULL;
+    g_autofree gchar *package_path = g_strdup(args[0]);
+    g_autofree gchar *device_path = g_strdup(args[1]);
     g_autoptr(PuEmmc) emmc = NULL;
     gint api_version;
     gboolean is_mounted;
@@ -43,128 +43,113 @@ cmd_install(gchar **args,
         return FALSE;
     }
 
-    if (g_strcmp0(arg_device, "") <= 0) {
+    if (g_strcmp0(device_path, "") <= 0) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "No device specified");
         return FALSE;
     }
 
-    if (!pu_is_drive(arg_device)) {
+    if (!pu_is_drive(device_path)) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is not a drive", arg_device);
+                    "Device '%s' is not a drive", device_path);
         return FALSE;
     }
 
-    if (!pu_device_mounted(arg_device, &is_mounted, error)) {
+    if (!pu_device_mounted(device_path, &is_mounted, error)) {
         g_prefix_error(error, "Failed checking if device is in use: ");
         return FALSE;
     }
 
     if (is_mounted) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is in use", arg_device);
+                    "Device '%s' is in use", device_path);
         return FALSE;
     }
 
     // TODO: Mount squashfs image (partup package) to /run/partup/package
-    if (!pu_mount(arg_package, PU_PACKAGE_PREFIX, "squashfs", "loop,ro", error)) {
-        g_prefix_error(error, "Failed mounting package: ");
+    if (!pu_create_mount_point(PU_PACKAGE_BASENAME, error))
         return FALSE;
-    }
+    if (!pu_mount(package_path, PU_PACKAGE_PREFIX, "squashfs", "loop,ro", error))
+        return FALSE;
     // Input files and configuration layout are now available in mounted dir
     // Assign variable, like arg_config, the right paths
-    config_path = g_strdup(PU_PACKAGE_PREFIX "/layout.yaml");
+    config_path = g_strdup(PU_PACKAGE_LAYOUT_FILE);
 
     config = pu_config_new_from_file(config_path, error);
     if (config == NULL) {
         g_prefix_error(error, "Failed creating configuration object for file '%s': ",
                        config_path);
-        return FALSE;
+        goto error_out;
     }
     api_version = pu_config_get_api_version(config);
     if (api_version > PARTUP_VERSION_MAJOR) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "API version %d of configuration file is not compatible "
                     "with program version %d", api_version, PARTUP_VERSION_MAJOR);
-        return FALSE;
+        goto error_out;
     }
 
-    emmc = pu_emmc_new(arg_device, config, PU_PACKAGE_PREFIX, arg_skip_checksums, error);
+    emmc = pu_emmc_new(device_path, config, PU_PACKAGE_PREFIX, arg_skip_checksums, error);
     if (emmc == NULL) {
         g_prefix_error(error, "Failed parsing eMMC info from config: ");
-        return FALSE;
+        goto error_out;
     }
     if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
         g_prefix_error(error, "Failed initializing device: ");
-        return FALSE;
+        goto error_out;
     }
     if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
         g_prefix_error(error, "Failed setting up layout on device: ");
-        return FALSE;
+        goto error_out;
     }
     if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
         g_prefix_error(error, "Failed writing data to device: ");
-        g_printerr("%s\n", (*error)->message);
-        g_clear_error(error);
-        if (!pu_umount_all(arg_device, error)) {
-            g_prefix_error(error, "Failed unmounting partitions being used by %s: ",
-                           g_get_prgname());
-        }
-        return FALSE;
+        pu_umount_all(device_path, NULL);
+        goto error_out;
     }
 
-    return TRUE;
+    return pu_umount(PU_PACKAGE_PREFIX, error);
+
+error_out:
+    pu_umount(PU_PACKAGE_PREFIX, NULL);
+    return FALSE;
 }
 
 static gboolean
 cmd_package(gchar **args,
-            GOptionContext *option_context,
+            G_GNUC_UNUSED GOptionContext *option_context,
             GError **error)
 {
     g_autofree gchar *package = NULL;
     g_autoptr(GPtrArray) input_files = NULL;
 
-    g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
+    //g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
 
     package = g_strdup(args[0]);
     input_files = g_ptr_array_new();
     for (gint i = 1; args[i] != NULL; i++) {
-        g_debug("Adding %d '%s'", i, args[i]);
+        //g_debug("Adding %d '%s'", i, args[i]);
         g_ptr_array_add(input_files, g_strdup(args[i]));
     }
     g_ptr_array_add(input_files, NULL);
 
-    if (!pu_package_create(input_files, package, error))
-        return FALSE;
-
-    return TRUE;
+    return pu_package_create(input_files, package, error);
 }
 
 static gboolean
 cmd_show(gchar **args,
-         GOptionContext *option_context,
+         G_GNUC_UNUSED GOptionContext *option_context,
          GError **error)
 {
-    g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
+    //g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
 
-    if (g_strv_length(args) != 1) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Invalid number of arguments");
-        return FALSE;
-    }
-
-    if (!pu_package_list_contents(args[0], error)) {
-        g_prefix_error(error, "Failed listing package contents: ");
-        return FALSE;
-    }
-
-    return TRUE;
+    return pu_package_list_contents(args[0], error);
 }
 
 static gboolean
-cmd_version(gchar **args,
-            GOptionContext *option_context,
-            GError **error)
+cmd_version(G_GNUC_UNUSED gchar **args,
+            G_GNUC_UNUSED GOptionContext *option_context,
+            G_GNUC_UNUSED GError **error)
 {
     g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
 
@@ -172,9 +157,9 @@ cmd_version(gchar **args,
 }
 
 static gboolean
-cmd_help(gchar **args,
+cmd_help(G_GNUC_UNUSED gchar **args,
          GOptionContext *option_context,
-         GError **error)
+         G_GNUC_UNUSED GError **error)
 {
     g_autofree gchar *help = NULL;
 
@@ -269,17 +254,12 @@ main(G_GNUC_UNUSED int argc,
         }
     }
 
-    //g_print("argv=%s\n", g_strjoinv(" ", argv));
-    //g_print("args=%s\n", g_strjoinv(" ", args));
-    g_print("arg_remaining=%s\n", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
-    // TODO: Pass GOptionContext here to command context
     context_cmd = pu_command_context_new(option_context);
     pu_command_context_add_entries(context_cmd, command_entries);
     if (!pu_command_context_parse_strv(context_cmd, (gchar ***) &arg_remaining->pdata, &error)) {
         g_printerr("Failed parsing command: %s\n", error->message);
         return 1;
     }
-    //g_print("args(after cmd parsing)=%s\n", g_strjoinv(" ", args));
 
     if (arg_remaining->len == 0) {
         default_cmd = g_strdup(command_entries[0].name);
@@ -287,17 +267,11 @@ main(G_GNUC_UNUSED int argc,
         g_ptr_array_add(arg_remaining, default_cmd);
     }
 
-    //g_debug("%s", g_strjoinv(" ", (gchar **) arg_remaining->pdata));
-    //g_debug("command: %s", (gchar *) g_ptr_array_index(arg_remaining, 0));
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("%s\n", error->message);
         return 1;
     }
 
-    g_debug(G_STRLOC);
-    g_free(arg_device);
-    g_debug(G_STRLOC);
-    g_free(arg_package);
     g_debug(G_STRLOC);
     g_ptr_array_free(arg_remaining, TRUE);
     g_debug(G_STRLOC);

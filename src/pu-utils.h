@@ -9,9 +9,8 @@
 #include <glib.h>
 #include <parted/parted.h>
 
-gboolean
-pu_spawn_command_line_sync(const gchar *command_line,
-                           GError **error);
+gboolean pu_spawn_command_line_sync(const gchar *command_line,
+                                    GError **error);
 gboolean pu_file_copy(const gchar *src,
                       const gchar *dest,
                       GError **error);
@@ -51,5 +50,7 @@ gchar * pu_path_from_uri(const gchar *uri,
 gchar * pu_device_get_partition_path(const gchar *device,
                                      guint index,
                                      GError **error);
+gchar * pu_str_pre_remove(gchar *string,
+                          guint n);
 
 #endif /* PARTUP_UTILS_H */

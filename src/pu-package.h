@@ -9,8 +9,9 @@
 #include <glib.h>
 #include "pu-mount.h"
 
-#define PU_PACKAGE_BASENAME "package"
-#define PU_PACKAGE_PREFIX   PU_MOUNT_PREFIX "/" PU_PACKAGE_BASENAME
+#define PU_PACKAGE_BASENAME    "package"
+#define PU_PACKAGE_PREFIX      PU_MOUNT_PREFIX "/" PU_PACKAGE_BASENAME
+#define PU_PACKAGE_LAYOUT_FILE PU_PACKAGE_PREFIX "/layout.yaml"
 
 gboolean pu_package_create(GPtrArray *files,
                            const gchar *output,

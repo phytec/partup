@@ -425,3 +425,22 @@ pu_device_get_partition_path(const gchar *device,
         return NULL;
     }
 }
+
+gchar *
+pu_str_pre_remove(gchar *string,
+                  guint n)
+{
+    guchar *start;
+
+    g_return_val_if_fail(string != NULL, NULL);
+
+    if (n >= strlen(string))
+        n = strlen(string);
+
+    start = (guchar *) string;
+    start += n;
+
+    memmove(string, start, strlen((gchar *) start) + 1);
+
+    return string;
+}

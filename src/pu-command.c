@@ -110,7 +110,7 @@ pu_command_context_parse(PuCommandContext *context,
     (*argv)[*argc] = NULL;
 
     g_debug("*argc=%d ***argv=%s", *argc, g_strjoinv(" ", *argv));
-    if ((*argc > 0 && context->command->arg == PU_COMMAND_ARG_NONE) ||
+    if ((*argc != 0 && context->command->arg == PU_COMMAND_ARG_NONE) ||
         (*argc != 1 && context->command->arg == PU_COMMAND_ARG_FILENAME)) {
         g_autofree gchar *excess_args = g_strjoinv(" ", *argv + 1);
         g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE,

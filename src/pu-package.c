@@ -103,25 +103,6 @@ print_child(GFileInfo *info,
             "", g_format_size(size));
 }*/
 
-static gchar *
-pu_str_pre_remove(gchar *string,
-                  guint n)
-{
-    guchar *start;
-
-    g_return_val_if_fail(string != NULL, NULL);
-
-    if (n >= strlen(string))
-        n = strlen(string);
-
-    start = (guchar *) string;
-    start += n;
-
-    memmove(string, start, strlen((gchar *) start) + 1);
-
-    return string;
-}
-
 static gboolean
 pu_package_print_dir_content(GFile *dir,
                              gboolean recursive,
@@ -174,8 +155,6 @@ pu_package_print_dir_content(GFile *dir,
             if (!pu_package_print_dir_content(subdir, TRUE, error))
                 return FALSE;
         } else {
-            //print_child(child_info, max_len);
-            // TODO: print like "find" would do
             pu_str_pre_remove(child_path, prefix_len);
             child_size = g_file_info_get_size(child_info);
             g_print("%s (%s)\n", child_path, g_format_size(child_size));
