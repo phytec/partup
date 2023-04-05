@@ -3,7 +3,12 @@
  * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
+#include <fcntl.h>
 #include <gio/gio.h>
+#include <glib.h>
+#include <glib/gstdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "pu-error.h"
 #include "pu-package.h"
 #include "pu-utils.h"
@@ -63,7 +68,7 @@ pu_package_print_dir_content(GFile *dir,
     dir_path = g_file_get_path(dir);
     pu_str_pre_remove(dir_path, prefix_len);
     if (strlen(dir_path))
-        g_print("%s\n", dir_path);
+        g_print("%s/\n", dir_path);
     dir_enum = g_file_enumerate_children(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
     if (!dir_enum) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
@@ -128,6 +133,8 @@ pu_package_list_contents(const gchar *package,
         return FALSE;
 
     if (!pu_umount(mount, error))
+        return FALSE;
+    if (g_rmdir(mount) < 0)
         return FALSE;
 
     return TRUE;
