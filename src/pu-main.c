@@ -123,14 +123,10 @@ cmd_package(gchar **args,
     g_autofree gchar *package = NULL;
     g_autoptr(GPtrArray) input_files = NULL;
 
-    //g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
-
     package = g_strdup(args[0]);
     input_files = g_ptr_array_new();
-    for (gint i = 1; args[i] != NULL; i++) {
-        //g_debug("Adding %d '%s'", i, args[i]);
+    for (gint i = 1; args[i] != NULL; i++)
         g_ptr_array_add(input_files, g_strdup(args[i]));
-    }
     g_ptr_array_add(input_files, NULL);
 
     return pu_package_create(input_files, package, error);
@@ -141,8 +137,6 @@ cmd_show(gchar **args,
          G_GNUC_UNUSED GOptionContext *option_context,
          GError **error)
 {
-    //g_debug("%s: args=%s", G_STRFUNC, g_strjoinv(" ", args));
-
     return pu_package_list_contents(args[0], error);
 }
 
@@ -241,6 +235,11 @@ main(G_GNUC_UNUSED int argc,
         g_printerr("Failed parsing options: %s\n", error->message);
         return 1;
     }
+    if (arg_remaining->len == 0) {
+        default_cmd = g_strdup(command_entries[0].name);
+        g_warning("Not specifying a command is deprecated, defaulting to '%s'", default_cmd);
+        g_ptr_array_add(arg_remaining, default_cmd);
+    }
     g_ptr_array_add(arg_remaining, NULL);
 
     if (arg_debug) {
@@ -261,20 +260,12 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    if (arg_remaining->len == 0) {
-        default_cmd = g_strdup(command_entries[0].name);
-        g_warning("Not specifying a command is deprecated, defaulting to '%s'", default_cmd);
-        g_ptr_array_add(arg_remaining, default_cmd);
-    }
-
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("%s\n", error->message);
         return 1;
     }
 
-    g_debug(G_STRLOC);
     g_ptr_array_free(arg_remaining, TRUE);
-    g_debug(G_STRLOC);
 
     return 0;
 }

@@ -38,7 +38,6 @@ pu_package_create(GPtrArray *files,
                         "Input file '%s' does not exist", file);
             return FALSE;
         }
-        g_debug("Input file '%s' exists", file);
     }
 
     input = g_strjoinv(" ", (gchar **) files->pdata);
@@ -121,7 +120,6 @@ pu_package_list_contents(const gchar *package,
     }
 
     mount = g_strdup_printf("%s-%08x", PU_PACKAGE_PREFIX, g_random_int());
-    g_debug("Temporarily mounting to %s", mount);
     if (!pu_create_mount_point(g_path_get_basename(mount), error))
         return FALSE;
 

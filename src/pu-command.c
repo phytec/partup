@@ -97,7 +97,6 @@ pu_command_context_parse(PuCommandContext *context,
         return FALSE;
     }
 
-    //(*argv)[0] = NULL;
     for (gint i = 0; i < *argc - 1; i++) {
         g_debug("Freeing %d with old content '%s'", i, (*argv)[i]);
         g_free((*argv)[i]);
