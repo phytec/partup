@@ -890,6 +890,23 @@ pu_emmc_check_raw_overwrite(PuEmmc *emmc,
                             "Raw binary overlaps with first partition");
                 return FALSE;
             }
+
+            /* Check against all binaries after the current one */
+            for (GList *i = b->next; i != NULL; i = i->next) {
+                PuEmmcBinary *bin2 = i->data;
+
+                gsize raw2_start = bin2->output_offset * emmc->device->sector_size;
+                gsize raw2_end;
+                raw2_end = bin2->input->_size;
+                raw2_end += raw2_start;
+                raw2_end -= bin2->input_offset * emmc->device->sector_size;
+
+                if (!(raw_end < raw2_start || raw_start > raw2_end)) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                                "Raw binary overlaps with other raw binary");
+                    return FALSE;
+                }
+            }
         }
     }
 
