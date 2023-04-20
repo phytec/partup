@@ -19,6 +19,9 @@ typedef struct _PuEmmcInput {
     gchar *uri;
     gchar *md5sum;
     gchar *sha256sum;
+
+    /* Internal members */
+    gsize _size;
 } PuEmmcInput;
 typedef struct _PuEmmcPartition {
     gchar *label;
@@ -628,10 +631,16 @@ pu_emmc_parse_raw(PuEmmc *emmc,
 {
     PuConfigValue *value_raw = g_hash_table_lookup(root, "raw");
     GList *raw;
+    g_autofree gchar *path = NULL;
+    g_autofree gchar *prefix = NULL;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
     g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(emmc,
+                 "prefix", &prefix,
+                 NULL);
 
     if (!value_raw) {
         g_debug("No entry 'raw' found. Skipping...");
@@ -667,6 +676,15 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         input->uri = pu_hash_table_lookup_string(value_input->data.mapping, "uri", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+
+        path = pu_path_from_uri(input->uri, prefix, error);
+        if (path == NULL)
+            return FALSE;
+
+        input->_size = pu_get_file_size(path, error);
+        if (!input->_size)
+            return FALSE;
+
         bin->input = input;
         g_debug("Parsed raw input: uri=%s md5sum=%s sha256sum=%s",
                 input->uri, input->md5sum, input->sha256sum);
