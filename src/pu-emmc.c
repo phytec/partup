@@ -671,6 +671,15 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         g_debug("Parsed raw input: uri=%s md5sum=%s sha256sum=%s",
                 input->uri, input->md5sum, input->sha256sum);
 
+        PedSector min_offset = pu_emmc_get_partition_table_size(emmc);
+
+        if (bin->output_offset < min_offset) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "Offset of raw binary is too small and would "
+                        "overwrite partition table");
+            return FALSE;
+        }
+
         emmc->raw = g_list_prepend(emmc->raw, bin);
     }
 
@@ -742,7 +751,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
             if (part->offset < min_offset && part->offset > 0) {
                 g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                             "Offset of first partition too small and would "
-                            "override partition table");
+                            "overwrite partition table");
                 return FALSE;
             }
 
