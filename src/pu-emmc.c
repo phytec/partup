@@ -512,6 +512,17 @@ pu_emmc_init(G_GNUC_UNUSED PuEmmc *self)
 {
 }
 
+static PedSector
+pu_emmc_get_partition_table_size(PuEmmc *emmc)
+{
+    if (g_str_equal(emmc->disktype->name, "msdos"))
+        return PARTITION_TABLE_SIZE_MSDOS;
+    else if (g_str_equal(emmc->disktype->name, "gpt"))
+        return PARTITION_TABLE_SIZE_GPT;
+
+    return 1;
+}
+
 static gboolean
 pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
                             GHashTable *root,
@@ -726,12 +737,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 
         if (first_partition) {
             first_partition = FALSE;
-            PedSector min_offset = 1;
-
-            if (g_str_equal(emmc->disktype->name, "msdos"))
-                min_offset = PARTITION_TABLE_SIZE_MSDOS;
-            else if (g_str_equal(emmc->disktype->name, "gpt"))
-                min_offset = PARTITION_TABLE_SIZE_GPT;
+            PedSector min_offset = pu_emmc_get_partition_table_size(emmc);
 
             if (part->offset < min_offset && part->offset > 0) {
                 g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
