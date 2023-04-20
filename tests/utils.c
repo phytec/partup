@@ -11,6 +11,8 @@
 #include "pu-utils.h"
 #include "pu-error.h"
 
+#define ROOT_EXT4_SIZE 262144
+
 static void
 test_file_copy(void)
 {
@@ -177,6 +179,15 @@ test_device_get_partition_path_fail(void)
     g_assert_null(path);
 }
 
+static void
+test_get_file_size(void)
+{
+    g_autoptr(GError) error = NULL;
+    goffset size = pu_get_file_size("data/root.ext4", &error);
+    g_assert_no_error(error);
+    g_assert_cmpuint(size, ==, ROOT_EXT4_SIZE);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -205,6 +216,8 @@ main(int argc,
                     test_device_get_partition_path_sd);
     g_test_add_func("/utils/device_get_partition_path_fail",
                     test_device_get_partition_path_fail);
+    g_test_add_func("/utils/get_file_size",
+                    test_get_file_size);
 
     return g_test_run();
 }

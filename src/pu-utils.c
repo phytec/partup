@@ -370,6 +370,25 @@ pu_wait_for_partitions(GError **error)
     return TRUE;
 }
 
+goffset
+pu_get_file_size(const gchar *path,
+                 GError **error)
+{
+    g_autoptr(GFile) file = NULL;
+    g_autoptr(GFileInfo) file_info = NULL;
+
+    g_return_val_if_fail(g_strcmp0(path, "") > 0, 0);
+    g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+    file = g_file_new_for_path(path);
+    file_info = g_file_query_info(file, G_FILE_ATTRIBUTE_STANDARD_SIZE,
+                                  G_FILE_QUERY_INFO_NONE, NULL, error);
+    if (file_info == NULL)
+        return 0;
+
+    return g_file_info_get_size(file_info);
+}
+
 gchar *
 pu_path_from_uri(const gchar *uri,
                  const gchar *prefix,
