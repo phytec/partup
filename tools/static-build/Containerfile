@@ -1,0 +1,18 @@
+FROM debian:bullseye
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install --yes \
+        build-essential \
+        git \
+        meson \
+        libglib2.0-dev \
+        libyaml-dev \
+        libparted-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --branch $PARTUP_BRANCH $PARTUP_REPO && \
+    cd partup && \
+    meson setup build -Dstatic-glib=true && \
+    meson compile -C build && \
+    git describe --tags > /partup-version
