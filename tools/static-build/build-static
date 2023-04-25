@@ -1,0 +1,68 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (c) 2023 PHYTEC Messtechnik GmbH
+# Author: Martin Schwan <m.schwan@phytec.de>
+
+BRANCH=main
+PLATFORM=linux/amd64,linux/arm64,linux/arm/v7
+REPO=https://github.com/phytec/partup
+
+usage() {
+    printf "\
+Usage:
+  $(basename $0) [OPTION…]
+
+Build partup statically for multiple platforms using podman containers.
+
+Options:
+  -b, --branch      An optional tag or branch name to use from partup's remote
+                    repository (default \"$BRANCH\")
+  -p, --platform    A comma separated list of platforms to build for
+                    (default \"$PLATFORM\")
+  -r, --repo        The remote URL to clone partup from
+                    (default \"$REPO\")
+  -h, --help        Show help options
+"
+}
+
+ARGS=$(getopt -n $(basename $0) -o b:p:r:h -l branch:,platform:,repo:,help -- "$@")
+VALID_ARGS=$?
+if [ "$VALID_ARGS" != "0" ]; then
+    usage
+    exit 2
+fi
+
+eval set -- "$ARGS"
+while :
+do
+    case "$1" in
+        -b | --branch) BRANCH="$2"; shift 2;;
+        -p | --platform) PLATFORM="$2"; shift 2;;
+        -r | --repo) REPO="$2"; shift 2;;
+        -h | --help) usage; exit 0;;
+        --) shift; break;;
+        *) printf "ERROR: Invalid option \"$1\"\n"; usage; exit 2;;
+    esac
+done
+
+podman build \
+    --env PARTUP_BRANCH=$BRANCH \
+    --env PARTUP_REPO=$REPO \
+    --jobs $(nproc) \
+    --manifest partup \
+    -t partup:$BRANCH \
+    --platform $PLATFORM \
+    .
+
+for P in $(printf "$PLATFORM" | tr ',' ' '); do
+    ARCH=$(printf "$P" | cut -f2 -d '/')
+    podman run -td --rm --name partup-$ARCH --arch $ARCH partup /bin/sh
+    podman cp partup-$ARCH:/partup-version partup-version
+    podman cp partup-$ARCH:/partup/build/partup partup
+    mv partup partup-$(cat partup-version)-$ARCH
+    rm partup-version
+    podman stop --time 0 partup-$ARCH
+done
+
+podman image rm -f partup:$BRANCH
+podman manifest rm partup
