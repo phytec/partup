@@ -24,7 +24,7 @@ configure_file(
 
 deps = [
   dependency('glib-2.0', static : get_option('static-glib'), version : '>=2.66.0'),
-  dependency('gio-2.0', static : get_option('static-glib')),
+  dependency('gio-2.0', static : get_option('static-glib'), version : '>=2.66.0'),
   dependency('yaml-0.1'),
   dependency('libparted'),
   dependency('mount'),
