@@ -2,6 +2,10 @@ option('doc',
        type: 'boolean',
        value: false,
        description: 'Build the documentation')
+option('static-glib',
+       type: 'boolean',
+       value: false,
+       description: 'Statically link GLib and GIO to partup')
 option('tests',
        type: 'boolean',
        value: true,
