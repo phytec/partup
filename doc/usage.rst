@@ -4,26 +4,51 @@ Usage
 General Usage
 -------------
 
-partup requires a configuration file specifying the layout and an output device
-to write to as its mandatory arguments. The full syntax is as follows::
+partup has different commands for executing all needed steps during the initial
+flashing process of a target device. The process is usually as follows:
 
-   partup [OPTION?] -c CONFIG DEVICE
+1. Create a partup package containing the layout configuration and any required
+   input files.
+2. Install this partup package to the device.
 
-An minimal example may look like the following::
+partup also provides a command for displaying the contents of a partup package.
+For a detailed description on how these packages work and how to create them,
+see the page :doc:`package`.
 
-   partup -c layout.yaml /dev/mmcblk2
+The general usage syntax looks like the following::
 
-Option List
------------
+   partup [OPTION…] COMMAND ARGUMENTS
 
-When executing partup, the following options can be specified:
+Global Option List
+------------------
 
--h, --help              Show help options
--c, --config=CONFIG     Layout configuration file in YAML format
--d, --debug             Print debug messages
--p, --prefix=PREFIX     Path to prefix all file URIs with in the layout configuration
--s, --skip-checksums    Skip checksum verification for all input files
--v, --version           Print the program version and exit
+When executing partup, the following options can be specified independently of
+any command:
+
+-h, --help                 Show help options
+-d, --debug                Print debug messages
+
+Commands
+--------
+
+install [OPTION…] *PACKAGE* *DEVICE*
+   Install a partup PACKAGE to DEVICE
+
+   -s, --skip-checksums    Skip checksum verification for all input files
+
+package [OPTION…] *PACKAGE* *FILES…*
+   Create a partup PACKAGE with the contents FILES
+
+   -C, --directory=DIR     Change to DIR before creating the package
+   -f, --force             Overwrite any existing package
+
+show [OPTION…] *PACKAGE*
+   List the contents of a partup PACKAGE
+
+   -s, --size              Print the size of each file
+
+version
+   Print the program version
 
 Supported Output Devices
 ------------------------
