@@ -12,4 +12,8 @@
 #define g_spawn_check_wait_status g_spawn_check_exit_status
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 76, 0)
+gchar * g_string_free_and_steal(GString *string) G_GNUC_WARN_UNUSED_RESULT;
+#endif
+
 #endif /* PU_GLIB_COMPAT_H */
