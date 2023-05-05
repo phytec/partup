@@ -18,7 +18,7 @@
 
 #define UDEVADM_SETTLE_TIMEOUT 10
 
-static gboolean
+gboolean
 pu_spawn_command_line_sync(const gchar *command_line,
                            GError **error)
 {
