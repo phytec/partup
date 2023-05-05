@@ -36,6 +36,7 @@ src = [
   'src/pu-emmc.c',
   'src/pu-error.c',
   'src/pu-flash.c',
+  'src/pu-glib-compat.c',
   'src/pu-hashtable.c',
   'src/pu-mount.c',
   'src/pu-utils.c'
