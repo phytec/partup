@@ -93,6 +93,8 @@ pu_find_mounted(const gchar *device)
 gboolean
 pu_mount(const gchar *source,
          const gchar *mount_point,
+         const gchar *type,
+         const gchar *options,
          GError **error)
 {
     gint ret;
@@ -109,8 +111,14 @@ pu_mount(const gchar *source,
                     source, mount_point);
         return FALSE;
     }
+
     mnt_context_set_target(ctx, mount_point);
     mnt_context_set_source(ctx, source);
+    if (g_strcmp0(type, "") > 0)
+        mnt_context_set_fstype_pattern(ctx, type);
+    if (g_strcmp0(options, "") > 0)
+        mnt_context_append_options(ctx, options);
+
     ret = mnt_context_mount(ctx);
     if (ret || mnt_context_get_status(ctx) != 1) {
         g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,

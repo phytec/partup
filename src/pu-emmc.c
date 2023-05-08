@@ -320,7 +320,7 @@ pu_emmc_write_data(PuFlash *flash,
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 g_debug("Extracting '%s' to '%s'", path, part_mount);
-                if (!pu_mount(part_path, part_mount, error))
+                if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;
                 if (!pu_archive_extract(path, part_mount, error))
                     return FALSE;
@@ -334,7 +334,7 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
             } else {
                 g_debug("Copying '%s' to '%s'", path, part_mount);
-                if (!pu_mount(part_path, part_mount, error))
+                if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;
                 if (!pu_file_copy(path, part_mount, error))
                     return FALSE;
