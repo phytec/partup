@@ -5,6 +5,7 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <locale.h>
 #include <parted/parted.h>
 #include <unistd.h>
 #include "pu-command.h"
@@ -220,6 +221,7 @@ main(G_GNUC_UNUSED int argc,
     g_autofree gchar **main_args = NULL;
 
     /* Support unicode filenames */
+    setlocale(LC_ALL, "");
     args = g_strdupv(argv);
 
     context_cmd = pu_command_context_new();
