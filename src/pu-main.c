@@ -218,7 +218,6 @@ main(G_GNUC_UNUSED int argc,
     g_autofree gchar **args;
     g_autofree gchar *default_cmd = NULL;
     g_autofree gchar **main_args = NULL;
-    const gchar *prog_name = g_path_get_basename(argv[0]);
 
     /* Support unicode filenames */
     args = g_strdupv(argv);
@@ -234,10 +233,10 @@ main(G_GNUC_UNUSED int argc,
         const gchar *domains = g_getenv("G_MESSAGES_DEBUG");
 
         if (domains != NULL) {
-            g_autofree gchar *new_domains = g_strdup_printf("%s %s", domains, prog_name);
+            g_autofree gchar *new_domains = g_strdup_printf("%s %s", domains, g_get_prgname());
             g_setenv("G_MESSAGES_DEBUG", new_domains, TRUE);
         } else {
-            g_setenv("G_MESSAGES_DEBUG", prog_name, TRUE);
+            g_setenv("G_MESSAGES_DEBUG", g_get_prgname(), TRUE);
         }
     }
 
