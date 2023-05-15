@@ -1,5 +1,6 @@
 tests = [
   'checksum',
+  'command',
   'config',
   'emmc',
   'utils'
