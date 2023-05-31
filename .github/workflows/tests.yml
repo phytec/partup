@@ -19,4 +19,4 @@ jobs:
       - name: Build unit tests and program
         run: meson setup build --buildtype=debug
       - name: Run unit tests
-        run: meson test -C build
+        run: meson test -C build --print-errorlogs --verbose
