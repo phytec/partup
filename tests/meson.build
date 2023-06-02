@@ -5,7 +5,11 @@ tests = [
   'utils'
 ]
 
-foreach t : tests
+tests_root = [
+  'utils-root'
+]
+
+foreach t : tests + tests_root
   exe = executable(
     t,
     ['@0@.c'.format(t), 'helper.c', 'helper.h'],
@@ -15,10 +19,11 @@ foreach t : tests
   test(
     t,
     exe,
-    env: [
+    env : [
       'G_TEST_SRCDIR=@0@'.format(meson.current_source_dir()),
       'G_TEST_BUILDDIR=@0@'.format(meson.current_build_dir()),
       'G_DEBUG_MESSAGES=all',
-    ]
+    ],
+    suite : tests_root.contains(t) ? 'root' : 'user'
   )
 endforeach

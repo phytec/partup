@@ -1,0 +1,2 @@
+parted $1 --script mklabel gpt
+parted $1 --script mkpart pimary ext4 2048s 50%
