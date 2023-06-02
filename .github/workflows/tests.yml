@@ -18,5 +18,7 @@ jobs:
           sudo apt-get install meson libglib2.0-dev libyaml-dev libparted-dev
       - name: Build unit tests and program
         run: meson setup build --buildtype=debug
-      - name: Run unit tests
-        run: meson test -C build --print-errorlogs --verbose
+      - name: Run user unit tests
+        run: meson test --suite user -C build --print-errorlogs --verbose
+      - name: Run root unit tests
+        run: sudo meson test --suite root -C build --print-errorlogs --verbose
