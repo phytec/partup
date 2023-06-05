@@ -13,12 +13,14 @@
 #include "pu-emmc.h"
 #include "pu-error.h"
 #include "pu-flash.h"
+#include "pu-log.h"
 #include "pu-mount.h"
 #include "pu-package.h"
 #include "pu-utils.h"
 #include "pu-version.h"
 
 static gboolean arg_debug = FALSE;
+static gboolean arg_quiet = FALSE;
 static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
@@ -174,6 +176,8 @@ cmd_version(G_GNUC_UNUSED PuCommandContext *context,
 static GOptionEntry option_entries_main[] = {
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_debug, "Print debug messages", NULL },
+    { "quiet", 'q', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_quiet, "Only print error messages", NULL },
     { NULL }
 };
 
@@ -231,16 +235,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    if (arg_debug) {
-        const gchar *domains = g_getenv("G_MESSAGES_DEBUG");
-
-        if (domains != NULL) {
-            g_autofree gchar *new_domains = g_strdup_printf("%s %s", domains, g_get_prgname());
-            g_setenv("G_MESSAGES_DEBUG", new_domains, TRUE);
-        } else {
-            g_setenv("G_MESSAGES_DEBUG", g_get_prgname(), TRUE);
-        }
-    }
+    pu_log_setup(arg_quiet, arg_debug);
 
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("ERROR: %s\n", error->message);

@@ -27,6 +27,7 @@ any command:
 
 -h, --help                 Show help options
 -d, --debug                Print debug messages
+-q, --quiet                Only print error messages
 
 Commands
 --------
