@@ -22,6 +22,7 @@
 #include "pu-version.h"
 
 static gboolean arg_debug = FALSE;
+static gchar *arg_debug_domains = NULL;
 static gboolean arg_quiet = FALSE;
 static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
@@ -177,7 +178,10 @@ cmd_version(G_GNUC_UNUSED PuCommandContext *context,
 
 static GOptionEntry option_entries_main[] = {
     { "debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
-        &arg_debug, "Print debug messages", NULL },
+        &arg_debug, "Print debug messages for all modules", NULL },
+    { "debug-domains", 'D', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING,
+        &arg_debug_domains, "Comma separated list of modules to enable debug output for",
+        "DEBUG_DOMAINS" },
     { "quiet", 'q', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_quiet, "Only print error messages", NULL },
     { NULL }
@@ -237,7 +241,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    pu_log_setup(arg_quiet, arg_debug);
+    pu_log_setup(arg_quiet, arg_debug, arg_debug_domains);
 
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("ERROR: %s\n", error->message);
