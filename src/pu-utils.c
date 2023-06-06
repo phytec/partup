@@ -31,6 +31,8 @@ pu_spawn_command_line_sync(const gchar *command_line,
 
     g_return_val_if_fail(command_line != NULL, FALSE);
 
+    g_debug("Running command: %s", command_line);
+
     if (!g_shell_parse_argv(command_line, NULL, &argv, error))
         return FALSE;
 
@@ -145,6 +147,8 @@ pu_resize_filesystem(const gchar *part,
 
     g_return_val_if_fail(part != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Resizing filesystem on: %s", part);
 
     cmd = g_strdup_printf("resize2fs %s", part);
 
