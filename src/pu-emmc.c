@@ -254,8 +254,6 @@ pu_emmc_write_data(PuFlash *flash,
     g_autofree gchar *part_mount = NULL;
     g_autofree gchar *prefix = NULL;
 
-    g_debug(G_STRFUNC);
-
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
@@ -263,6 +261,8 @@ pu_emmc_write_data(PuFlash *flash,
                  "prefix", &prefix,
                  "skip-checksums", &skip_checksums,
                  NULL);
+
+    g_message("Writing data to partitions");
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -295,6 +295,8 @@ pu_emmc_write_data(PuFlash *flash,
             g_debug("No input specified. Skipping %s", part_path);
             continue;
         }
+
+        g_debug("Writing data to partition: %s", part_path);
 
         part_mount = pu_create_mount_point(g_strdup_printf("p%u", i), error);
         if (part_mount == NULL)
@@ -361,6 +363,8 @@ pu_emmc_write_data(PuFlash *flash,
         }
     }
 
+    g_message("Writing raw data to user area");
+
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         PuEmmcInput *input = bin->input;
@@ -394,6 +398,8 @@ pu_emmc_write_data(PuFlash *flash,
                           bin->input_offset, bin->output_offset, 0, error))
             return FALSE;
     }
+
+    g_message("Writing to eMMC boot partitions");
 
     if (self->emmc_boot_partitions) {
         PuEmmcInput *input = self->emmc_boot_partitions->input;
