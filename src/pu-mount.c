@@ -69,6 +69,8 @@ pu_find_mounted(const gchar *device)
     }
     blkid_free_probe(pr);
 
+    g_debug("Device '%s' has %d partitions", device, num_partitions);
+
     tb = mnt_new_table();
     if (!tb)
         return NULL;
@@ -84,8 +86,10 @@ pu_find_mounted(const gchar *device)
             mnt_unref_table(tb);
             return NULL;
         }
-        if (mnt_table_find_source(tb, partname, MNT_ITER_FORWARD))
+        if (mnt_table_find_source(tb, partname, MNT_ITER_FORWARD)) {
+            g_debug("Partition '%s' is mounted", partname);
             g_ptr_array_add(mounted, g_steal_pointer(&partname));
+        }
     }
 
     mnt_unref_table(tb);
@@ -105,6 +109,8 @@ pu_mount(const gchar *source,
     g_return_val_if_fail(g_strcmp0(source, "") > 0, FALSE);
     g_return_val_if_fail(g_strcmp0(mount_point, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Mounting %s on %s", source, mount_point);
 
     ctx = mnt_new_context();
     if (!ctx) {
@@ -142,6 +148,8 @@ pu_umount(const gchar *mount_point,
 
     g_return_val_if_fail(g_strcmp0(mount_point, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Unmounting %s", mount_point);
 
     ctx = mnt_new_context();
     if (!ctx) {
