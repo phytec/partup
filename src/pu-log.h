@@ -9,6 +9,7 @@
 #include <glib.h>
 
 void pu_log_setup(gboolean quiet,
-                  gboolean debug);
+                  gboolean debug,
+                  const gchar *debug_domains);
 
 #endif /* PARTUP_LOG_H */

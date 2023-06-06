@@ -25,9 +25,11 @@ Global Option List
 When executing partup, the following options can be specified independently of
 any command:
 
--h, --help                 Show help options
--d, --debug                Print debug messages
--q, --quiet                Only print error messages
+-h, --help                          Show help options
+-d, --debug                         Print debug messages
+-D, --debug-domains=DEBUG_DOMAINS   Comma separated list of modules to enable
+                                    debug output for
+-q, --quiet                         Only print error messages
 
 Commands
 --------
