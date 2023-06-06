@@ -67,6 +67,8 @@ pu_file_copy(const gchar *src,
     g_return_val_if_fail(dest != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+    g_debug("Copying '%s' to '%s'", src, dest);
+
     in = g_file_new_for_path(src);
     out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
     out = g_file_new_for_path(out_path);
@@ -84,6 +86,8 @@ pu_archive_extract(const gchar *filename,
     g_return_val_if_fail(filename != NULL, FALSE);
     g_return_val_if_fail(dest != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Extracting '%s' to '%s'", filename, dest);
 
     cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
 
@@ -178,6 +182,8 @@ pu_write_raw(const gchar *input_path,
     g_return_val_if_fail(input_path != NULL, FALSE);
     g_return_val_if_fail(output_path != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Writing '%s' to '%s'", input_path, output_path);
 
     /* glib uses bytes not sectors */
     input_offset *= device->sector_size;
