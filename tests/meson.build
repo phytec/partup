@@ -7,7 +7,7 @@ tests = [
 foreach t : tests
   exe = executable(
     t,
-    '@0@.c'.format(t),
+    ['@0@.c'.format(t), 'helper.c', 'helper.h'],
     c_args : ['-DPARTUP_TEST_SRCDIR="@0@"'.format(meson.current_source_dir())],
     dependencies : partup_dep
   )
