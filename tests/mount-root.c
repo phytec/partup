@@ -11,6 +11,7 @@
 
 #define MOUNT_POINT_BASENAME "partition"
 #define MOUNT_POINT          PU_MOUNT_PREFIX "/" MOUNT_POINT_BASENAME 
+#define MOUNT_SOURCE         "data/root.ext4"
 
 static void
 test_create_mount_point(void)
@@ -23,6 +24,28 @@ test_create_mount_point(void)
     g_assert_cmpstr(mount_point, ==, MOUNT_POINT);
     g_assert_no_error(error);
     g_assert_true(g_file_test(mount_point, G_FILE_TEST_IS_DIR));
+    g_assert_cmpint(g_rmdir(mount_point), ==, 0);
+}
+
+static void
+test_mount(CopyFileFixture *fixture,
+           G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autofree gchar *cmd = NULL;
+    g_autofree gchar *mount_point = NULL;
+    gint wait_status;
+
+    mount_point = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_mount(g_file_get_path(fixture->file), mount_point,
+                           NULL, NULL, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    cmd = g_strdup_printf("umount %s", mount_point);
+    g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &wait_status, &fixture->error));
+    g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
     g_assert_cmpint(g_rmdir(mount_point), ==, 0);
 }
 
@@ -41,6 +64,8 @@ main(int argc,
 #endif
 
     g_test_add_func("/mount/create_mount_point", test_create_mount_point);
+    g_test_add("/mount/mount", CopyFileFixture, MOUNT_SOURCE, copy_file_setup,
+               test_mount, copy_file_teardown);
 
     return g_test_run();
 }
