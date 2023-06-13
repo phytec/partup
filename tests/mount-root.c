@@ -49,6 +49,31 @@ test_mount(CopyFileFixture *fixture,
     g_assert_cmpint(g_rmdir(mount_point), ==, 0);
 }
 
+static void
+test_umount(CopyFileFixture *fixture,
+            G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autofree gchar *mount_point = NULL;
+    g_autofree gchar *cmd = NULL;
+    gint wait_status;
+
+    mount_point = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    cmd = g_strdup_printf("mount %s %s", g_file_get_path(fixture->file),
+                          mount_point);
+
+    g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_umount(mount_point, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_assert_cmpint(g_rmdir(mount_point), ==, 0);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -66,6 +91,8 @@ main(int argc,
     g_test_add_func("/mount/create_mount_point", test_create_mount_point);
     g_test_add("/mount/mount", CopyFileFixture, MOUNT_SOURCE, copy_file_setup,
                test_mount, copy_file_teardown);
+    g_test_add("/mount/umount", CopyFileFixture, MOUNT_SOURCE, copy_file_setup,
+               test_umount, copy_file_teardown);
 
     return g_test_run();
 }
