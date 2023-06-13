@@ -8,6 +8,7 @@ tests = [
 ]
 
 tests_root = [
+  'mount-root',
   'package-root',
   'utils-root'
 ]
