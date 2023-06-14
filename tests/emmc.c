@@ -42,6 +42,43 @@ emmc_simple(void)
     g_assert_cmpint(g_rmdir(path), ==, 0);
 }
 
+static void
+test_raw_overwrite_pass(EmptyFileFixture *fixture,
+                        G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file("config/raw-non-overlap.yaml", &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+                       &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+}
+
+static void
+test_raw_overwrite_fail_partition_table(EmptyFileFixture *fixture,
+                                        G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file("config/raw-overlap-partition-table.yaml",
+                                     &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+                       &fixture->error);
+    g_assert_error(fixture->error, PU_ERROR, PU_ERROR_EMMC_PARSE);
+    g_assert_null(emmc);
+
+    g_clear_error(&fixture->error);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -53,6 +90,11 @@ main(int argc,
 #endif
 
     g_test_add_func("/emmc/simple", emmc_simple);
+    g_test_add("/emmc/raw_overwrite_pass", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_raw_overwrite_pass, empty_file_tear_down);
+    g_test_add("/emmc/raw_overwrite_fail_partition_table", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_raw_overwrite_fail_partition_table,
+               empty_file_tear_down);
 
     return g_test_run();
 }
