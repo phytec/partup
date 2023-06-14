@@ -1,0 +1,18 @@
+api-version: 0
+disklabel: gpt
+
+raw:
+  - input-offset: 0
+    output-offset: 0
+    input:
+      uri: random.bin
+  - input-offset: 0
+    output-offset: 1MiB
+    input:
+      uri: random.bin
+
+partitions:
+  - type: primary
+    filesystem: fat32
+    size: 128MiB
+    offset: 16MiB
