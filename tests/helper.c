@@ -7,6 +7,7 @@
 #include <parted/parted.h>
 #include "helper.h"
 #include "pu-glib-compat.h"
+#include "pu-utils.h"
 
 #define LAYOUT_CONFIG_SIMPLE "config/simple.yaml"
 
@@ -27,6 +28,28 @@ create_tmp_file(const gchar *filename,
     g_assert_no_error(*error);
 
     return g_steal_pointer(&file);
+}
+
+void
+create_partition(const gchar *device,
+                 GError **error)
+{
+    gint wait_status;
+    g_autofree gchar *cmd = NULL;
+
+    cmd = g_strdup_printf("sh scripts/create-partition %s", device);
+    g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL,
+                                            &wait_status, error));
+    g_assert_no_error(*error);
+    g_assert_true(g_spawn_check_wait_status(wait_status, error));
+    g_assert_no_error(*error);
+
+    g_assert_true(pu_wait_for_partitions(error));
+    g_assert_no_error(*error);
+
+    g_assert_true(pu_make_filesystem(g_strdup_printf("%sp1", device),
+                                     "ext4", error));
+    g_assert_no_error(*error);
 }
 
 void

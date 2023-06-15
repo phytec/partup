@@ -39,6 +39,8 @@ GFile * create_tmp_file(const gchar *filename,
                         const gchar *pwd,
                         gsize size,
                         GError **error);
+void create_partition(const gchar *device,
+                      GError **error);
 void empty_file_set_up(EmptyFileFixture *fixture,
                        gconstpointer filename);
 void empty_file_tear_down(EmptyFileFixture *fixture,
