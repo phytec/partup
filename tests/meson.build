@@ -3,10 +3,12 @@ tests = [
   'command',
   'config',
   'emmc',
+  'package',
   'utils'
 ]
 
 tests_root = [
+  'package-root',
   'utils-root'
 ]
 

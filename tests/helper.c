@@ -3,12 +3,12 @@
  * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
-#include <glib.h>
 #include <glib/gstdio.h>
-#include <gio/gio.h>
 #include <parted/parted.h>
 #include "helper.h"
 #include "pu-glib-compat.h"
+
+#define LAYOUT_CONFIG_SIMPLE "config/simple.yaml"
 
 GFile *
 create_tmp_file(const gchar *filename,
@@ -88,4 +88,55 @@ empty_device_tear_down(EmptyDeviceFixture *fixture,
     g_assert_true(g_file_delete(fixture->device, NULL, &fixture->error));
     g_assert_no_error(fixture->error);
     g_assert_cmpint(g_rmdir(fixture->path), ==, 0);
+}
+
+void
+package_files_setup(PackageFilesFixture *fixture,
+                    G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autofree gchar *pwd = NULL;
+    g_autoptr(GFile) file1 = NULL;
+    g_autoptr(GFile) file2 = NULL;
+    g_autoptr(GFile) file3 = NULL;
+    g_autoptr(GFile) layout_in = NULL;
+    g_autoptr(GFile) layout_out = NULL;
+
+    fixture->error = NULL;
+    fixture->input_files = g_strsplit("layout.yaml file1 file2 file3", " ", -1);
+    fixture->path_tmp = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    fixture->path_test = g_get_current_dir();
+
+    g_assert_no_error(fixture->error);
+    file1 = create_tmp_file(fixture->input_files[1], fixture->path_tmp,
+                            1 * PED_KIBIBYTE_SIZE, &fixture->error);
+    g_assert_no_error(fixture->error);
+    file2 = create_tmp_file(fixture->input_files[2], fixture->path_tmp,
+                            16 * PED_MEBIBYTE_SIZE, &fixture->error);
+    g_assert_no_error(fixture->error);
+    file3 = create_tmp_file(fixture->input_files[3], fixture->path_tmp,
+                            23 * PED_KILOBYTE_SIZE, &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    layout_in = g_file_new_for_path(LAYOUT_CONFIG_SIMPLE);
+    layout_out = g_file_new_build_filename(fixture->path_tmp, fixture->input_files[0], NULL);
+    g_file_copy(layout_in, layout_out, G_FILE_COPY_NONE, NULL, NULL, NULL, &fixture->error);
+}
+
+void
+package_files_teardown(PackageFilesFixture *fixture,
+                       G_GNUC_UNUSED gconstpointer user_data)
+{
+    for (gsize i = 0; fixture->input_files[i] != NULL; i++) {
+        g_autoptr(GFile) file = g_file_new_build_filename(fixture->path_tmp,
+                                                          fixture->input_files[i],
+                                                          NULL);
+        g_assert_true(g_file_delete(file, NULL, &fixture->error));
+        g_assert_no_error(fixture->error);
+    }
+    g_assert_cmpint(g_rmdir(fixture->path_tmp), ==, 0);
+
+    g_strfreev(fixture->input_files);
+    g_free(fixture->path_tmp);
+    g_free(fixture->path_test);
+    g_clear_error(&fixture->error);
 }
