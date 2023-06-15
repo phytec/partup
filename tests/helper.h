@@ -7,6 +7,7 @@
 #define PARTUP_TEST_HELPER_H
 
 #include <glib.h>
+#include <gio/gio.h>
 
 typedef struct {
     GError *error;
@@ -21,6 +22,13 @@ typedef struct {
     gchar *loop_dev;
 } EmptyDeviceFixture;
 
+typedef struct {
+    gchar **input_files;
+    gchar *path_tmp;
+    gchar *path_test;
+    GError *error;
+} PackageFilesFixture;
+
 GFile * create_tmp_file(const gchar *filename,
                         const gchar *pwd,
                         gsize size,
@@ -33,5 +41,9 @@ void empty_device_set_up(EmptyDeviceFixture *fixture,
                          G_GNUC_UNUSED gconstpointer user_data);
 void empty_device_tear_down(EmptyDeviceFixture *fixture,
                             G_GNUC_UNUSED gconstpointer user_data);
+void package_files_setup(PackageFilesFixture *fixture,
+                         gconstpointer user_data);
+void package_files_teardown(PackageFilesFixture *fixture,
+                            gconstpointer user_data);
 
 #endif /* PARTUP_TEST_HELPER_H */
