@@ -6,6 +6,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
+#include "helper.h"
 #include "pu-error.h"
 #include "pu-mount.h"
 
@@ -74,6 +75,53 @@ test_umount(CopyFileFixture *fixture,
     g_assert_cmpint(g_rmdir(mount_point), ==, 0);
 }
 
+static void
+test_device_mounted_false(EmptyDeviceFixture *fixture,
+                          G_GNUC_UNUSED gconstpointer user_data)
+{
+    gboolean is_mounted;
+    g_autofree gchar *mount_point = NULL;
+
+    mount_point = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    create_partition(fixture->loop_dev, &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_device_mounted(fixture->loop_dev, &is_mounted, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_false(is_mounted);
+
+    g_assert_cmpint(g_rmdir(mount_point), ==, 0);
+}
+
+static void
+test_device_mounted_true(EmptyDeviceFixture *fixture,
+                         G_GNUC_UNUSED gconstpointer user_data)
+{
+    gboolean is_mounted;
+    g_autofree gchar *mount_point = NULL;
+
+    mount_point = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    create_partition(fixture->loop_dev, &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_mount(g_strdup_printf("%sp1", fixture->loop_dev),
+                           mount_point, NULL, NULL, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_device_mounted(fixture->loop_dev, &is_mounted, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_true(is_mounted);
+
+    g_assert_true(pu_umount(mount_point, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_assert_cmpint(g_rmdir(mount_point), ==, 0);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -93,6 +141,10 @@ main(int argc,
                test_mount, copy_file_teardown);
     g_test_add("/mount/umount", CopyFileFixture, MOUNT_SOURCE, copy_file_setup,
                test_umount, copy_file_teardown);
+    g_test_add("/mount/device_mounted_false", EmptyDeviceFixture, NULL, empty_device_set_up,
+               test_device_mounted_false, empty_device_tear_down);
+    g_test_add("/mount/device_mounted_true", EmptyDeviceFixture, NULL, empty_device_set_up,
+               test_device_mounted_true, empty_device_tear_down);
 
     return g_test_run();
 }
