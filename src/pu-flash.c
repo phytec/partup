@@ -140,8 +140,8 @@ pu_flash_class_init(PuFlashClass *class)
                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
     props[PROP_PREFIX] =
         g_param_spec_string("prefix",
-                            "URI prefix path",
-                            "Path to prefix all file URIs with in the layout configuration",
+                            "Filename prefix path",
+                            "Path to prefix all input filenames with in the layout configuration",
                             NULL,
                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
     props[PROP_SKIP_CHECKSUMS] =

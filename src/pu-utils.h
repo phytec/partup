@@ -46,9 +46,9 @@ gboolean pu_is_drive(const gchar *device);
 gboolean pu_wait_for_partitions(GError **error);
 goffset pu_get_file_size(const gchar *path,
                          GError **error);
-gchar * pu_path_from_uri(const gchar *uri,
-                         const gchar *prefix,
-                         GError **error);
+gchar * pu_path_from_filename(const gchar *filename,
+                              const gchar *prefix,
+                              GError **error);
 gchar * pu_device_get_partition_path(const gchar *device,
                                      guint index,
                                      GError **error);

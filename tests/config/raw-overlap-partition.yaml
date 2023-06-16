@@ -5,11 +5,11 @@ raw:
   - input-offset: 0
     output-offset: 33KiB
     input:
-      uri: random.bin
+      filename: random.bin
   - input-offset: 0
     output-offset: 16MiB
     input:
-      uri: random.bin
+      filename: random.bin
 
 partitions:
   - type: primary
