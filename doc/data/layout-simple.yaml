@@ -5,7 +5,7 @@ raw:
   - input-offset: 0
     output-offset: 33kiB
     input:
-      uri: file://u-boot.bin
+      filename: u-boot.bin
 
 partitions:
   - type: primary
@@ -13,12 +13,12 @@ partitions:
     size: 128MiB
     offset: 4MiB
     input:
-      - uri: file://Image
-      - uri: file://oftree
-      - uri: file://bootenv.txt
+      - filename: Image
+      - filename: oftree
+      - filename: bootenv.txt
 
   - type: primary
     filesystem: ext4
     expand: true
     input:
-      - uri: file://rootfs.tar.gz
+      - filename: rootfs.tar.gz
