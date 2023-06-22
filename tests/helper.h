@@ -11,7 +11,7 @@
 
 typedef struct {
     GError *error;
-    GFile *part;
+    GFile *file;
     gchar *path;
 } EmptyFileFixture;
 
@@ -34,7 +34,7 @@ GFile * create_tmp_file(const gchar *filename,
                         gsize size,
                         GError **error);
 void empty_file_set_up(EmptyFileFixture *fixture,
-                       gconstpointer user_data);
+                       gconstpointer filename);
 void empty_file_tear_down(EmptyFileFixture *fixture,
                           gconstpointer user_data);
 void empty_device_set_up(EmptyDeviceFixture *fixture,
