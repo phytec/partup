@@ -37,7 +37,7 @@ test_partition_set_partuuid(EmptyDeviceFixture *fixture,
     blkid_partition par;
     const gchar *partuuid;
     gint wait_status;
-    g_autofree gchar *cmd = g_strdup_printf("sh scripts/create_partition %s",
+    g_autofree gchar *cmd = g_strdup_printf("sh scripts/create-partition %s",
                                             fixture->loop_dev);
     g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL,
                                             &wait_status, &fixture->error));
