@@ -34,13 +34,13 @@ GFile * create_tmp_file(const gchar *filename,
                         gsize size,
                         GError **error);
 void empty_file_set_up(EmptyFileFixture *fixture,
-                       G_GNUC_UNUSED gconstpointer user_data);
+                       gconstpointer user_data);
 void empty_file_tear_down(EmptyFileFixture *fixture,
-                          G_GNUC_UNUSED gconstpointer user_data);
+                          gconstpointer user_data);
 void empty_device_set_up(EmptyDeviceFixture *fixture,
-                         G_GNUC_UNUSED gconstpointer user_data);
+                         gconstpointer user_data);
 void empty_device_tear_down(EmptyDeviceFixture *fixture,
-                            G_GNUC_UNUSED gconstpointer user_data);
+                            gconstpointer user_data);
 void package_files_setup(PackageFilesFixture *fixture,
                          gconstpointer user_data);
 void package_files_teardown(PackageFilesFixture *fixture,
