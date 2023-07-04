@@ -11,6 +11,7 @@ typedef struct {
     PuConfig *config;
     gchar *prefix;
     gboolean skip_checksums;
+    gboolean dry_run;
 } PuFlashPrivate;
 
 enum {
@@ -19,11 +20,22 @@ enum {
     PROP_CONFIG,
     PROP_PREFIX,
     PROP_SKIP_CHECKSUMS,
+    PROP_DRY_RUN,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE(PuFlash, pu_flash, G_TYPE_OBJECT)
+
+static gboolean
+pu_flash_default_validate_config(PuFlash *self,
+                                 G_GNUC_UNUSED GError **error)
+{
+    g_critical("Flash of type '%s' does not implement PuFlash::validate_config",
+               G_OBJECT_TYPE_NAME(self));
+
+    return FALSE;
+}
 
 static gboolean
 pu_flash_default_init_device(PuFlash *self,
@@ -79,6 +91,9 @@ pu_flash_set_property(GObject *object,
     case PROP_SKIP_CHECKSUMS:
         priv->skip_checksums = g_value_get_boolean(value);
         break;
+    case PROP_DRY_RUN:
+        priv->dry_run = g_value_get_boolean(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -107,6 +122,9 @@ pu_flash_get_property(GObject *object,
     case PROP_SKIP_CHECKSUMS:
         g_value_set_boolean(value, priv->skip_checksums);
         break;
+    case PROP_DRY_RUN:
+        g_value_set_boolean(value, priv->dry_run);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -118,6 +136,7 @@ pu_flash_class_init(PuFlashClass *class)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
+    class->validate_config = pu_flash_default_validate_config;
     class->init_device = pu_flash_default_init_device;
     class->setup_layout = pu_flash_default_setup_layout;
     class->write_data = pu_flash_default_write_data;
@@ -148,6 +167,12 @@ pu_flash_class_init(PuFlashClass *class)
                              "Modifier to skip checksum verification for all files when writing",
                              FALSE,
                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+    props[PROP_DRY_RUN] =
+        g_param_spec_boolean("dry-run",
+                             "Do not write to device",
+                             "Do not write to device, only validate layout configuration and input files",
+                             FALSE,
+                             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
@@ -155,6 +180,13 @@ pu_flash_class_init(PuFlashClass *class)
 static void
 pu_flash_init(G_GNUC_UNUSED PuFlash *self)
 {
+}
+
+gboolean
+pu_flash_validate_config(PuFlash *self,
+                         GError **error)
+{
+    return PU_FLASH_GET_CLASS(self)->validate_config(self, error);
 }
 
 gboolean

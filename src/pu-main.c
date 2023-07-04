@@ -19,6 +19,7 @@
 #include "pu-version.h"
 
 static gboolean arg_debug = FALSE;
+static gboolean arg_install_dry_run = FALSE;
 static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
@@ -101,10 +102,14 @@ cmd_install(PuCommandContext *context,
     }
 
     emmc = pu_emmc_new(device_path, config, mount_path,
-                       arg_install_skip_checksums, error);
+                       arg_install_skip_checksums, arg_install_dry_run, error);
     if (emmc == NULL) {
         g_prefix_error(error, "Failed parsing eMMC info from config: ");
         return error_out(mount_path);
+    }
+    if (!pu_flash_validate_config(PU_FLASH(emmc), error)) {
+        g_prefix_error(error, "Failed validating config:");
+        return 1;
     }
     if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
         g_prefix_error(error, "Failed initializing device: ");
@@ -180,6 +185,8 @@ static GOptionEntry option_entries_main[] = {
 static GOptionEntry option_entries_install[] = {
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_install_skip_checksums, "Skip checksum verification for all input files", NULL },
+    { "dry-run", 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_install_dry_run, "Do not write to device", NULL },
     { NULL }
 };
 
