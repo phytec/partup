@@ -47,7 +47,6 @@ src = [
 
 exec = executable(
   meson.project_name(),
-  c_args : ['-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())],
   sources : [src, 'src/pu-main.c'],
   dependencies : deps,
   install : true

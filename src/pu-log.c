@@ -6,6 +6,8 @@
 #include <glib.h>
 #include "pu-log.h"
 
+#define PU_LOG_DOMAINS "partup partup-config partup-emmc partup-mount partup-utils"
+
 GLogLevelFlags log_output_level;
 
 static GLogWriterOutput
@@ -36,7 +38,7 @@ pu_log_setup(gboolean quiet,
             g_string_printf(new_domains, "%s %s", domains, PU_LOG_DOMAINS);
             g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
         } else {
-            g_setenv("G_MESSAGES_DEBUG", "partup", TRUE);
+            g_setenv("G_MESSAGES_DEBUG", PU_LOG_DOMAINS, TRUE);
         }
         log_output_level = G_LOG_LEVEL_DEBUG;
     } else {

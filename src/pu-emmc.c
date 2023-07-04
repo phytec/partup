@@ -3,6 +3,8 @@
  * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
+#define G_LOG_DOMAIN "partup-emmc"
+
 #include <parted/parted.h>
 #include <glib/gstdio.h>
 #include "pu-checksum.h"
