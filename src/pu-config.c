@@ -3,6 +3,8 @@
  * Copyright (c) 2022 PHYTEC Messtechnik GmbH
  */
 
+#define G_LOG_DOMAIN "partup-config"
+
 #include <glib.h>
 #include <gio/gio.h>
 #include <gmodule.h>

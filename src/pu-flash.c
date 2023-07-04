@@ -3,6 +3,8 @@
  * Copyright (c) 2022 PHYTEC Messtechnik GmbH
  */
 
+#define G_LOG_DOMAIN "partup-flash"
+
 #include "pu-flash.h"
 #include "pu-config.h"
 
