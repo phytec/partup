@@ -29,6 +29,12 @@ typedef struct {
     GError *error;
 } PackageFilesFixture;
 
+typedef struct {
+    GError *error;
+    GFile *file;
+    gchar *path;
+} CopyFileFixture;
+
 GFile * create_tmp_file(const gchar *filename,
                         const gchar *pwd,
                         gsize size,
@@ -45,5 +51,9 @@ void package_files_setup(PackageFilesFixture *fixture,
                          gconstpointer user_data);
 void package_files_teardown(PackageFilesFixture *fixture,
                             gconstpointer user_data);
+void copy_file_setup(CopyFileFixture *fixture,
+                     gconstpointer filename);
+void copy_file_teardown(CopyFileFixture *fixture,
+                        gconstpointer user_data);
 
 #endif /* PARTUP_TEST_HELPER_H */
