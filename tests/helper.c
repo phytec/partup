@@ -140,3 +140,29 @@ package_files_teardown(PackageFilesFixture *fixture,
     g_free(fixture->path_test);
     g_clear_error(&fixture->error);
 }
+
+void
+copy_file_setup(CopyFileFixture *fixture,
+                gconstpointer filename)
+{
+    g_autoptr(GFile) source = NULL;
+    fixture->path = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
+    g_assert_no_error(fixture->error);
+    source = g_file_new_for_path(filename);
+    fixture->file = g_file_new_build_filename(fixture->path,
+                                              g_file_get_basename(source),
+                                              NULL);
+    g_file_copy(source, fixture->file, G_FILE_COPY_NONE, NULL, NULL, NULL,
+                &fixture->error);
+}
+
+void
+copy_file_teardown(CopyFileFixture *fixture,
+                   G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_assert_true(g_file_delete(fixture->file, NULL, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_cmpint(g_rmdir(fixture->path), ==, 0);
+
+    g_free(fixture->path);
+}
