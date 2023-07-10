@@ -182,8 +182,7 @@ pu_log_set_debug_domains(gboolean quiet,
         new_domains = g_string_new(g_getenv("G_MESSAGES_DEBUG"));
         debug_arr = g_strsplit(debug_domains, ",", 0);
         for (int i = 0; debug_arr[i] != NULL; i++) {
-            g_string_append(new_domains,
-                            g_strdup_printf("partup-%s", debug_arr[i]));
+            g_string_append(new_domains, g_strdup(debug_arr[i]));
         }
         g_strfreev(debug_arr);
         g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
