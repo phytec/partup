@@ -152,9 +152,15 @@ pu_log_writer(GLogLevelFlags log_level,
 }
 
 void
-pu_log_setup(gboolean quiet,
-             gboolean debug,
-             const gchar *debug_domains)
+pu_log_init(void)
+{
+    g_log_set_writer_func(pu_log_writer, NULL, NULL);
+}
+
+void
+pu_log_set_debug_domains(gboolean quiet,
+                         gboolean debug,
+                         const gchar *debug_domains)
 {
     g_autoptr(GString) new_domains = NULL;
     const gchar *domains;
@@ -185,6 +191,4 @@ pu_log_setup(gboolean quiet,
     } else {
         log_output_level = G_LOG_LEVEL_MESSAGE;
     }
-
-    g_log_set_writer_func(pu_log_writer, NULL, NULL);
 }

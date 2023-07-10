@@ -8,8 +8,9 @@
 
 #include <glib.h>
 
-void pu_log_setup(gboolean quiet,
-                  gboolean debug,
-                  const gchar *debug_domains);
+void pu_log_init(void);
+void pu_log_set_debug_domains(gboolean quiet,
+                              gboolean debug,
+                              const gchar *debug_domains);
 
 #endif /* PARTUP_LOG_H */
