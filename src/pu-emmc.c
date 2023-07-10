@@ -171,10 +171,10 @@ pu_emmc_init_device(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     PedDisk *newdisk;
 
-    g_debug(G_STRFUNC);
-
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_message("Initializing MMC with new disklabel");
 
     newdisk = ped_disk_new_fresh(self->device, self->disktype);
     if (newdisk == NULL) {
@@ -189,8 +189,6 @@ pu_emmc_init_device(PuFlash *flash,
     self->disk = newdisk;
     ped_disk_commit(self->disk);
 
-    g_debug("%s: Finished", G_STRFUNC);
-
     return TRUE;
 }
 
@@ -201,10 +199,10 @@ pu_emmc_setup_layout(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     PedSector part_start = 0;
 
-    g_debug(G_STRFUNC);
-
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_message("Partitioning MMC");
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -223,9 +221,9 @@ pu_emmc_setup_layout(PuFlash *flash,
             part->size += 2;
         }
 
-        g_debug("%s: type=%d filesystem=%s start=%lld size=%lld offset=%lld "
-                "block-size=%lld expand=%s",
-                G_STRFUNC, part->type, part->filesystem, part_start, part->size,
+        g_debug("Creating partition: type=%d filesystem=%s start=%lld size=%lld "
+                "offset=%lld block-size=%lld expand=%s",
+                part->type, part->filesystem, part_start, part->size,
                 part->offset, part->block_size, part->expand ? "true" : "false");
 
         if (!emmc_create_partition(self, part, part_start + part->offset, error)) {
@@ -262,7 +260,7 @@ pu_emmc_write_data(PuFlash *flash,
                  "skip-checksums", &skip_checksums,
                  NULL);
 
-    g_message("Writing data to partitions");
+    g_message("Writing data to MMC");
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
@@ -286,17 +284,17 @@ pu_emmc_write_data(PuFlash *flash,
         if (part_path == NULL)
             return FALSE;
 
-        g_debug("Creating filesystem %s on %s", part->filesystem, part_path);
+        g_debug("Creating filesystem '%s' on '%s'", part->filesystem, part_path);
 
         if (!pu_make_filesystem(part_path, part->filesystem, error))
             return FALSE;
 
         if (!part->input) {
-            g_debug("No input specified. Skipping %s", part_path);
+            g_debug("No input specified. Skipping '%s'", part_path);
             continue;
         }
 
-        g_debug("Writing data to partition: %s", part_path);
+        g_debug("Writing to partition '%s'", part_path);
 
         part_mount = pu_create_mount_point(g_strdup_printf("p%u", i), error);
         if (part_mount == NULL)
@@ -357,13 +355,14 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
+        g_debug("Cleaning at offset %lld with size %lld",
+                clean->offset, clean->size);
+
         if (!pu_write_raw("/dev/zero", self->device->path, self->device, 0,
                           clean->offset, clean->size, error)) {
             return FALSE;
         }
     }
-
-    g_message("Writing raw data to user area");
 
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
@@ -394,12 +393,13 @@ pu_emmc_write_data(PuFlash *flash,
                 return FALSE;
         }
 
+        g_debug("Writing raw data: uri=%s input_offset=%lld output_offset=%lld",
+                input->uri, bin->input_offset, bin->output_offset);
+
         if (!pu_write_raw(path, self->device->path, self->device,
                           bin->input_offset, bin->output_offset, 0, error))
             return FALSE;
     }
-
-    g_message("Writing to eMMC boot partitions");
 
     if (self->emmc_boot_partitions) {
         PuEmmcInput *input = self->emmc_boot_partitions->input;
@@ -429,6 +429,10 @@ pu_emmc_write_data(PuFlash *flash,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
+
+        g_debug("Writing eMMC boot partitions: uri=%s input_offset=%lld output_offset=%lld",
+                input->uri, self->emmc_boot_partitions->input_offset,
+                self->emmc_boot_partitions->output_offset);
 
         if (!pu_write_raw_bootpart(path, self->device, 0,
                                    self->emmc_boot_partitions->input_offset,
