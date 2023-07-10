@@ -234,6 +234,8 @@ main(G_GNUC_UNUSED int argc,
     setlocale(LC_ALL, "");
     args = g_strdupv(argv);
 
+    pu_log_init();
+
     context_cmd = pu_command_context_new();
     pu_command_context_add_entries(context_cmd, command_entries, option_entries_main);
     if (!pu_command_context_parse_strv(context_cmd, &args, &error)) {
@@ -241,7 +243,7 @@ main(G_GNUC_UNUSED int argc,
         return 1;
     }
 
-    pu_log_setup(arg_quiet, arg_debug, arg_debug_domains);
+    pu_log_set_debug_domains(arg_quiet, arg_debug, arg_debug_domains);
 
     if (!pu_command_context_invoke(context_cmd, &error)) {
         g_printerr("ERROR: %s\n", error->message);
