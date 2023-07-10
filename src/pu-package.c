@@ -3,6 +3,8 @@
  * Copyright (c) 2023 PHYTEC Messtechnik GmbH
  */
 
+#define G_LOG_DOMAIN "partup-package"
+
 #include <fcntl.h>
 #include <gio/gio.h>
 #include <glib.h>
@@ -96,6 +98,7 @@ print_dir_content(GFile *dir,
                   gboolean print_size,
                   GError **error)
 {
+    g_autoptr(GString) output = NULL;
     g_autoptr(GFileEnumerator) dir_enum = NULL;
     g_autofree gchar *dir_path = NULL;
     guint prefix_len = strlen(PU_PACKAGE_PREFIX) + 10; /* additional length of "-00000000/" */
@@ -103,10 +106,11 @@ print_dir_content(GFile *dir,
     const gchar *file_attr = G_FILE_ATTRIBUTE_STANDARD_NAME ","
                              G_FILE_ATTRIBUTE_STANDARD_SIZE;
 
+    output = g_string_new(NULL);
     dir_path = g_file_get_path(dir);
     pu_str_pre_remove(dir_path, prefix_len);
     if (strlen(dir_path))
-        g_print("%s/\n", dir_path);
+        g_message("%s/", dir_path);
     dir_enum = g_file_enumerate_children(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
     if (!dir_enum) {
         g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_ITER_FAILED,
@@ -137,12 +141,13 @@ print_dir_content(GFile *dir,
                 return FALSE;
         } else {
             pu_str_pre_remove(child_path, prefix_len);
-            g_print("%s", child_path);
+            g_string_append(output, child_path);
             if (print_size) {
                 child_size = g_file_info_get_size(child_info);
-                g_print(" (%s)", g_format_size(child_size));
+                g_string_append_printf(output, " (%s)", g_format_size(child_size));
             }
-            g_print("\n");
+            g_message("%s", output->str);
+            g_string_erase(output, 0, -1);
         }
     }
 
