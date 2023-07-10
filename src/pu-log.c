@@ -183,7 +183,7 @@ pu_log_setup(gboolean quiet,
         g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
         log_output_level = G_LOG_LEVEL_DEBUG;
     } else {
-        log_output_level = G_LOG_LEVEL_INFO;
+        log_output_level = G_LOG_LEVEL_MESSAGE;
     }
 
     g_log_set_writer_func(pu_log_writer, NULL, NULL);
