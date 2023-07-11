@@ -23,9 +23,7 @@ if sphinx.found()
     'index.rst',
     'usage.rst',
     'changelog.rst',
-    '../CHANGELOG.rst',
-    '../src/pu-config.h',
-    '../src/pu-flash.h'
+    '../CHANGELOG.rst'
   ]
   custom_target('doc',
                 command : [sphinx, '-W', '-b', 'html', '-c', meson.current_build_dir(),
