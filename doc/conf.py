@@ -1,11 +1,14 @@
 import os
+import subprocess
 
 # -- Project information -----------------------------------------------------
 
-project = '@PROJECT_NAME@'
+project = u'partup'
 copyright = u'2023, PHYTEC Messtechnik GmbH'
 author = u'Martin Schwan'
-release = '@PROJECT_VERSION@'
+
+tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode()
+release = tag[1:]
 
 # -- General configuration ---------------------------------------------------
 
