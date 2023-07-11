@@ -188,6 +188,15 @@ test_get_file_size(void)
     g_assert_cmpuint(size, ==, ROOT_EXT4_SIZE);
 }
 
+static void
+test_str_pre_remove(void)
+{
+    g_autofree gchar *in = g_strdup("partup");
+
+    g_assert_cmpstr(pu_str_pre_remove(in, 4), ==, "up");
+    g_assert_cmpstr(in, ==, "up");
+}
+
 int
 main(int argc,
      char *argv[])
@@ -218,6 +227,7 @@ main(int argc,
                     test_device_get_partition_path_fail);
     g_test_add_func("/utils/get_file_size",
                     test_get_file_size);
+    g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
 
     return g_test_run();
 }
