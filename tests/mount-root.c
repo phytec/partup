@@ -80,19 +80,19 @@ test_device_mounted_false(EmptyDeviceFixture *fixture,
                           G_GNUC_UNUSED gconstpointer user_data)
 {
     gboolean is_mounted;
-    g_autofree gchar *mount_point = NULL;
 
-    mount_point = g_dir_make_tmp("partup-XXXXXX", &fixture->error);
-    g_assert_no_error(fixture->error);
-
-    create_partition(fixture->loop_dev, &fixture->error);
-    g_assert_no_error(fixture->error);
-
+    /* Test unpartitioned device */
     g_assert_true(pu_device_mounted(fixture->loop_dev, &is_mounted, &fixture->error));
     g_assert_no_error(fixture->error);
     g_assert_false(is_mounted);
 
-    g_assert_cmpint(g_rmdir(mount_point), ==, 0);
+    create_partition(fixture->loop_dev, &fixture->error);
+    g_assert_no_error(fixture->error);
+
+    /* Test partitioned device */
+    g_assert_true(pu_device_mounted(fixture->loop_dev, &is_mounted, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_false(is_mounted);
 }
 
 static void
