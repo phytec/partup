@@ -197,6 +197,30 @@ test_str_pre_remove(void)
     g_assert_cmpstr(in, ==, "up");
 }
 
+static void
+test_device_get_partition_pattern(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *pattern;
+
+    pattern = pu_device_get_partition_pattern("/dev/mmcblk0", &error);
+    g_assert_no_error(error);
+    g_assert_true(g_regex_match_simple(pattern, "/dev/mmcblk0", 0, 0));
+    g_assert_true(g_regex_match_simple(pattern, "/dev/mmcblk0p1", 0, 0));
+    g_free(pattern);
+
+    pattern = pu_device_get_partition_pattern("/dev/loop1", &error);
+    g_assert_no_error(error);
+    g_assert_true(g_regex_match_simple(pattern, "/dev/loop1p1", 0, 0));
+    g_assert_false(g_regex_match_simple(pattern, "/dev/loop10", 0, 0));
+    g_free(pattern);
+
+    pattern = pu_device_get_partition_pattern("/dev/sda", &error);
+    g_assert_no_error(error);
+    g_assert_true(g_regex_match_simple(pattern, "/dev/sda1", 0, 0));
+    g_assert_false(g_regex_match_simple(pattern, "/dev/sdb1", 0, 0));
+}
+
 int
 main(int argc,
      char *argv[])
@@ -228,6 +252,7 @@ main(int argc,
     g_test_add_func("/utils/get_file_size",
                     test_get_file_size);
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
+    g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
 
     return g_test_run();
 }

@@ -52,6 +52,8 @@ gchar * pu_path_from_uri(const gchar *uri,
 gchar * pu_device_get_partition_path(const gchar *device,
                                      guint index,
                                      GError **error);
+gchar * pu_device_get_partition_pattern(const gchar *device,
+                                        GError **error);
 gchar * pu_str_pre_remove(gchar *string,
                           guint n);
 
