@@ -8,6 +8,7 @@
 #include <gio/gio.h>
 #include <blkid.h>
 #include "helper.h"
+#include "pu-glib-compat.h"
 #include "pu-utils.h"
 #include "pu-error.h"
 
