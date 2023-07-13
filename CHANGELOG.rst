@@ -1,3 +1,50 @@
+0.4.0
+=====
+
+*Release date: 2023-07-13*
+
+.. rubric:: Changes
+
+-  Implement a new module "command" that allows creating a context for parsing
+   command line positional arguments. Each command can have their own
+   command-specific options. Use these commands in the main program and move
+   most functionality to commands, except for the automatically generated help
+   option. Also provide commands for inspecting, creating and installing the new
+   partup packages.
+-  Add a new module for creating and listing content of partup packages. partup
+   packages are just SquashFS images under the hood, but have some specific
+   requirements that allow for an easy way of providing input files and flash
+   layout configurations.
+-  Check, if raw input data would overwrite the partition table or any other
+   data specified in the layout configuration.
+-  Add program option ``--quiet`` to disable message printing.
+-  Add option ``--debug-domains`` to specify which debug output is printed.
+-  Improve debug and normal message printing.
+-  Add a custom logging writer that can format output messages with color, if
+   supported. The output format is slightly tuned from the default coming from
+   GLib, to be shorter and easier to read.
+-  Remove API documentation generated with Doxygen and Breathe. Since partup
+   does not provide a library, this type of documentation is not needed.
+-  Describe the main features of partup in the documentation index page.
+-  Use libmount from util-linux for mount operations instead of calling mount
+   and umount in a command line.
+-  Use libblkid for detecting drives instead of calling similar commands from a
+   command line.
+-  Add a build option enabling to statically link GLib and GIO to partup. This
+   is useful to support older systems, where the version of GLib may be too old
+   and does not contain required functions.
+-  Add more unit tests for various modules.
+-  Add unit tests for functions requiring root access.
+
+.. rubric:: Bug Fixes
+
+-  Fix mount detection on devices without partitions.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__,
+`Leonard Anderweit <https://github.com/landerweit-phytec>`__
+
 0.3.1
 =====
 
