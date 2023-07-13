@@ -132,6 +132,9 @@ pu_log_writer(GLogLevelFlags log_level,
 {
     const gchar *log_domain = NULL;
     const gchar *log_message = NULL;
+    const gchar *debug_domains = NULL;
+
+    debug_domains = g_getenv("G_MESSAGES_DEBUG");
 
     for (gsize i = 0; (!log_domain || !log_message) && i < n_fields; i++) {
         if (g_strcmp0(fields[i].key, "GLIB_DOMAIN") == 0)
@@ -145,7 +148,9 @@ pu_log_writer(GLogLevelFlags log_level,
     if (!log_message)
         log_message = "(NULL message)";
 
-    if (log_level > log_output_level || g_log_writer_default_would_drop(log_level, log_domain))
+    if (log_level > log_output_level || (log_level == G_LOG_LEVEL_DEBUG &&
+                                         debug_domains &&
+                                         !strstr(debug_domains, log_domain)))
         return G_LOG_WRITER_HANDLED;
 
     return pu_log_writer_formatted(log_level, log_domain, log_message, fields, n_fields);
