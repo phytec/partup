@@ -18,8 +18,8 @@
 
 .. rubric:: Contributors
 
-`Leonard Anderweit <https://github.com/landerweit-phytec>`__
-`Martin Schwan <https://github.com/mschwan-phytec>`__,
+`Leonard Anderweit <https://github.com/landerweit-phytec>`__,
+`Martin Schwan <https://github.com/mschwan-phytec>`__
 
 0.3.0
 =====
