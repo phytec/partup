@@ -12,6 +12,13 @@
 #define gen_argv(args) \
     g_strsplit(g_strdup_printf("%s %s", g_get_prgname(), args), " ", -1)
 
+#define cmd_error_out() \
+{ \
+    g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_FAILED, \
+                "Command '%s' failed", G_STRFUNC); \
+    return FALSE; \
+}
+
 static gboolean
 cmd_empty(PuCommandContext *context,
           GError **error)
@@ -19,17 +26,8 @@ cmd_empty(PuCommandContext *context,
     g_assert(context);
     g_assert_no_error(*error);
 
-    return TRUE;
-}
-
-static gboolean
-cmd_basic_test(PuCommandContext *context,
-               GError **error)
-{
-    g_assert(context);
-    g_assert_no_error(*error);
-
-    g_assert_cmpstrv(NULL, pu_command_context_get_args(context)[0]);
+    if (pu_command_context_get_args(context)[0] != NULL)
+        cmd_error_out();
 
     return TRUE;
 }
@@ -42,7 +40,7 @@ command_basic(void)
 
     gchar **args = gen_argv("test");
     PuCommandEntry entries[] =
-        { { "test", PU_COMMAND_ARG_NONE, cmd_basic_test,
+        { { "test", PU_COMMAND_ARG_NONE, cmd_empty,
             "Test command description", NULL },
           PU_COMMAND_ENTRY_NULL };
 
@@ -94,13 +92,6 @@ command_help(void)
     g_assert(strstr(str, entries[1].name) != NULL);
     g_assert(strstr(str, "command description") != NULL);
     g_assert(strstr(str, entries[1].description) != NULL);
-}
-
-#define cmd_error_out() \
-{ \
-    g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_FAILED, \
-                "Command '%s' failed", G_STRFUNC); \
-    return FALSE; \
 }
 
 static gboolean
