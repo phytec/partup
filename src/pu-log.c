@@ -9,7 +9,7 @@
 
 #define PU_LOG_DOMAINS "partup partup-config partup-emmc partup-mount partup-package partup-utils"
 
-GLogLevelFlags log_output_level;
+GLogLevelFlags log_output_level = G_LOG_LEVEL_INFO;
 
 static void
 append_log_time(GString *log_str)
