@@ -11,7 +11,7 @@
 #include "pu-mount.h"
 
 #define MOUNT_POINT_BASENAME "partition"
-#define MOUNT_POINT          PU_MOUNT_PREFIX "/" MOUNT_POINT_BASENAME 
+#define MOUNT_POINT          PU_MOUNT_PREFIX "/" MOUNT_POINT_BASENAME
 #define MOUNT_SOURCE         "data/root.ext4"
 
 static void
