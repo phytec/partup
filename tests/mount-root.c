@@ -8,6 +8,7 @@
 #include <gio/gio.h>
 #include "helper.h"
 #include "pu-error.h"
+#include "pu-glib-compat.h"
 #include "pu-mount.h"
 
 #define MOUNT_POINT_BASENAME "partition"
