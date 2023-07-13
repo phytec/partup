@@ -171,11 +171,11 @@ pu_log_set_debug_domains(gboolean quiet,
     const gchar *domains;
     gchar **debug_arr;
 
+    domains = g_getenv("G_MESSAGES_DEBUG");
+
     if (quiet) {
         log_output_level = G_LOG_LEVEL_CRITICAL;
     } else if (debug && !debug_domains) {
-        domains = g_getenv("G_MESSAGES_DEBUG");
-
         if (domains != NULL) {
             g_string_printf(new_domains, "%s %s", domains, PU_LOG_DOMAINS);
             g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
@@ -184,13 +184,15 @@ pu_log_set_debug_domains(gboolean quiet,
         }
         log_output_level = G_LOG_LEVEL_DEBUG;
     } else if (debug_domains) {
-        new_domains = g_string_new(g_getenv("G_MESSAGES_DEBUG"));
+        new_domains = g_string_new(domains);
         debug_arr = g_strsplit(debug_domains, ",", 0);
         for (int i = 0; debug_arr[i] != NULL; i++) {
             g_string_append(new_domains, g_strdup(debug_arr[i]));
         }
         g_strfreev(debug_arr);
         g_setenv("G_MESSAGES_DEBUG", new_domains->str, TRUE);
+        log_output_level = G_LOG_LEVEL_DEBUG;
+    } else if (domains) {
         log_output_level = G_LOG_LEVEL_DEBUG;
     } else {
         log_output_level = G_LOG_LEVEL_MESSAGE;
