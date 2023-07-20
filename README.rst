@@ -9,8 +9,9 @@ partup - System Initialization Program
    :target: https://github.com/phytec/partup/actions/workflows/unit-tests.yml
 .. image:: https://github.com/phytec/partup/workflows/system-tests/badge.svg
    :target: https://github.com/phytec/partup/actions/workflows/system-tests.yml
-.. image:: https://github.com/phytec/partup/workflows/documentation/badge.svg
-   :target: https://github.com/phytec/partup/actions/workflows/documentation.yml
+.. image:: https://readthedocs.org/projects/partup/badge/?version=latest
+   :target: https://partup.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
 +------+------------------------------------------------------------------+
 | NOTE | *partup* is in "beta" state and not yet considered stable. The   |
