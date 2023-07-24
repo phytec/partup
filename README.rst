@@ -49,10 +49,16 @@ Build *partup* using the `Meson Build system <https://mesonbuild.com>`_::
 Running
 =======
 
-Run *partup* by specifying the path to the layout configuration file and the
-device that is being written to::
+*partup* works in two steps:
 
-   partup -c /path/to/config.yaml /dev/mmcblk0
+#. Create a *partup* package by specifying a package name, the layout
+   configuration file and all files that should be written to the target::
+
+      partup package mypackage.partup u-boot.bin zImage rootfs.tar.gz layout.yaml
+
+#. Install the package to the target::
+
+      partup install mypackage.partup /dev/mmcblk0
 
 Documentation
 =============
