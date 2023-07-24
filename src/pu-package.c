@@ -22,11 +22,52 @@ pu_package_get_layout_file(const gchar *pwd,
                            GError **error)
 {
     g_autofree gchar *layout_file = NULL;
+    g_autoptr(GFile) dir = NULL;
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
 
-    layout_file = g_build_filename(pwd, PU_PACKAGE_LAYOUT_BASENAME, NULL);
-    if (!g_file_test(layout_file, G_FILE_TEST_IS_REGULAR)) {
+    dir = g_file_new_for_path(pwd);
+    dir_enum = g_file_enumerate_children(dir, G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                         G_FILE_QUERY_INFO_NONE, NULL, error);
+    if (!dir_enum) {
+        g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_ITER_FAILED,
+                    "Failed creating enumerator for '%s'",
+                    g_file_get_path(dir));
+        return FALSE;
+    }
+
+    while (TRUE) {
+        GFileInfo *child_info;
+        g_autofree gchar *child_path = NULL;
+
+        if (!g_file_enumerator_iterate(dir_enum, &child_info, NULL, NULL, error)) {
+            g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_ITER_FAILED,
+                        "Failed iterating file enumerator for '%s'",
+                        g_file_get_path(dir));
+            return FALSE;
+        }
+
+        if (!child_info)
+            break;
+
+        child_path = g_build_filename(g_file_get_path(dir),
+                                      g_file_info_get_name(child_info), NULL);
+
+        if (g_file_test(child_path, G_FILE_TEST_IS_REGULAR) &&
+            g_str_has_suffix(child_path, ".yaml")) {
+            if (!layout_file) {
+                layout_file = g_steal_pointer(&child_path);
+            } else {
+                g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_MULTIPLE_LAYOUT,
+                            "Multiple layout files detected: '%s' and '%s'",
+                            layout_file, child_path);
+                return NULL;
+            }
+        }
+    }
+
+    if (!layout_file) {
         g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_MISSING_LAYOUT,
-                    "No layout file '%s' found", g_path_get_basename(layout_file));
+                    "No layout file found in '%s'", g_file_get_path(dir));
         return NULL;
     }
 
@@ -41,7 +82,7 @@ pu_package_create(gchar **files,
 {
     g_autofree gchar *cmd = NULL;
     g_autofree gchar *input = NULL;
-    gboolean has_layout_yaml = FALSE;
+    guint layout_yaml_count = 0;
 
     g_return_val_if_fail(files != NULL, FALSE);
     g_return_val_if_fail(g_strcmp0(output, "") > 0, FALSE);
@@ -58,16 +99,22 @@ pu_package_create(gchar **files,
             return FALSE;
         }
 
-        if (g_str_equal(file, "layout.yaml"))
-            has_layout_yaml = TRUE;
+        if (g_str_has_suffix(file, ".yaml"))
+            layout_yaml_count++;
     }
 
-    if (!has_layout_yaml) {
+    if (!layout_yaml_count) {
         g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_MISSING_LAYOUT,
-                    "Package input files do not contain a layout configuration "
-                    "named 'layout.yaml'");
+                    "Package input files do not contain a layout configuration");
         return FALSE;
     }
+
+    if (layout_yaml_count > 1) {
+        g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_MULTIPLE_LAYOUT,
+                    "Package input files must contain only one layout configuration");
+        return FALSE;
+    }
+
 
     /* Check if specified output file exists and should be overwritten */
     if (g_file_test(output, G_FILE_TEST_IS_REGULAR)) {

@@ -18,14 +18,13 @@ typedef enum {
     PU_PACKAGE_ERROR_EXISTS,
     PU_PACKAGE_ERROR_ITER_FAILED,
     PU_PACKAGE_ERROR_MISSING_LAYOUT,
+    PU_PACKAGE_ERROR_MULTIPLE_LAYOUT,
     PU_PACKAGE_ERROR_NOT_FOUND,
     PU_PACKAGE_ERROR_FAILED
 } PuPackageError;
 
 #define PU_PACKAGE_BASENAME        "package"
-#define PU_PACKAGE_LAYOUT_BASENAME "layout.yaml"
 #define PU_PACKAGE_PREFIX          PU_MOUNT_PREFIX "/" PU_PACKAGE_BASENAME
-#define PU_PACKAGE_LAYOUT_FILE     PU_PACKAGE_PREFIX "/" PU_PACKAGE_LAYOUT_BASENAME
 
 gchar * pu_package_get_layout_file(const gchar *pwd,
                                    GError **error);

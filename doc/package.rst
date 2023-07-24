@@ -4,14 +4,13 @@ Package Format
 partup packages use the `SquashFS filesystem
 <https://github.com/plougher/squashfs-tools>`__ to provide a read-only image
 containing all required input files and the :doc:`layout configuration file
-<layout-config-reference>`. The layout configuration file must be named
-``layout.yaml`` and be placed at the root of the package. When using partup's
+<layout-config-reference>`. The layout configuration file must be the only
+``.yaml`` file and be placed at the root of the package. When using partup's
 builtin command ``package`` to create one, these requirements are automatically
 checked against.
 
 Creating a package is as easy as specifying an output filename for the package,
-its input files and the layout configuration file named exactly
-``layout.yaml``::
+its input files and the layout configuration file as the only ``.yaml`` file::
 
    partup package mypackage.partup u-boot.bin zImage rootfs.tar.gz layout.yaml
 
