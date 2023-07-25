@@ -164,6 +164,55 @@ emmc_create_partition(PuEmmc *self,
 }
 
 static gboolean
+pu_emmc_check_raw_overwrite(PuEmmc *emmc,
+                            GError **error)
+{
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (emmc->partitions && emmc->raw) {
+        PuEmmcPartition *part = emmc->partitions->data;
+        gsize part_start = part->offset * emmc->device->sector_size;
+        gsize raw_start;
+        gsize raw_end;
+
+        for (GList *b = emmc->raw; b != NULL; b = b->next) {
+            PuEmmcBinary *bin = b->data;
+
+            raw_start = bin->output_offset * emmc->device->sector_size;
+            raw_end = bin->input->_size;
+            raw_end += raw_start;
+            raw_end -= bin->input_offset * emmc->device->sector_size;
+
+            if (raw_end > part_start) {
+                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                            "Raw binary overlaps with first partition");
+                return FALSE;
+            }
+
+            /* Check against all binaries after the current one */
+            for (GList *i = b->next; i != NULL; i = i->next) {
+                PuEmmcBinary *bin2 = i->data;
+
+                gsize raw2_start = bin2->output_offset * emmc->device->sector_size;
+                gsize raw2_end;
+                raw2_end = bin2->input->_size;
+                raw2_end += raw2_start;
+                raw2_end -= bin2->input_offset * emmc->device->sector_size;
+
+                if (!(raw_end < raw2_start || raw_start > raw2_end)) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                                "Raw binary overlaps with other raw binary");
+                    return FALSE;
+                }
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_validate_config(PuFlash *flash,
                         GError **error)
 {
@@ -184,6 +233,15 @@ pu_emmc_validate_config(PuFlash *flash,
                 return FALSE;
         }
     }
+
+    for (GList *i = self->input_files; i != NULL; i = i->next) {
+        PuInput *input = i->data;
+        if (!pu_input_get_size(input, error))
+            return FALSE;
+    }
+
+    if (!pu_emmc_check_raw_overwrite(self, error))
+        return FALSE;
 
     return TRUE;
 }
@@ -865,55 +923,6 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
     return TRUE;
 }
 
-static gboolean
-pu_emmc_check_raw_overwrite(PuEmmc *emmc,
-                            GError **error)
-{
-    g_return_val_if_fail(emmc != NULL, FALSE);
-    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    if (emmc->partitions && emmc->raw) {
-        PuEmmcPartition *part = emmc->partitions->data;
-        gsize part_start = part->offset * emmc->device->sector_size;
-        gsize raw_start;
-        gsize raw_end;
-
-        for (GList *b = emmc->raw; b != NULL; b = b->next) {
-            PuEmmcBinary *bin = b->data;
-
-            raw_start = bin->output_offset * emmc->device->sector_size;
-            raw_end = bin->input->_size;
-            raw_end += raw_start;
-            raw_end -= bin->input_offset * emmc->device->sector_size;
-
-            if (raw_end > part_start) {
-                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                            "Raw binary overlaps with first partition");
-                return FALSE;
-            }
-
-            /* Check against all binaries after the current one */
-            for (GList *i = b->next; i != NULL; i = i->next) {
-                PuEmmcBinary *bin2 = i->data;
-
-                gsize raw2_start = bin2->output_offset * emmc->device->sector_size;
-                gsize raw2_end;
-                raw2_end = bin2->input->_size;
-                raw2_end += raw2_start;
-                raw2_end -= bin2->input_offset * emmc->device->sector_size;
-
-                if (!(raw_end < raw2_start || raw_start > raw2_end)) {
-                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                                "Raw binary overlaps with other raw binary");
-                    return FALSE;
-                }
-            }
-        }
-    }
-
-    return TRUE;
-}
-
 PuEmmc *
 pu_emmc_new(const gchar *device_path,
             PuConfig *config,
@@ -969,15 +978,6 @@ pu_emmc_new(const gchar *device_path,
         if (!pu_input_prefix_filename(input, prefix, error))
             return NULL;
     }
-
-    for (GList *i = self->input_files; i != NULL; i = i->next) {
-        PuInput *input = i->data;
-        if (!pu_input_get_size(input, error))
-            return FALSE;
-    }
-
-    if (!pu_emmc_check_raw_overwrite(self, error))
-        return NULL;
 
     return g_steal_pointer(&self);
 }

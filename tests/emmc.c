@@ -53,10 +53,13 @@ test_raw_overwrite_pass(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
     g_assert_no_error(fixture->error);
     g_assert_nonnull(emmc);
+
+    g_assert_true(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
+    g_assert_no_error(fixture->error);
 }
 
 static void
@@ -71,7 +74,7 @@ test_raw_overwrite_fail_partition_table(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_EMMC_PARSE);
     g_assert_null(emmc);
@@ -91,10 +94,13 @@ test_raw_overwrite_fail_partition(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_FAILED);
-    g_assert_null(emmc);
 
     g_clear_error(&fixture->error);
 }
@@ -110,10 +116,13 @@ test_raw_overwrite_fail_raw(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_FAILED);
-    g_assert_null(emmc);
 
     g_clear_error(&fixture->error);
 }
