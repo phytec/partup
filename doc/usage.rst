@@ -37,8 +37,6 @@ Commands
 install [OPTION…] *PACKAGE* *DEVICE*
    Install a partup PACKAGE to DEVICE
 
-   -s, --skip-checksums    Skip checksum verification for all input files
-
 package [OPTION…] *PACKAGE* *FILES…*
    Create a partup PACKAGE with the contents FILES
 

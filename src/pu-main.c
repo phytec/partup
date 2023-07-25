@@ -24,7 +24,6 @@
 static gboolean arg_debug = FALSE;
 static gchar *arg_debug_domains = NULL;
 static gboolean arg_quiet = FALSE;
-static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
 static gboolean arg_show_size = FALSE;
@@ -101,7 +100,7 @@ cmd_install(PuCommandContext *context,
         return error_out(mount_path);
 
     emmc = pu_emmc_new(device_path, config, mount_path,
-                       arg_install_skip_checksums, error);
+                       TRUE, error);
     if (emmc == NULL) {
         g_prefix_error(error, "Failed parsing eMMC info from config: ");
         return error_out(mount_path);
@@ -183,8 +182,6 @@ static GOptionEntry option_entries_main[] = {
 };
 
 static GOptionEntry option_entries_install[] = {
-    { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
-        &arg_install_skip_checksums, "Skip checksum verification for all input files", NULL },
     { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
         &arg_remaining, NULL, "install PACKAGE DEVICE" },
     { NULL }

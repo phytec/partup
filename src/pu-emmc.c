@@ -271,17 +271,12 @@ pu_emmc_write_data(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     guint i = 0;
     gboolean first_logical_part = FALSE;
-    gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
     gchar *path;
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_object_get(flash,
-                 "skip-checksums", &skip_checksums,
-                 NULL);
 
     g_message("Writing data to MMC");
 
@@ -327,19 +322,6 @@ pu_emmc_write_data(PuFlash *flash,
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuInput *input = i->data;
             path = input->filename;
-
-            if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-                g_debug("Checking MD5 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->md5sum,
-                                             G_CHECKSUM_MD5, error))
-                    return FALSE;
-            }
-            if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-                g_debug("Checking SHA256 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->sha256sum,
-                                             G_CHECKSUM_SHA256, error))
-                    return FALSE;
-            }
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
@@ -389,24 +371,6 @@ pu_emmc_write_data(PuFlash *flash,
         PuInput *input = bin->input;
         path = input->filename;
 
-        if (g_str_equal(path, "")) {
-            g_warning("No input specified for binary");
-            continue;
-        }
-
-        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->md5sum,
-                                         G_CHECKSUM_MD5, error))
-                return FALSE;
-        }
-        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->sha256sum,
-                                         G_CHECKSUM_SHA256, error))
-                return FALSE;
-        }
-
         g_debug("Writing raw data: filename=%s input_offset=%lld output_offset=%lld",
                 input->filename, bin->input_offset, bin->output_offset);
 
@@ -429,25 +393,6 @@ pu_emmc_write_data(PuFlash *flash,
             for (GList *i = input; i != NULL; i = i->next) {
                 PuEmmcBinary *bin = i->data;
                 path = bin->input->filename;
-
-                if (g_str_equal(path, "")) {
-                    g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                                "No input specified for eMMC boot partition");
-                    return FALSE;
-                }
-
-                if (!g_str_equal(bin->input->md5sum, "") && !skip_checksums) {
-                    g_debug("Checking MD5 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, bin->input->md5sum,
-                                                 G_CHECKSUM_MD5, error))
-                        return FALSE;
-                }
-                if (!g_str_equal(bin->input->sha256sum, "") && !skip_checksums) {
-                    g_debug("Checking SHA256 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, bin->input->sha256sum,
-                                                 G_CHECKSUM_SHA256, error))
-                        return FALSE;
-                }
 
                 g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
                         bin->input->filename, bin->input_offset,
