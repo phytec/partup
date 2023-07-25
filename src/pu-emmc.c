@@ -13,18 +13,11 @@
 #include "pu-mount.h"
 #include "pu-utils.h"
 #include "pu-emmc.h"
+#include "pu-input.h"
 
 #define PARTITION_TABLE_SIZE_MSDOS 1
 #define PARTITION_TABLE_SIZE_GPT   34
 
-typedef struct _PuEmmcInput {
-    gchar *filename;
-    gchar *md5sum;
-    gchar *sha256sum;
-
-    /* Internal members */
-    gsize _size;
-} PuEmmcInput;
 typedef struct _PuEmmcPartition {
     gchar *label;
     gchar *partuuid;
@@ -41,7 +34,7 @@ typedef struct _PuEmmcPartition {
 typedef struct _PuEmmcBinary {
     PedSector input_offset;
     PedSector output_offset;
-    PuEmmcInput *input;
+    PuInput *input;
 } PuEmmcBinary;
 typedef struct _PuEmmcBootPartitions {
     guint enable;
@@ -307,7 +300,7 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
 
         for (GList *i = part->input; i != NULL; i = i->next) {
-            PuEmmcInput *input = i->data;
+            PuInput *input = i->data;
             g_autofree gchar *path = NULL;
 
             path = pu_path_from_filename(input->filename, prefix, error);
@@ -374,7 +367,7 @@ pu_emmc_write_data(PuFlash *flash,
 
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
-        PuEmmcInput *input = bin->input;
+        PuInput *input = bin->input;
         g_autofree gchar *path = NULL;
 
         path = pu_path_from_filename(input->filename, prefix, error);
@@ -486,7 +479,7 @@ pu_emmc_class_finalize(GObject *object)
         g_free(part->mkfs_extra_args);
         g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
-            PuEmmcInput *in = i->data;
+            PuInput *in = i->data;
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
@@ -629,7 +622,7 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
             return FALSE;
         }
 
-        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        PuInput *input = g_new0(PuInput, 1);
         input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
@@ -735,7 +728,7 @@ pu_emmc_parse_raw(PuEmmc *emmc,
                         "'input' of binary does not contain a mapping");
             return FALSE;
         }
-        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        PuInput *input = g_new0(PuInput, 1);
         input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
@@ -881,7 +874,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                     return FALSE;
                 }
 
-                PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+                PuInput *input = g_new0(PuInput, 1);
                 input->filename = pu_hash_table_lookup_string(iv->data.mapping, "filename", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
