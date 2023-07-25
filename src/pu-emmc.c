@@ -164,6 +164,31 @@ emmc_create_partition(PuEmmc *self,
 }
 
 static gboolean
+pu_emmc_validate_config(PuFlash *flash,
+                        GError **error)
+{
+    PuEmmc *self = PU_EMMC(flash);
+    gboolean skip_checksums = FALSE;
+
+    g_return_val_if_fail(flash != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "skip-checksums", &skip_checksums,
+                 NULL);
+
+    if (!skip_checksums) {
+        for (GList *i = self->input_files; i != NULL; i = i->next) {
+            PuInput *input = i->data;
+            if (!pu_input_validate_file(input, error))
+                return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_init_device(PuFlash *flash,
                     GError **error)
 {
@@ -516,6 +541,7 @@ pu_emmc_class_init(PuEmmcClass *class)
     PuFlashClass *flash_class = PU_FLASH_CLASS(class);
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
+    flash_class->validate_config = pu_emmc_validate_config;
     flash_class->init_device = pu_emmc_init_device;
     flash_class->setup_layout = pu_emmc_setup_layout;
     flash_class->write_data = pu_emmc_write_data;
