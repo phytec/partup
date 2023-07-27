@@ -243,6 +243,30 @@ pu_emmc_validate_config(PuFlash *flash,
     if (!pu_emmc_check_raw_overwrite(self, error))
         return FALSE;
 
+    // check if input files fit in partition
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
+        gsize input_size = 0;
+        gsize part_size = 0;
+
+        if (part->expand)
+            part_size = self->expanded_part_size * self->device->sector_size;
+        else
+            part_size = part->size * self->device->sector_size;
+
+        for (GList *i = part->input; i != NULL; i = i->next) {
+            PuInput *input = i->data;
+            input_size += input->_size;
+        }
+        g_debug("input size: %ld part size: %ld", input_size, part_size);
+
+        if (input_size > part_size) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Input files are larger than partition");
+            return FALSE;
+        }
+    }
+
     return TRUE;
 }
 
