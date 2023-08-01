@@ -60,6 +60,7 @@ struct _PuEmmc {
     PedDisk *disk;
 
     PedDiskType *disktype;
+    GList *input_files;
     GList *partitions;
     GList *clean;
     GList *raw;
@@ -248,13 +249,12 @@ pu_emmc_write_data(PuFlash *flash,
     gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
-    g_autofree gchar *prefix = NULL;
+    gchar *path;
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     g_object_get(flash,
-                 "prefix", &prefix,
                  "skip-checksums", &skip_checksums,
                  NULL);
 
@@ -301,13 +301,7 @@ pu_emmc_write_data(PuFlash *flash,
 
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuInput *input = i->data;
-            g_autofree gchar *path = NULL;
-
-            path = pu_path_from_filename(input->filename, prefix, error);
-            if (path == NULL) {
-                g_prefix_error(error, "Failed parsing input filename for partition: ");
-                return FALSE;
-            }
+            path = input->filename;
 
             if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
                 g_debug("Checking MD5 sum of input file '%s'", path);
@@ -368,13 +362,7 @@ pu_emmc_write_data(PuFlash *flash,
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
         PuInput *input = bin->input;
-        g_autofree gchar *path = NULL;
-
-        path = pu_path_from_filename(input->filename, prefix, error);
-        if (path == NULL) {
-            g_prefix_error(error, "Failed parsing input filename for binary: ");
-            return FALSE;
-        }
+        path = input->filename;
 
         if (g_str_equal(path, "")) {
             g_warning("No input specified for binary");
@@ -415,13 +403,7 @@ pu_emmc_write_data(PuFlash *flash,
 
             for (GList *i = input; i != NULL; i = i->next) {
                 PuEmmcBinary *bin = i->data;
-                g_autofree gchar *path = NULL;
-
-                path = pu_path_from_filename(bin->input->filename, prefix, error);
-                if (path == NULL) {
-                    g_prefix_error(error, "Failed parsing input filename for eMMC boot partition: ");
-                    return FALSE;
-                }
+                path = bin->input->filename;
 
                 if (g_str_equal(path, "")) {
                     g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
@@ -517,6 +499,8 @@ pu_emmc_class_finalize(GObject *object)
         }
         g_free(emmc->mmc_controls);
     }
+
+    g_list_free(g_steal_pointer(&emmc->input_files));
 
     if (emmc->disk)
         ped_disk_destroy(emmc->disk);
@@ -687,16 +671,10 @@ pu_emmc_parse_raw(PuEmmc *emmc,
 {
     PuConfigValue *value_raw = g_hash_table_lookup(root, "raw");
     GList *raw;
-    g_autofree gchar *path = NULL;
-    g_autofree gchar *prefix = NULL;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
     g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_object_get(emmc,
-                 "prefix", &prefix,
-                 NULL);
 
     if (!value_raw) {
         g_debug("No entry 'raw' found. Skipping...");
@@ -733,14 +711,6 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
 
-        path = pu_path_from_filename(input->filename, prefix, error);
-        if (path == NULL)
-            return FALSE;
-
-        input->_size = pu_get_file_size(path, error);
-        if (!input->_size)
-            return FALSE;
-
         bin->input = input;
         g_debug("Parsed raw input: filename=%s md5sum=%s sha256sum=%s",
                 input->filename, input->md5sum, input->sha256sum);
@@ -755,6 +725,7 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         }
 
         emmc->raw = g_list_prepend(emmc->raw, bin);
+        emmc->input_files = g_list_prepend(emmc->input_files, input);
     }
 
     emmc->raw = g_list_reverse(emmc->raw);
@@ -879,6 +850,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
                 part->input = g_list_prepend(part->input, input);
+                emmc->input_files = g_list_prepend(emmc->input_files, input);
 
                 g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
                         input->filename, input->md5sum, input->sha256sum);
@@ -1020,6 +992,18 @@ pu_emmc_new(const gchar *device_path,
         return NULL;
     if (!pu_emmc_parse_clean(self, root, error))
         return NULL;
+
+    for (GList *i = self->input_files; i != NULL; i = i->next) {
+        PuInput *input = i->data;
+        if (!pu_input_prefix_filename(input, prefix, error))
+            return NULL;
+    }
+
+    for (GList *i = self->input_files; i != NULL; i = i->next) {
+        PuInput *input = i->data;
+        if (!pu_input_get_size(input, error))
+            return FALSE;
+    }
 
     if (!pu_emmc_check_raw_overwrite(self, error))
         return NULL;
