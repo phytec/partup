@@ -29,9 +29,3 @@ jobs:
           pip install -r doc/requirements.txt
           meson setup build -Ddoc=true
           meson compile -C build doc
-      - name: Deploy documentation
-        uses: peaceiris/actions-gh-pages@v3
-        if: ${{ github.ref_name == 'main' }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/doc/html
