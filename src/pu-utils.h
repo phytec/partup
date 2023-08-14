@@ -66,5 +66,8 @@ gchar * pu_device_get_partition_pattern(const gchar *device,
                                         GError **error);
 gchar * pu_str_pre_remove(gchar *string,
                           guint n);
+gboolean pu_parse_size(const gchar *string,
+                       gsize *size,
+                       GError **error);
 
 #endif /* PARTUP_UTILS_H */

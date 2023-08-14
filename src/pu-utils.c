@@ -556,3 +556,66 @@ pu_str_pre_remove(gchar *string,
 
     return string;
 }
+
+gboolean
+pu_parse_size(const gchar *string,
+              gsize *size,
+              GError **error)
+{
+    gchar *unit;
+    gsize unit_factor = 0;
+
+    g_return_val_if_fail(g_strcmp0(string, "") > 0, FALSE);
+    g_return_val_if_fail(size, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    *size = g_ascii_strtoull(string, &unit, 10);
+
+    if (strlen(unit) > 1 && g_ascii_tolower(unit[1]) == 'i') {
+        switch (g_ascii_tolower(unit[0])) {
+        case 'k':
+            unit_factor = PED_KIBIBYTE_SIZE;
+            break;
+        case 'm':
+            unit_factor = PED_MEBIBYTE_SIZE;
+            break;
+        case 'g':
+            unit_factor = PED_GIBIBYTE_SIZE;
+            break;
+        case 't':
+            unit_factor = PED_TEBIBYTE_SIZE;
+        }
+    } else if (strlen(unit) > 0) {
+        switch (g_ascii_tolower(unit[0])) {
+        case 's':
+            unit_factor = PED_SECTOR_SIZE_DEFAULT;
+            break;
+        case 'b':
+            unit_factor = 1;
+            break;
+        case 'k':
+            unit_factor = PED_KILOBYTE_SIZE;
+            break;
+        case 'm':
+            unit_factor = PED_MEGABYTE_SIZE;
+            break;
+        case 'g':
+            unit_factor = PED_GIGABYTE_SIZE;
+            break;
+        case 't':
+            unit_factor = PED_TERABYTE_SIZE;
+        }
+    } else {
+        unit_factor = 1;
+    }
+
+    if (unit_factor == 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Size '%s' could not be parsed, unit '%s' is unknown",
+                    string, unit);
+        return FALSE;
+    }
+
+    *size *= unit_factor;
+    return TRUE;
+}
