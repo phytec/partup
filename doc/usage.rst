@@ -48,6 +48,17 @@ show [OPTION…] *PACKAGE*
 
    -s, --size              Print the size of each file
 
+validate [OPTION…] *PACKAGE*
+   Validate a package against a virtual or physical device
+
+   -s, --skip-checksums        Skip checksum verification for all input files
+   --size=SIZE                 Size of virtual device. Default is 1GB
+   -w, --write-image           Install package to virtual device as an additional validation step
+   -b, --build-image=FILENAME  Build a bootable image from the package. Implies --write-image
+   --device=DEVICE             Validate against provided device
+
+   Available since: :ref:`release-2.0.0`
+
 version
    Print the program version
 
