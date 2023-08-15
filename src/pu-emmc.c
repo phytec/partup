@@ -930,6 +930,12 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 
     emmc->partitions = g_list_reverse(emmc->partitions);
 
+    if (fixed_parts_size > emmc->device->length) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "Combined partition size is larger than device");
+        return FALSE;
+    }
+
     if (emmc->num_expanded_parts > 0) {
         emmc->expanded_part_size = emmc->device->length - fixed_parts_size
                                    - 2 * emmc->num_logical_parts;
