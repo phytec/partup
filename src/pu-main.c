@@ -28,6 +28,7 @@ static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
 static gboolean arg_show_size = FALSE;
+static gchar **arg_remaining = NULL;
 
 static inline gboolean
 error_not_root(GError **error)
@@ -190,6 +191,8 @@ static GOptionEntry option_entries_main[] = {
 static GOptionEntry option_entries_install[] = {
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_install_skip_checksums, "Skip checksum verification for all input files", NULL },
+    { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
+        &arg_remaining, NULL, "install PACKAGE DEVICE" },
     { NULL }
 };
 
@@ -198,12 +201,22 @@ static GOptionEntry option_entries_package[] = {
         &arg_package_directory, "Change to DIR before creating the package", "DIR" },
     { "force", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_package_force, "Overwrite any existing package", NULL },
+    { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
+        &arg_remaining, NULL, "package PACKAGE FILES…" },
     { NULL }
 };
 
 static GOptionEntry option_entries_show[] = {
     { "size", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_show_size, "Print the size of each file", NULL },
+    { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
+        &arg_remaining, NULL, "show PACKAGE" },
+    { NULL }
+};
+
+static GOptionEntry option_entries_version[] = {
+    { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
+        &arg_remaining, NULL, "version" },
     { NULL }
 };
 
@@ -215,7 +228,7 @@ static PuCommandEntry command_entries[] = {
     { "show", PU_COMMAND_ARG_FILENAME, cmd_show,
         "List the contents of a package", option_entries_show },
     { "version", PU_COMMAND_ARG_NONE, cmd_version,
-        "Print the program version", NULL },
+        "Print the program version", option_entries_version },
     PU_COMMAND_ENTRY_NULL
 };
 
@@ -238,7 +251,7 @@ main(G_GNUC_UNUSED int argc,
 
     context_cmd = pu_command_context_new();
     pu_command_context_add_entries(context_cmd, command_entries, option_entries_main);
-    if (!pu_command_context_parse_strv(context_cmd, &args, &error)) {
+    if (!pu_command_context_parse_strv(context_cmd, &args, &arg_remaining, &error)) {
         g_critical("%s", error->message);
         return 1;
     }
