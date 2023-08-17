@@ -284,7 +284,7 @@ pu_command_context_parse(PuCommandContext *context,
          * that reason, add the main usage here. */
         GOptionEntry extra_entries[] = {
             { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
-                arg_remaining, "", "COMMAND" },
+                arg_remaining, NULL, "COMMAND" },
             { NULL }
         };
         g_option_context_add_main_entries(context->option_context,
