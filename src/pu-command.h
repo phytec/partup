@@ -53,9 +53,11 @@ gchar ** pu_command_context_get_args(PuCommandContext *context);
 gboolean pu_command_context_parse(PuCommandContext *context,
                                   gint *argc,
                                   gchar ***argv,
+                                  gchar ***arg_remaining,
                                   GError **error);
 gboolean pu_command_context_parse_strv(PuCommandContext *context,
                                        gchar ***args,
+                                       gchar ***arg_remaining,
                                        GError **error);
 gboolean pu_command_context_invoke(PuCommandContext *context,
                                    GError **error);
