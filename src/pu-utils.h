@@ -9,6 +9,9 @@
 #include <glib.h>
 #include <parted/parted.h>
 
+gboolean pu_spawn_command_line_sync_result(const gchar *command_line,
+                                           gchar **result,
+                                           GError **error);
 gboolean pu_spawn_command_line_sync(const gchar *command_line,
                                     GError **error);
 gboolean pu_file_copy(const gchar *src,

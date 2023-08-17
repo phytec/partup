@@ -21,8 +21,9 @@
 #define UDEVADM_SETTLE_TIMEOUT 10
 
 gboolean
-pu_spawn_command_line_sync(const gchar *command_line,
-                           GError **error)
+pu_spawn_command_line_sync_result(const gchar *command_line,
+                                  gchar **result,
+                                  GError **error)
 {
     GSpawnFlags spawn_flags;
     gchar **argv = NULL;
@@ -36,9 +37,11 @@ pu_spawn_command_line_sync(const gchar *command_line,
     if (!g_shell_parse_argv(command_line, NULL, &argv, error))
         return FALSE;
 
-    spawn_flags = G_SPAWN_SEARCH_PATH |
-                  G_SPAWN_STDOUT_TO_DEV_NULL;
-    if (!g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, NULL, &errmsg,
+    spawn_flags = G_SPAWN_SEARCH_PATH;
+    if (!result)
+        spawn_flags |= G_SPAWN_STDOUT_TO_DEV_NULL;
+
+    if (!g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, result, &errmsg,
                       &wait_status, error)) {
         g_prefix_error(error, "Failed spawning process: ");
         g_strfreev(argv);
@@ -54,6 +57,13 @@ pu_spawn_command_line_sync(const gchar *command_line,
 
     g_strfreev(argv);
     return TRUE;
+}
+
+gboolean
+pu_spawn_command_line_sync(const gchar *command_line,
+                           GError **error)
+{
+    return pu_spawn_command_line_sync_result(command_line, NULL, error);
 }
 
 gboolean

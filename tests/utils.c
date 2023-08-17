@@ -243,6 +243,17 @@ test_device_get_partition_pattern(void)
     g_assert_false(g_regex_match_simple(pattern, "/dev/sdb1", 0, 0));
 }
 
+static void
+test_spawn_command_line_sync_result(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *result = NULL;
+
+    g_assert_true(pu_spawn_command_line_sync_result("echo 123", &result, &error));
+    g_assert_no_error(error);
+    g_assert_nonnull(strstr(result, "123"));
+}
+
 int
 main(int argc,
      char *argv[])
@@ -276,6 +287,7 @@ main(int argc,
                     test_get_file_size);
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
+    g_test_add_func("/utils/spawn_command_line_sync_result", test_spawn_command_line_sync_result);
 
     return g_test_run();
 }
