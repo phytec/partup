@@ -238,10 +238,7 @@ main(G_GNUC_UNUSED int argc,
 {
     g_autoptr(GError) error = NULL;
     g_autoptr(PuCommandContext) context_cmd = NULL;
-    g_autoptr(GOptionContext) option_context = NULL;
     g_autofree gchar **args;
-    g_autofree gchar *default_cmd = NULL;
-    g_autofree gchar **main_args = NULL;
 
     /* Support unicode filenames */
     setlocale(LC_ALL, "");
