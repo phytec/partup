@@ -37,6 +37,7 @@ command_basic(void)
 {
     g_autoptr(PuCommandContext) context = NULL;
     g_autoptr(GError) error = NULL;
+    gchar **arg_remaining = NULL;
 
     gchar **args = gen_argv("test");
     PuCommandEntry entries[] =
@@ -47,13 +48,14 @@ command_basic(void)
     context = pu_command_context_new();
     g_assert_nonnull(context);
     pu_command_context_add_entries(context, entries, NULL);
-    pu_command_context_parse_strv(context, &args, &error);
+    pu_command_context_parse_strv(context, &args, &arg_remaining, &error);
     g_assert_no_error(error);
 
     g_assert(pu_command_context_invoke(context, &error));
     g_assert_no_error(error);
 
-    g_strfreev(args);
+    g_clear_pointer(&args, g_strfreev);
+    g_clear_pointer(&arg_remaining, g_strfreev);
 }
 
 static void
@@ -141,12 +143,8 @@ command_arg(void)
 {
     g_autoptr(PuCommandContext) context = NULL;
     g_autoptr(GError) error = NULL;
-    gchar **args_zero = gen_argv("zero");
-    gchar **args_one = gen_argv("one first");
-    gchar **args_two = gen_argv("two first second");
-    gchar **args_zero_invalid = gen_argv("zero first_invalid second_invalid");
-    gchar **args_one_invalid = gen_argv("one first second_invalid");
-    gchar **args_two_invalid = gen_argv("two");
+    gchar **args = NULL;
+    gchar **arg_remaining = NULL;
 
     PuCommandEntry entries[] =
         { { "zero", PU_COMMAND_ARG_NONE, cmd_zero,
@@ -156,36 +154,47 @@ command_arg(void)
           { "two", PU_COMMAND_ARG_FILENAME_ARRAY, cmd_two,
             "command with two or more arguments", NULL },
           PU_COMMAND_ENTRY_NULL };
+    gchar *args_success[] = {
+        "zero",
+        "one first",
+        "two first second",
+        "two first second third fourth"
+    };
+    gchar *args_fail[] = {
+        "zero first_invalid second_invalid",
+        "one first_invalid second_invalid",
+        "two first",
+        "two"
+    };
 
-    context = pu_command_context_new();
-    g_assert_nonnull(context);
-    pu_command_context_add_entries(context, entries, NULL);
+    for (gsize i = 0; i < G_N_ELEMENTS(args_success); i++) {
+        context = pu_command_context_new();
+        g_assert_nonnull(context);
 
-    pu_command_context_parse_strv(context, &args_zero, &error);
-    g_assert_no_error(error);
-    g_assert(pu_command_context_invoke(context, &error));
-    g_assert_no_error(error);
+        args = g_strsplit(g_strjoin(" ", g_get_prgname(), args_success[i], NULL), " ", -1);
+        pu_command_context_add_entries(context, entries, NULL);
+        g_assert(pu_command_context_parse_strv(context, &args, &arg_remaining, &error));
+        g_assert_no_error(error);
 
-    pu_command_context_parse_strv(context, &args_one, &error);
-    g_assert_no_error(error);
-    g_assert(pu_command_context_invoke(context, &error));
-    g_assert_no_error(error);
+        g_assert(pu_command_context_invoke(context, &error));
+        g_assert_no_error(error);
 
-    pu_command_context_parse_strv(context, &args_two, &error);
-    g_assert_no_error(error);
-    g_assert(pu_command_context_invoke(context, &error));
-    g_assert_no_error(error);
+        g_clear_pointer(&arg_remaining, g_strfreev);
+        g_clear_pointer(&args, g_strfreev);
+    }
+    for (gsize i = 0; i < G_N_ELEMENTS(args_fail); i++) {
+        context = pu_command_context_new();
+        g_assert_nonnull(context);
 
-    g_assert_false(pu_command_context_parse_strv(context, &args_zero_invalid, &error));
-    g_assert_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE);
-    g_clear_error(&error);
+        args = g_strsplit(g_strjoin(" ", g_get_prgname(), args_fail[i], NULL), " ", -1);
+        pu_command_context_add_entries(context, entries, NULL);
+        g_assert_false(pu_command_context_parse_strv(context, &args, &arg_remaining, &error));
+        g_assert_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE);
 
-    g_assert_false(pu_command_context_parse_strv(context, &args_one_invalid, &error));
-    g_assert_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE);
-    g_clear_error(&error);
-
-    g_assert_false(pu_command_context_parse_strv(context, &args_two_invalid, &error));
-    g_assert_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_BAD_VALUE);
+        g_clear_error(&error);
+        g_clear_pointer(&arg_remaining, g_strfreev);
+        g_clear_pointer(&args, g_strfreev);
+    }
 }
 
 int
