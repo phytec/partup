@@ -330,7 +330,6 @@ pu_command_context_parse_strv(PuCommandContext *context,
                               gchar ***arg_remaining,
                               GError **error)
 {
-    gboolean res;
     gint argc;
 
     g_return_val_if_fail(context != NULL, FALSE);
@@ -338,9 +337,8 @@ pu_command_context_parse_strv(PuCommandContext *context,
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     argc = args && *args ? g_strv_length(*args) : 0;
-    res = pu_command_context_parse(context, &argc, args, arg_remaining, error);
 
-    return res;
+    return pu_command_context_parse(context, &argc, args, arg_remaining, error);
 }
 
 gboolean
