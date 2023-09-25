@@ -214,12 +214,6 @@ pu_package_list_contents(const gchar *package,
     g_return_val_if_fail(g_strcmp0(package, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (!g_file_test(package, G_FILE_TEST_IS_REGULAR)) {
-        g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_NOT_FOUND,
-                    "'%s' is not a regular file", package);
-        return FALSE;
-    }
-
     if (!pu_package_mount(package, &mountpoint, &layout_file, error))
         return FALSE;
 
