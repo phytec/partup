@@ -30,6 +30,7 @@ static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
 static gboolean arg_show_size = FALSE;
 static gboolean arg_validate_skip_checksums = FALSE;
+static gboolean arg_validate_write_image = FALSE;
 static gchar *arg_validate_file_size = "1GB";
 static gchar *arg_validate_device = NULL;
 static gchar **arg_remaining = NULL;
@@ -241,6 +242,23 @@ cmd_validate(PuCommandContext *context,
     }
 
     if (!arg_validate_device) {
+        if (arg_validate_write_image) {
+            /* write data to loop device */
+            if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
+                g_prefix_error(error, "Failed initializing device: ");
+                return error_out_loopdev(loopdev, mount_path);
+            }
+            if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
+                g_prefix_error(error, "Failed setting up layout on device: ");
+                return error_out_loopdev(loopdev, mount_path);
+            }
+            if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
+                g_prefix_error(error, "Failed writing data to device: ");
+                pu_umount_all(device, NULL);
+                return error_out_loopdev(loopdev, mount_path);
+            }
+        }
+
         if (!pu_loopdev_detach(loopdev, error))
             return error_out_loopdev(loopdev, mount_path);
 
@@ -305,6 +323,10 @@ static GOptionEntry option_entries_validate[] = {
         &arg_validate_skip_checksums, "Skip checksum verification for all input files", NULL },
     { "size", 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING,
         &arg_validate_file_size, "Size of virtual device. Default is 1G", "SIZE" },
+    { "write-image", 'w', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_validate_write_image,
+        "Install package to virtual device as an additional validation step",
+        NULL },
     { "device", 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_validate_device, "Validate against provided device",
         "DEVICE" },
