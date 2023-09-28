@@ -32,6 +32,7 @@ static gboolean arg_show_size = FALSE;
 static gboolean arg_validate_skip_checksums = FALSE;
 static gboolean arg_validate_write_image = FALSE;
 static gchar *arg_validate_file_size = "1GB";
+static gchar *arg_validate_build_image = NULL;
 static gchar *arg_validate_device = NULL;
 static gchar **arg_remaining = NULL;
 
@@ -242,7 +243,7 @@ cmd_validate(PuCommandContext *context,
     }
 
     if (!arg_validate_device) {
-        if (arg_validate_write_image) {
+        if (arg_validate_write_image || arg_validate_build_image) {
             /* write data to loop device */
             if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
                 g_prefix_error(error, "Failed initializing device: ");
@@ -261,6 +262,15 @@ cmd_validate(PuCommandContext *context,
 
         if (!pu_loopdev_detach(loopdev, error))
             return error_out_loopdev(loopdev, mount_path);
+
+        if (arg_validate_build_image) {
+            if (g_file_test(arg_validate_build_image, G_FILE_TEST_IS_REGULAR))
+                g_remove(arg_validate_build_image);
+
+            if (!pu_file_copy(g_file_get_path(loopdev->file),
+                              arg_validate_build_image, error))
+                return error_out_loopdev(loopdev, mount_path);
+        }
 
         pu_loopdev_free(loopdev);
     }
@@ -327,6 +337,9 @@ static GOptionEntry option_entries_validate[] = {
         &arg_validate_write_image,
         "Install package to virtual device as an additional validation step",
         NULL },
+    { "build-image", 'b', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
+        &arg_validate_build_image, "Build a bootable image from the package. Implies --write-image",
+        "FILENAME" },
     { "device", 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME,
         &arg_validate_device, "Validate against provided device",
         "DEVICE" },
