@@ -40,6 +40,7 @@ src = [
   'src/pu-glib-compat.c',
   'src/pu-hashtable.c',
   'src/pu-log.c',
+  'src/pu-loopdev.c',
   'src/pu-mount.c',
   'src/pu-package.c',
   'src/pu-utils.c'
