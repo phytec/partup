@@ -81,8 +81,12 @@ pu_file_copy(const gchar *src,
 
     g_debug("Copying '%s' to '%s'", src, dest);
 
+    if (g_file_test(dest, G_FILE_TEST_IS_DIR))
+        out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
+    else
+        out_path = g_strdup(dest);
+
     in = g_file_new_for_path(src);
-    out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
     out = g_file_new_for_path(out_path);
 
     return g_file_copy(in, out, G_FILE_COPY_NONE, NULL, NULL, NULL, error);
