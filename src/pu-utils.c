@@ -104,6 +104,7 @@ pu_archive_extract(const gchar *filename,
 gboolean
 pu_make_filesystem(const gchar *part,
                    const gchar *fstype,
+                   const gchar *label,
                    GError **error)
 {
     g_autoptr(GString) cmd = NULL;
@@ -129,6 +130,15 @@ pu_make_filesystem(const gchar *part,
                     "Unknown filesystem type '%s' for partition '%s'", fstype, part);
         return FALSE;
     }
+
+    if (g_strcmp0(fstype, "") > 0) {
+        if (g_strcmp0(fstype, "fat32") == 0) {
+            g_string_append_printf(cmd, "-n \"%s\" ", label);
+        } else if (g_regex_match_simple("^ext[234]$", fstype, 0, 0)) {
+            g_string_append_printf(cmd, "-L \"%s\" ", label);
+        }
+    }
+
     g_string_append(cmd, part);
 
     if (!pu_spawn_command_line_sync(cmd->str, error)) {
