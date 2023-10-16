@@ -337,6 +337,8 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
+                if (!pu_set_ext_label(part_path, part->label, error))
+                    return FALSE;
             } else {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;

@@ -21,6 +21,9 @@ gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
                             const gchar *label,
                             GError **error);
+gboolean pu_set_ext_label(const gchar *part,
+                          const gchar *label,
+                          GError **error);
 gboolean pu_resize_filesystem(const gchar *part,
                               GError **error);
 gboolean pu_write_raw(const gchar *input_path,
