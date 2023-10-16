@@ -150,6 +150,29 @@ pu_make_filesystem(const gchar *part,
 }
 
 gboolean
+pu_set_ext_label(const gchar *part,
+                 const gchar *label,
+                 GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(part != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!label)
+        return TRUE;
+
+    cmd = g_strdup_printf("e2label %s \"%s\"", part, label);
+
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed setting label '%s' on '%s': ", label, part);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
 pu_resize_filesystem(const gchar *part,
                      GError **error)
 {

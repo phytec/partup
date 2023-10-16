@@ -100,6 +100,30 @@ test_make_filesystem(EmptyFileFixture *fixture,
 }
 
 static void
+test_set_ext_label(EmptyFileFixture *fixture,
+                   G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autofree gchar *cmd = NULL;
+    g_autofree gchar *output = NULL;
+    gint wait_status;
+
+    g_assert_true(pu_make_filesystem(g_file_get_path(fixture->file), "ext4",
+                  "", &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_assert_true(pu_set_ext_label(g_file_get_path(fixture->file), "test",
+                  &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    cmd = g_strdup_printf("blkid -o value -s LABEL %s", g_file_get_path(fixture->file));
+    g_assert_true(g_spawn_command_line_sync(cmd, &output, NULL,
+                                            &wait_status, &fixture->error));
+    g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(strstr(output, "test"));
+}
+
+static void
 test_write_raw(EmptyFileFixture *fixture,
                G_GNUC_UNUSED gconstpointer user_data)
 {
@@ -234,6 +258,8 @@ main(int argc,
     g_test_add_func("/utils/archive_extract", test_archive_extract);
     g_test_add("/utils/make_filesystem", EmptyFileFixture, "file", empty_file_set_up,
                test_make_filesystem, empty_file_tear_down);
+    g_test_add("/utils/set_ext_label", EmptyFileFixture, "file", empty_file_set_up,
+               test_set_ext_label, empty_file_tear_down);
     g_test_add("/utils/write_raw", EmptyFileFixture, "file", empty_file_set_up,
                test_write_raw, empty_file_tear_down);
     g_test_add("/utils/write_raw_input_offset", EmptyFileFixture, "file", empty_file_set_up,
