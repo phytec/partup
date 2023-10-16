@@ -288,7 +288,7 @@ pu_emmc_write_data(PuFlash *flash,
 
         g_debug("Creating filesystem '%s' on '%s'", part->filesystem, part_path);
 
-        if (!pu_make_filesystem(part_path, part->filesystem, error))
+        if (!pu_make_filesystem(part_path, part->filesystem, part->label, error))
             return FALSE;
 
         if (!part->input) {

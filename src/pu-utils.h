@@ -19,6 +19,7 @@ gboolean pu_archive_extract(const gchar *filename,
                             GError **error);
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
+                            const gchar *label,
                             GError **error);
 gboolean pu_resize_filesystem(const gchar *part,
                               GError **error);

@@ -48,7 +48,7 @@ create_partition(const gchar *device,
     g_assert_no_error(*error);
 
     g_assert_true(pu_make_filesystem(g_strdup_printf("%sp1", device),
-                                     "ext4", error));
+                                     "ext4", "", error));
     g_assert_no_error(*error);
 }
 

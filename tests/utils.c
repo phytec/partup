@@ -81,7 +81,7 @@ test_make_filesystem(EmptyFileFixture *fixture,
     gint wait_status;
 
     g_assert_true(pu_make_filesystem(g_file_get_path(fixture->file), "ext4",
-                  &fixture->error));
+                  "test", &fixture->error));
     g_assert_no_error(fixture->error);
 
     cmd = g_strdup_printf("blkid -o value -s TYPE %s", g_file_get_path(fixture->file));
@@ -90,6 +90,13 @@ test_make_filesystem(EmptyFileFixture *fixture,
     g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
     g_assert_no_error(fixture->error);
     g_assert_nonnull(strstr(output, "ext4"));
+
+    cmd = g_strdup_printf("blkid -o value -s LABEL %s", g_file_get_path(fixture->file));
+    g_assert_true(g_spawn_command_line_sync(cmd, &output, NULL,
+                                            &wait_status, &fixture->error));
+    g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(strstr(output, "test"));
 }
 
 static void
