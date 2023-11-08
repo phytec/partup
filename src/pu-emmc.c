@@ -48,6 +48,9 @@ typedef struct _PuEmmcBootPartitions {
     PedSector output_offset;
     PuEmmcInput *input;
 } PuEmmcBootPartitions;
+typedef struct _PuEmmcControls {
+    PuEmmcBootPartitions *boot_partitions;
+} PuEmmcControls;
 typedef struct _PuEmmcClean {
     PedSector size;
     PedSector offset;
@@ -67,7 +70,7 @@ struct _PuEmmc {
     GList *partitions;
     GList *clean;
     GList *raw;
-    PuEmmcBootPartitions *emmc_boot_partitions;
+    PuEmmcControls *mmc_controls;
 };
 
 G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
@@ -401,54 +404,61 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
     }
 
-    if (self->emmc_boot_partitions) {
-        PuEmmcInput *input = self->emmc_boot_partitions->input;
-        g_autofree gchar *path = NULL;
+    if (self->mmc_controls) {
+        PuEmmcBootPartitions *boot_partitions = NULL;
 
-        path = pu_path_from_filename(input->filename, prefix, error);
-        if (path == NULL) {
-            g_prefix_error(error, "Failed parsing input filename for eMMC boot partition: ");
-            return FALSE;
-        }
+        boot_partitions = self->mmc_controls->boot_partitions;
+        if (boot_partitions) {
+            PuEmmcInput *input = boot_partitions->input;
 
-        if (g_str_equal(path, "")) {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                        "No input specified for eMMC boot partition");
-            return FALSE;
-        }
-
-        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->md5sum,
-                                         G_CHECKSUM_MD5, error))
+            if (!pu_bootpart_enable(self->device->path, boot_partitions->enable, error))
                 return FALSE;
+
+            if (input) {
+                g_autofree gchar *path = NULL;
+
+                path = pu_path_from_filename(input->filename, prefix, error);
+                if (path == NULL) {
+                    g_prefix_error(error, "Failed parsing input filename for eMMC boot partition: ");
+                    return FALSE;
+                }
+
+                if (g_str_equal(path, "")) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
+                                "No input specified for eMMC boot partition");
+                    return FALSE;
+                }
+
+                if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
+                    g_debug("Checking MD5 sum of input file '%s'", path);
+                    if (!pu_checksum_verify_file(path, input->md5sum,
+                                                 G_CHECKSUM_MD5, error))
+                        return FALSE;
+                }
+                if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
+                    g_debug("Checking SHA256 sum of input file '%s'", path);
+                    if (!pu_checksum_verify_file(path, input->sha256sum,
+                                                 G_CHECKSUM_SHA256, error))
+                        return FALSE;
+                }
+
+                g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
+                        input->filename, boot_partitions->input_offset,
+                        boot_partitions->output_offset);
+
+                if (!pu_write_raw_bootpart(path, self->device, 0,
+                                           boot_partitions->input_offset,
+                                           boot_partitions->output_offset,
+                                           error))
+                    return FALSE;
+
+                if (!pu_write_raw_bootpart(path, self->device, 1,
+                                           boot_partitions->input_offset,
+                                           boot_partitions->output_offset,
+                                           error))
+                    return FALSE;
+            }
         }
-        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->sha256sum,
-                                         G_CHECKSUM_SHA256, error))
-                return FALSE;
-        }
-
-        g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
-                input->filename, self->emmc_boot_partitions->input_offset,
-                self->emmc_boot_partitions->output_offset);
-
-        if (!pu_write_raw_bootpart(path, self->device, 0,
-                                   self->emmc_boot_partitions->input_offset,
-                                   self->emmc_boot_partitions->output_offset,
-                                   error))
-            return FALSE;
-
-        if (!pu_write_raw_bootpart(path, self->device, 1,
-                                   self->emmc_boot_partitions->input_offset,
-                                   self->emmc_boot_partitions->output_offset,
-                                   error))
-            return FALSE;
-
-        if (!pu_bootpart_enable(self->device->path,
-                                self->emmc_boot_partitions->enable, error))
-            return FALSE;
     }
 
     g_debug("%s: Finished", G_STRFUNC);
@@ -489,13 +499,18 @@ pu_emmc_class_finalize(GObject *object)
     }
     g_list_free(g_steal_pointer(&emmc->raw));
 
-    if (emmc->emmc_boot_partitions) {
-        PuEmmcInput *input = emmc->emmc_boot_partitions->input;
-        g_free(input->filename);
-        g_free(input->md5sum);
-        g_free(input->sha256sum);
-        g_free(input);
-        g_free(emmc->emmc_boot_partitions);
+    if (emmc->mmc_controls) {
+        if (emmc->mmc_controls->boot_partitions) {
+            PuEmmcInput *input = emmc->mmc_controls->boot_partitions->input;
+            if (input) {
+                g_free(input->filename);
+                g_free(input->md5sum);
+                g_free(input->sha256sum);
+                g_free(input);
+            }
+            g_free(emmc->mmc_controls->boot_partitions);
+        }
+        g_free(emmc->mmc_controls);
     }
 
     if (emmc->disk)
@@ -536,46 +551,58 @@ pu_emmc_get_partition_table_size(PuEmmc *emmc)
 }
 
 static gboolean
-pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
-                            GHashTable *root,
-                            GError **error)
+pu_emmc_parse_mmc_controls(PuEmmc *emmc,
+                           GHashTable *root,
+                           GError **error)
 {
-    PuConfigValue *value_bootpart = g_hash_table_lookup(root, "emmc-boot-partitions");
+    PuConfigValue *value_mmc;
+    PuConfigValue *value_bootpart;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
     g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (!value_bootpart) {
-        g_debug("No entry 'emmc-boot-partitions' found. Skipping...");
+    value_mmc = g_hash_table_lookup(root, "mmc");
+    if (!value_mmc) {
+        g_debug("No entry 'mmc' found. Skipping...");
         return TRUE;
     }
+    if (value_mmc->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "'mmc' is not a valid YAML mapping");
+        return FALSE;
+    }
 
+    value_bootpart = g_hash_table_lookup(value_mmc->data.mapping, "boot-partitions");
+    if (!value_bootpart) {
+        g_debug("No entry 'boot-partitions' found. Skipping...");
+        return TRUE;
+    }
     if (value_bootpart->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
-                    "'emmc-boot-partitions' is not a valid YAML mapping");
+                    "'boot-partitions' is not a valid YAML mapping");
         return FALSE;
     }
 
     GHashTable *bootpart = value_bootpart->data.mapping;
-    emmc->emmc_boot_partitions = g_new0(PuEmmcBootPartitions, 1);
-    emmc->emmc_boot_partitions->enable =
+    emmc->mmc_controls = g_new0(PuEmmcControls, 1);
+    emmc->mmc_controls->boot_partitions = g_new0(PuEmmcBootPartitions, 1);
+    emmc->mmc_controls->boot_partitions->enable =
         pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
-    emmc->emmc_boot_partitions->input_offset =
+    emmc->mmc_controls->boot_partitions->input_offset =
         pu_hash_table_lookup_sector(bootpart, emmc->device, "input-offset", 0);
-    emmc->emmc_boot_partitions->output_offset =
+    emmc->mmc_controls->boot_partitions->output_offset =
         pu_hash_table_lookup_sector(bootpart, emmc->device, "output-offset", 0);
 
     g_debug("Parsed bootpart: enable=%s input-offset=%lld output-offset=%lld",
-            emmc->emmc_boot_partitions->enable ? "true" : "false",
-            emmc->emmc_boot_partitions->input_offset,
-            emmc->emmc_boot_partitions->output_offset);
+            emmc->mmc_controls->boot_partitions->enable ? "true" : "false",
+            emmc->mmc_controls->boot_partitions->input_offset,
+            emmc->mmc_controls->boot_partitions->output_offset);
 
     PuConfigValue *value_input = g_hash_table_lookup(bootpart, "input");
     if (value_input == NULL) {
-        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
-                    "No input specified for 'emmc-boot-partitions'");
-        return FALSE;
+        g_debug("No input specified for 'boot-partitions'. Ignoring...");
+        return TRUE;
     }
     if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
         g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
@@ -586,7 +613,7 @@ pu_emmc_parse_emmc_bootpart(PuEmmc *emmc,
     input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
     input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
     input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
-    emmc->emmc_boot_partitions->input = input;
+    emmc->mmc_controls->boot_partitions->input = input;
 
     g_debug("Parsed bootpart input: filename=%s md5sum=%s sha256sum=%s",
             input->filename, input->md5sum, input->sha256sum);
@@ -963,7 +990,7 @@ pu_emmc_new(const gchar *device_path,
         return NULL;
     }
 
-    if (!pu_emmc_parse_emmc_bootpart(self, root, error))
+    if (!pu_emmc_parse_mmc_controls(self, root, error))
         return NULL;
     if (!pu_emmc_parse_raw(self, root, error))
         return NULL;
