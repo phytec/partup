@@ -80,15 +80,25 @@ Build the documentation::
 Installation
 ============
 
+From Source
+-----------
+
 Install partup on the current system. If enabled, the documentation will be
 installed as well::
 
    meson install -C build
 
-Yocto Integration
------------------
+Arch Linux
+----------
 
-A Yocto recipe is available in `meta-ampliphy <https://git.phytec.de/meta-ampliphy/tree/recipes-devtools/partup>`_.
+partup is available in the AUR (Arch Linux User Repository):
+https://aur.archlinux.org/packages/partup
+
+Yocto
+-----
+
+A Yocto recipe is available in `meta-ampliphy
+<https://git.phytec.de/meta-ampliphy/tree/recipes-devtools/partup>`_.
 
 License
 =======
