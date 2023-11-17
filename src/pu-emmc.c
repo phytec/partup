@@ -140,7 +140,9 @@ emmc_create_partition(PuEmmc *self,
         return FALSE;
     }
 
-    if (ped_disk_type_check_feature(part->disk->type, PED_DISK_TYPE_PARTITION_NAME)) {
+    /* Set PARTLABEL on GPT disks */
+    if (ped_disk_type_check_feature(part->disk->type, PED_DISK_TYPE_PARTITION_NAME) &&
+        partition->label) {
         ped_partition_set_name(part, partition->label);
     }
 
