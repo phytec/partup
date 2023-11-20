@@ -408,7 +408,7 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcBootPartitions *boot_partitions = NULL;
 
         boot_partitions = self->mmc_controls->boot_partitions;
-        if (boot_partitions) {
+        if (boot_partitions && pu_has_bootpart(self->device->path)) {
             PuEmmcInput *input = boot_partitions->input;
 
             if (!pu_bootpart_enable(self->device->path, boot_partitions->enable, error))
