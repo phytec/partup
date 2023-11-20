@@ -287,6 +287,25 @@ pu_write_raw(const gchar *input_path,
     return TRUE;
 }
 
+gboolean
+pu_has_bootpart(const gchar *device)
+{
+    g_autofree gchar *path = NULL;
+    g_autoptr(GFile) file = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, 0);
+
+    for (guint i = 0; i <= 1; i++) {
+        path = g_strdup_printf("%sboot%u", device, i);
+        file = g_file_new_for_path(path);
+
+        if (!g_file_query_exists(file, NULL))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
 static gboolean
 pu_bootpart_force_ro(const gchar *bootpart,
                      gboolean read_only,

@@ -33,6 +33,7 @@ gboolean pu_write_raw(const gchar *input_path,
                       PedSector output_offset,
                       PedSector size,
                       GError **error);
+gboolean pu_has_bootpart(const gchar *device);
 gboolean pu_write_raw_bootpart(const gchar *input,
                                PedDevice *device,
                                guint bootpart,
