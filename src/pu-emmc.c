@@ -754,7 +754,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         }
 
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
-        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", "");
+        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
         part->partuuid = pu_hash_table_lookup_string(v->data.mapping, "partuuid", "");
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
