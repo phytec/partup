@@ -54,7 +54,10 @@ contained partitions of an MMC device. Each entry may contain the following
 options:
 
 ``label`` (string)
-   A partition label.
+   A partition label. The label is set in the filesystem of the partition and in
+   the partition table if GPT is used. For raw ext[234] images, providing a
+   label overwrites the label included in the filesystem image.
+   The default value is ``null``.
 
 ``partuuid`` (string)
    The PARTUUID of the partition. Only supported on GPT partitioned devices. A
