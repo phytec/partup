@@ -93,26 +93,34 @@ options:
 ``input`` (sequence)
    A sequence of input mappings. See :ref:`input-files`.
 
-eMMC Specifics
---------------
+MMC Controls
+------------
+
+MMC specific controls can be specified using the keyword ``mmc`` containing a
+mapping of the following options:
+
+``boot-partitions`` (mapping)
+   An eMMC boot partitions mapping. See :ref:`boot-partitions`.
+
+.. _boot-partitions:
 
 eMMC Boot Partitions
 ....................
 
 eMMC's special boot partitions can be specified using the keyword
-``emmc-boot-partitions`` containing a mapping of the following options:
+``boot-partitions`` containing a mapping of the following options:
 
 ``enable`` (boolean)
    Enable the boot partitions.
 
 ``input-offset`` (integer/string)
-   Offset of the input data to be written.
+   Offset of the input data to be written. This keyword is optional.
 
 ``output-offset`` (integer/string)
-   Offset of the written output data.
+   Offset of the written output data. This keyword is optional.
 
 ``input`` (mapping)
-   An input mapping. See :ref:`input-files`.
+   An input mapping. See :ref:`input-files`. This keyword is optional.
 
 .. _input-files:
 
