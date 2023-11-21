@@ -13,12 +13,6 @@ partup - System Initialization Program
    :target: https://partup.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-+------+------------------------------------------------------------------+
-| NOTE | *partup* is in "beta" state and not yet considered stable. The   |
-|      | configuration API may change without notice. Other parts of the  |
-|      | program may also change drastically until release version 1.0.0. |
-+------+------------------------------------------------------------------+
-
 Dependencies
 ============
 
