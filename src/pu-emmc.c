@@ -43,7 +43,7 @@ typedef struct _PuEmmcBinary {
     PuEmmcInput *input;
 } PuEmmcBinary;
 typedef struct _PuEmmcBootPartitions {
-    gboolean enable;
+    guint enable;
     PedSector input_offset;
     PedSector output_offset;
     PuEmmcInput *input;
@@ -592,14 +592,14 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
     emmc->mmc_controls = g_new0(PuEmmcControls, 1);
     emmc->mmc_controls->boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     emmc->mmc_controls->boot_partitions->enable =
-        pu_hash_table_lookup_boolean(bootpart, "enable", FALSE);
+        pu_hash_table_lookup_int64(bootpart, "enable", 0);
     emmc->mmc_controls->boot_partitions->input_offset =
         pu_hash_table_lookup_sector(bootpart, emmc->device, "input-offset", 0);
     emmc->mmc_controls->boot_partitions->output_offset =
         pu_hash_table_lookup_sector(bootpart, emmc->device, "output-offset", 0);
 
-    g_debug("Parsed bootpart: enable=%s input-offset=%lld output-offset=%lld",
-            emmc->mmc_controls->boot_partitions->enable ? "true" : "false",
+    g_debug("Parsed bootpart: enable=%d input-offset=%lld output-offset=%lld",
+            emmc->mmc_controls->boot_partitions->enable,
             emmc->mmc_controls->boot_partitions->input_offset,
             emmc->mmc_controls->boot_partitions->output_offset);
 
