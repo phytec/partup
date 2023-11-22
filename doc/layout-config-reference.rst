@@ -113,8 +113,8 @@ eMMC Boot Partitions
 eMMC's special boot partitions can be specified using the keyword
 ``boot-partitions`` containing a mapping of the following options:
 
-``enable`` (boolean)
-   Enable the boot partitions.
+``enable`` (integer)
+   Enable and select the boot partition. 0 to disable boot partitions.
 
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.

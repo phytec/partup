@@ -3,7 +3,7 @@ disklabel: msdos
 
 mmc:
   boot-partitions:
-    enable: true
+    enable: 1
     input-offset: 0
     output-offset: 0
     input:
