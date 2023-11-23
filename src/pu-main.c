@@ -56,7 +56,6 @@ cmd_install(PuCommandContext *context,
     g_autofree gchar *device_path = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
     gchar **args;
-    gint api_version;
     gboolean is_mounted;
 
     if (getuid() != 0)
@@ -98,13 +97,8 @@ cmd_install(PuCommandContext *context,
                        config_path);
         return error_out(mount_path);
     }
-    api_version = pu_config_get_api_version(config);
-    if (api_version > PARTUP_VERSION_MAJOR) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "API version %d of configuration file is not compatible "
-                    "with program version %d", api_version, PARTUP_VERSION_MAJOR);
+    if (!pu_config_is_version_compatible(config, PARTUP_VERSION_MAJOR, error))
         return error_out(mount_path);
-    }
 
     emmc = pu_emmc_new(device_path, config, mount_path,
                        arg_install_skip_checksums, error);

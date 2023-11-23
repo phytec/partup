@@ -20,7 +20,7 @@ config_simple(void)
 
     config = pu_config_new_from_file("config/simple.yaml", &error);
     g_assert_nonnull(config);
-    g_assert_cmpint(pu_config_get_api_version(config), ==, 0);
+    g_assert_true(pu_config_is_version_compatible(config, 1, &error));
     root = pu_config_get_root(config);
     g_assert_nonnull(root);
     value = g_hash_table_lookup(root, "disklabel");

@@ -55,14 +55,9 @@ typedef struct {
 PuConfig * pu_config_new_from_file(const gchar *filename,
                                    GError **error);
 
-/**
- * Get the API version specified in the configuration.
- *
- * @param self the configuration instance containing the API version.
- *
- * @return the API version number.
- */
-gint pu_config_get_api_version(PuConfig *config);
+gboolean pu_config_is_version_compatible(PuConfig *config,
+                                         gint version,
+                                         GError **error);
 
 GHashTable * pu_config_get_root(PuConfig *config);
 

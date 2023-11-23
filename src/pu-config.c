@@ -415,12 +415,23 @@ pu_config_new_from_file(const gchar *filename,
     return g_steal_pointer(&config);
 }
 
-gint
-pu_config_get_api_version(PuConfig *config)
+gboolean
+pu_config_is_version_compatible(PuConfig *config,
+                                gint version,
+                                GError **error)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
 
-    return priv->api_version;
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (priv->api_version > version || priv->api_version == 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "API version %d of configuration file is not compatible "
+                    "with program version %d", priv->api_version, version);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 GHashTable *
