@@ -500,6 +500,7 @@ pu_emmc_class_finalize(GObject *object)
         g_free(bin->input->md5sum);
         g_free(bin->input->sha256sum);
         g_free(bin->input);
+        g_free(bin);
     }
     g_list_free(g_steal_pointer(&emmc->raw));
 
