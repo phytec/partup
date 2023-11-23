@@ -1,3 +1,42 @@
+.. _release-1.0.0:
+
+1.0.0
+=====
+
+*Release date: 2023-11-28*
+
+.. rubric:: Changes
+
+-  Host partup's documentation on readthedocs.org.
+-  Add usage description for all commands.
+-  The layout configuration file does not need to be named ``layout.yaml``
+   anymore. Any yaml file provided will be recognized as the layout.
+-  Rename the input uri to filename as all files are provided in a package and
+   therefore only need a relative path.
+-  Set the filesystem label after writing raw ext[234] partition. This
+   overwrites the label of the provided filesystem unless label is set to null.
+-  Restructure the way eMMC boot partitions are specified in the layout
+   configuration, so other MMC controls can be added in the future. Make the
+   input for eMMC boot partitions optional, allowing to disable them without any
+   input.
+-  Only write eMMC boot partitions if they actually exist. SD cards do not
+   support eMMC boot partitions, so they should be ignored for this option.
+-  Allow setting the eMMC boot partition to be enabled by its number.
+   Previously, only a boolean value was allowed, but now it is possible to
+   specify the exact boot partition to enable.
+-  Multiple binaries for the eMMC boot partitions can now be specified. Each
+   with their own input and output offset.
+
+.. rubric:: Bug Fixes
+
+-  Set LABEL for supported filesystems during filesystem creation. Previously
+   only PARTLABEL would be set, but this is only supported with GPT.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__,
+`Leonard Anderweit <https://github.com/landerweit-phytec>`__
+
 .. _release-0.4.0:
 
 0.4.0
