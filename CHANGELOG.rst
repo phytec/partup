@@ -1,3 +1,5 @@
+.. _release-0.4.0:
+
 0.4.0
 =====
 
@@ -45,6 +47,8 @@
 `Martin Schwan <https://github.com/mschwan-phytec>`__,
 `Leonard Anderweit <https://github.com/landerweit-phytec>`__
 
+.. _release-0.3.1:
+
 0.3.1
 =====
 
@@ -67,6 +71,8 @@
 
 `Leonard Anderweit <https://github.com/landerweit-phytec>`__,
 `Martin Schwan <https://github.com/mschwan-phytec>`__
+
+.. _release-0.3.0:
 
 0.3.0
 =====
@@ -123,6 +129,8 @@
 `Martin Schwan <https://github.com/mschwan-phytec>`__,
 `Leonard Anderweit <https://github.com/landerweit-phytec>`__
 
+.. _release-0.2.1:
+
 0.2.1
 =====
 
@@ -139,6 +147,8 @@
 -  Increase the padding of logical partitions to two sectors to allow storing the
    EBR information. Previously, logical partitions may have overlapped because
    the padding was too narrow.
+
+.. _release-0.2.0:
 
 0.2.0
 =====
@@ -169,6 +179,8 @@
 -  Fix a floating point exception when no expanding partitions were specified.
    This bug occured because with no expanding partition a division by zero would
    be executed.
+
+.. _release-0.1.0:
 
 0.1.0
 =====
