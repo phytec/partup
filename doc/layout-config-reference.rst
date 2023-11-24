@@ -116,6 +116,9 @@ eMMC's special boot partitions can be specified using the keyword
 ``enable`` (integer)
    Enable and select the boot partition. 0 to disable boot partitions.
 
+``binaries`` (sequence)
+   Input data for the boot partitions. This keyword is optional.
+
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.
 
@@ -123,7 +126,7 @@ eMMC's special boot partitions can be specified using the keyword
    Offset of the written output data. This keyword is optional.
 
 ``input`` (mapping)
-   An input mapping. See :ref:`input-files`. This keyword is optional.
+   An input mapping. See :ref:`input-files`.
 
 .. _input-files:
 
