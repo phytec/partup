@@ -4,12 +4,13 @@ disklabel: msdos
 mmc:
   boot-partitions:
     enable: 1
-    input-offset: 0
-    output-offset: 0
-    input:
-      filename: barebox.bin
-      md5sum: 46b1db79bc81e7af11b29436fb7a2515
-      sha256sum: a4d0b0802fc30fbdc987def1975f665190aa35af64fcd9dae26fc1b121c71966
+    binaries:
+      - input-offset: 0
+        output-offset: 0
+        input:
+          filename: barebox.bin
+          md5sum: 46b1db79bc81e7af11b29436fb7a2515
+          sha256sum: a4d0b0802fc30fbdc987def1975f665190aa35af64fcd9dae26fc1b121c71966
 
 clean:
   - offset: 3840KiB
