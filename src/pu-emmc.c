@@ -44,9 +44,7 @@ typedef struct _PuEmmcBinary {
 } PuEmmcBinary;
 typedef struct _PuEmmcBootPartitions {
     guint enable;
-    PedSector input_offset;
-    PedSector output_offset;
-    PuEmmcInput *input;
+    GList *input;
 } PuEmmcBootPartitions;
 typedef struct _PuEmmcControls {
     PuEmmcBootPartitions *boot_partitions;
@@ -413,15 +411,16 @@ pu_emmc_write_data(PuFlash *flash,
 
         boot_partitions = self->mmc_controls->boot_partitions;
         if (boot_partitions && pu_has_bootpart(self->device->path)) {
-            PuEmmcInput *input = boot_partitions->input;
+            GList *input = boot_partitions->input;
 
             if (!pu_bootpart_enable(self->device->path, boot_partitions->enable, error))
                 return FALSE;
 
-            if (input) {
+            for (GList *i = input; i != NULL; i = i->next) {
+                PuEmmcBinary *bin = i->data;
                 g_autofree gchar *path = NULL;
 
-                path = pu_path_from_filename(input->filename, prefix, error);
+                path = pu_path_from_filename(bin->input->filename, prefix, error);
                 if (path == NULL) {
                     g_prefix_error(error, "Failed parsing input filename for eMMC boot partition: ");
                     return FALSE;
@@ -433,32 +432,32 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 }
 
-                if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
+                if (!g_str_equal(bin->input->md5sum, "") && !skip_checksums) {
                     g_debug("Checking MD5 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, input->md5sum,
+                    if (!pu_checksum_verify_file(path, bin->input->md5sum,
                                                  G_CHECKSUM_MD5, error))
                         return FALSE;
                 }
-                if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
+                if (!g_str_equal(bin->input->sha256sum, "") && !skip_checksums) {
                     g_debug("Checking SHA256 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, input->sha256sum,
+                    if (!pu_checksum_verify_file(path, bin->input->sha256sum,
                                                  G_CHECKSUM_SHA256, error))
                         return FALSE;
                 }
 
                 g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
-                        input->filename, boot_partitions->input_offset,
-                        boot_partitions->output_offset);
+                        bin->input->filename, bin->input_offset,
+                        bin->output_offset);
 
                 if (!pu_write_raw_bootpart(path, self->device, 0,
-                                           boot_partitions->input_offset,
-                                           boot_partitions->output_offset,
+                                           bin->input_offset,
+                                           bin->output_offset,
                                            error))
                     return FALSE;
 
                 if (!pu_write_raw_bootpart(path, self->device, 1,
-                                           boot_partitions->input_offset,
-                                           boot_partitions->output_offset,
+                                           bin->input_offset,
+                                           bin->output_offset,
                                            error))
                     return FALSE;
             }
@@ -506,13 +505,16 @@ pu_emmc_class_finalize(GObject *object)
 
     if (emmc->mmc_controls) {
         if (emmc->mmc_controls->boot_partitions) {
-            PuEmmcInput *input = emmc->mmc_controls->boot_partitions->input;
-            if (input) {
-                g_free(input->filename);
-                g_free(input->md5sum);
-                g_free(input->sha256sum);
-                g_free(input);
+            GList *input = emmc->mmc_controls->boot_partitions->input;
+            for (GList *b = input; b != NULL; b = b->next) {
+                PuEmmcBinary *bin = b->data;
+                g_free(bin->input->filename);
+                g_free(bin->input->md5sum);
+                g_free(bin->input->sha256sum);
+                g_free(bin->input);
+                g_free(bin);
             }
+            g_list_free(g_steal_pointer(&input));
             g_free(emmc->mmc_controls->boot_partitions);
         }
         g_free(emmc->mmc_controls);
@@ -594,34 +596,46 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
     emmc->mmc_controls->boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     emmc->mmc_controls->boot_partitions->enable =
         pu_hash_table_lookup_int64(bootpart, "enable", 0);
-    emmc->mmc_controls->boot_partitions->input_offset =
-        pu_hash_table_lookup_sector(bootpart, emmc->device, "input-offset", 0);
-    emmc->mmc_controls->boot_partitions->output_offset =
-        pu_hash_table_lookup_sector(bootpart, emmc->device, "output-offset", 0);
 
-    g_debug("Parsed bootpart: enable=%d input-offset=%lld output-offset=%lld",
-            emmc->mmc_controls->boot_partitions->enable,
-            emmc->mmc_controls->boot_partitions->input_offset,
-            emmc->mmc_controls->boot_partitions->output_offset);
+    g_debug("Parsed bootpart: enable=%d",
+            emmc->mmc_controls->boot_partitions->enable);
 
-    PuConfigValue *value_input = g_hash_table_lookup(bootpart, "input");
-    if (value_input == NULL) {
-        g_debug("No input specified for 'boot-partitions'. Ignoring...");
-        return TRUE;
+    GList *input_list = pu_hash_table_lookup_list(bootpart, "binaries", NULL);
+    for (GList *b = input_list; b != NULL; b = b->next) {
+        PuConfigValue *v = b->data;
+        PuEmmcBinary *bin = g_new0(PuEmmcBinary, 1);
+        bin->input_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                        "input-offset", 0);
+        bin->output_offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device,
+                                                         "output-offset", 0);
+
+        PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
+        if (value_input == NULL) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "No input specified for boot partition binaries");
+            return FALSE;
+        }
+        if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "'input' of binary does not contain a mapping");
+            return FALSE;
+        }
+
+        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
+        input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
+        input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+
+        bin->input = input;
+        g_debug("Parsed bootpart input: filename=%s md5sum=%s sha256sum=%s",
+                input->filename, input->md5sum, input->sha256sum);
+
+        emmc->mmc_controls->boot_partitions->input =
+            g_list_prepend(emmc->mmc_controls->boot_partitions->input, bin);
     }
-    if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
-        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
-                    "'input' of binary does not contain a mapping");
-        return FALSE;
-    }
-    PuEmmcInput *input = g_new0(PuEmmcInput, 1);
-    input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
-    input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
-    input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
-    emmc->mmc_controls->boot_partitions->input = input;
 
-    g_debug("Parsed bootpart input: filename=%s md5sum=%s sha256sum=%s",
-            input->filename, input->md5sum, input->sha256sum);
+    emmc->mmc_controls->boot_partitions->input
+        = g_list_reverse(emmc->mmc_controls->boot_partitions->input);
 
     return TRUE;
 }
