@@ -11,8 +11,8 @@ API Version
 
    This scalar is mandatory.
 
-MMC Options
------------
+Disk Options
+------------
 
 ``disklabel`` (string)
    Partition table for the device. Currently supported options are ``msdos``
