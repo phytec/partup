@@ -117,7 +117,15 @@ eMMC's special boot partitions can be specified using the keyword
    Enable and select the boot partition. 0 to disable boot partitions.
 
 ``binaries`` (sequence)
-   Input data for the boot partitions. This keyword is optional.
+   A sequence of binaries to copy to the boot partitions. See :ref:`binaries`.
+   This keyword is optional.
+
+.. _binaries:
+
+.. rubric:: Binaries
+
+Binary files are specified by a scalar named ``binaries`` containing a sequence
+of mappings with at least an ``input``.
 
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.
