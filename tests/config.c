@@ -20,6 +20,7 @@ config_simple(void)
 
     config = pu_config_new_from_file("config/simple.yaml", &error);
     g_assert_nonnull(config);
+    g_assert_false(pu_config_is_version_compatible(config, 0, NULL));
     g_assert_true(pu_config_is_version_compatible(config, 1, &error));
     root = pu_config_get_root(config);
     g_assert_nonnull(root);
