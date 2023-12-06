@@ -209,7 +209,9 @@ pu_package_list_contents(const gchar *package,
     g_autofree gchar *dir_basename = NULL;
     g_autofree gchar *mountpoint = NULL;
     g_autofree gchar *layout_file = NULL;
+    g_autofree gchar *layout_contents = NULL;
     g_autoptr(GFile) dir = NULL;
+    g_autoptr(GRegex) regex = NULL;
 
     g_return_val_if_fail(g_strcmp0(package, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
@@ -217,6 +219,18 @@ pu_package_list_contents(const gchar *package,
     if (!pu_package_mount(package, &mountpoint, &layout_file, error))
         return FALSE;
 
+    if (!g_file_get_contents(layout_file, &layout_contents, NULL, error)) {
+        pu_umount(mountpoint, NULL);
+        return FALSE;
+    }
+    regex = g_regex_new("^\\s*$[\\r\\n]*", G_REGEX_MULTILINE, 0, error);
+    layout_contents = g_regex_replace(regex, layout_contents, -1, 0, "", 0, error);
+    g_message("Layout Configuration");
+    g_message("====================");
+    g_message("%s", layout_contents);
+
+    g_message("Package Contents");
+    g_message("================");
     dir = g_file_new_for_path(mountpoint);
     if (!print_dir_content(dir, TRUE, print_size, error)) {
         pu_umount(mountpoint, NULL);
