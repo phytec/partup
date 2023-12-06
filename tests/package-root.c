@@ -12,7 +12,7 @@
 #define PACKAGE_FILENAME "package.partup"
 
 static void
-package_list_contents(PackageFilesFixture *fixture,
+package_show_contents(PackageFilesFixture *fixture,
                       G_GNUC_UNUSED gconstpointer user_data)
 {
     g_autoptr(GFile) package_file = NULL;
@@ -22,7 +22,7 @@ package_list_contents(PackageFilesFixture *fixture,
     g_assert(pu_package_create(fixture->input_files, PACKAGE_FILENAME, FALSE, &fixture->error));
     g_assert_no_error(fixture->error);
 
-    g_assert(pu_package_list_contents(PACKAGE_FILENAME, TRUE, &fixture->error));
+    g_assert(pu_package_show_contents(PACKAGE_FILENAME, TRUE, &fixture->error));
     g_assert_no_error(fixture->error);
 
     package_file = g_file_new_build_filename(fixture->path_tmp, PACKAGE_FILENAME, NULL);
@@ -76,8 +76,8 @@ main(int argc,
     g_chdir(PARTUP_TEST_SRCDIR);
 #endif
 
-    g_test_add("/package/list-contents", PackageFilesFixture, NULL,
-               package_files_setup, package_list_contents, package_files_teardown);
+    g_test_add("/package/show_contents", PackageFilesFixture, NULL,
+               package_files_setup, package_show_contents, package_files_teardown);
     g_test_add("/package/mount", PackageFilesFixture, NULL,
                package_files_setup, package_mount, package_files_teardown);
 

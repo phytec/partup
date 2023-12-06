@@ -159,7 +159,7 @@ cmd_show(PuCommandContext *context,
 
     args = pu_command_context_get_args(context);
 
-    return pu_package_list_contents(args[0], arg_show_size, error);
+    return pu_package_show_contents(args[0], arg_show_size, error);
 }
 
 static gboolean

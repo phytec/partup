@@ -202,7 +202,7 @@ print_dir_content(GFile *dir,
 }
 
 gboolean
-pu_package_list_contents(const gchar *package,
+pu_package_show_contents(const gchar *package,
                          gboolean print_size,
                          GError **error)
 {

@@ -32,7 +32,7 @@ gboolean pu_package_create(gchar **files,
                            const gchar *output,
                            gboolean force_overwrite,
                            GError **error);
-gboolean pu_package_list_contents(const gchar *package,
+gboolean pu_package_show_contents(const gchar *package,
                                   gboolean print_size,
                                   GError **error);
 gboolean pu_package_mount(const gchar *package,
