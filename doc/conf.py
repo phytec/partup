@@ -4,12 +4,6 @@ project = u'partup'
 copyright = u'2023, PHYTEC Messtechnik GmbH'
 author = u'Martin Schwan'
 
-# -- General configuration ---------------------------------------------------
-
-extensions = [
-    'sphinx.ext.githubpages'
-]
-
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = 'sphinx_rtd_theme'
