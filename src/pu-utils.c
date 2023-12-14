@@ -368,6 +368,7 @@ pu_write_raw_bootpart(const gchar *input,
 gboolean
 pu_bootpart_enable(const gchar *device,
                    guint bootpart,
+                   gboolean boot_ack,
                    GError **error)
 {
     g_autofree gchar *cmd = NULL;
@@ -376,7 +377,7 @@ pu_bootpart_enable(const gchar *device,
     g_return_val_if_fail(bootpart <= 2, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    cmd = g_strdup_printf("mmc bootpart enable %u 0 %s", bootpart, device);
+    cmd = g_strdup_printf("mmc bootpart enable %u %d %s", bootpart, boot_ack, device);
 
     return pu_spawn_command_line_sync(cmd, error);
 }

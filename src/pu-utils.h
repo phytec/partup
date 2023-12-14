@@ -42,6 +42,7 @@ gboolean pu_write_raw_bootpart(const gchar *input,
                                GError **error);
 gboolean pu_bootpart_enable(const gchar *device,
                             guint bootpart,
+                            gboolean boot_ack,
                             GError **error);
 gboolean pu_partition_set_partuuid(const gchar *device,
                                    guint index,
