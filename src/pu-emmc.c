@@ -44,6 +44,7 @@ typedef struct _PuEmmcBinary {
 } PuEmmcBinary;
 typedef struct _PuEmmcBootPartitions {
     guint enable;
+    gboolean boot_ack;
     GList *input;
 } PuEmmcBootPartitions;
 typedef struct _PuEmmcControls {
@@ -413,7 +414,8 @@ pu_emmc_write_data(PuFlash *flash,
         if (boot_partitions && pu_has_bootpart(self->device->path)) {
             GList *input = boot_partitions->input;
 
-            if (!pu_bootpart_enable(self->device->path, boot_partitions->enable, error))
+            if (!pu_bootpart_enable(self->device->path, boot_partitions->enable,
+                                    boot_partitions->boot_ack, error))
                 return FALSE;
 
             for (GList *i = input; i != NULL; i = i->next) {
@@ -596,9 +598,12 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
     emmc->mmc_controls->boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     emmc->mmc_controls->boot_partitions->enable =
         pu_hash_table_lookup_int64(bootpart, "enable", 0);
+    emmc->mmc_controls->boot_partitions->boot_ack =
+        pu_hash_table_lookup_boolean(bootpart, "boot-ack", FALSE);
 
-    g_debug("Parsed bootpart: enable=%d",
-            emmc->mmc_controls->boot_partitions->enable);
+    g_debug("Parsed bootpart: enable=%d boot-ack=%s",
+            emmc->mmc_controls->boot_partitions->enable,
+            emmc->mmc_controls->boot_partitions->boot_ack ? "true" : "false");
 
     GList *input_list = pu_hash_table_lookup_list(bootpart, "binaries", NULL);
     for (GList *b = input_list; b != NULL; b = b->next) {
