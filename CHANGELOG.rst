@@ -5,6 +5,10 @@
 
 *Release date: TBD*
 
+.. rubric:: Changes
+
+-  Allow setting eMMC boot acknowledge.
+
 .. _release-1.0.0:
 
 1.0.0

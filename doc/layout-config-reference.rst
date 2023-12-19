@@ -116,6 +116,12 @@ eMMC's special boot partitions can be specified using the keyword
 ``enable`` (integer)
    Enable and select the boot partition. 0 to disable boot partitions.
 
+``boot-ack`` (boolean)
+   Set the boot acknowledge property of the eMMC. The default value is
+   ``false``.
+
+   Available since: :ref:`release-2.0.0`
+
 ``binaries`` (sequence)
    A sequence of binaries to copy to the boot partitions. See :ref:`binaries`.
    This keyword is optional.
