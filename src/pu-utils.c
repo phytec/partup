@@ -114,8 +114,10 @@ pu_make_filesystem(const gchar *part,
 
     cmd = g_string_new(NULL);
 
-    if (g_strcmp0(fstype, "fat32") == 0) {
-        g_string_append(cmd, "mkfs.vfat ");
+    if (g_strcmp0(fstype, "fat16") == 0) {
+        g_string_append(cmd, "mkfs.fat -F 16 ");
+    } else if (g_strcmp0(fstype, "fat32") == 0) {
+        g_string_append(cmd, "mkfs.fat -F 32 ");
     } else if (g_strcmp0(fstype, "ext2") == 0) {
         g_string_append(cmd, "mkfs.ext2 ");
     } else if (g_strcmp0(fstype, "ext3") == 0) {
@@ -132,7 +134,7 @@ pu_make_filesystem(const gchar *part,
     }
 
     if (g_strcmp0(fstype, "") > 0) {
-        if (g_strcmp0(fstype, "fat32") == 0) {
+        if (g_regex_match_simple("^fat(16|32)$", fstype, 0, 0)) {
             g_string_append_printf(cmd, "-n \"%s\" ", label);
         } else if (g_regex_match_simple("^ext[234]$", fstype, 0, 0)) {
             g_string_append_printf(cmd, "-L \"%s\" ", label);
