@@ -69,7 +69,7 @@ options:
    logical, too. Logical partitions are only supported with the ``msdos``
    partition table.
 
-``filessytem`` (string)
+``filesystem`` (string)
    The filesystem type to use during formatting of the partition, e.g. ``fat32``
    or ``ext4``.
 
