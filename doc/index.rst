@@ -13,7 +13,7 @@ Main Features
 -  Partitioning block devices
 -  Automatic partition size calculation to use whole device
 -  Supported disklabels: ``gpt``, ``msdos``
--  Supported filesystems: ``fat32``, ``ext2``, ``ext3``, ``ext4``
+-  Supported filesystems: ``fat16``, ``fat32``, ``ext2``, ``ext3``, ``ext4``
 -  Support for eMMC boot partitions
 -  Write files and extract archives to partitions
 -  Write raw binaries to device at specified offset
