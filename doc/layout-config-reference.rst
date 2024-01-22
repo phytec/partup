@@ -73,6 +73,14 @@ options:
    The filesystem type to use during formatting of the partition, e.g. ``fat32``
    or ``ext4``.
 
+``mkfs-extra-args`` (string)
+   Extra arguments to be passed to mkfs. Note, that the allowed arguments may be
+   different, depending on the used filesystem type. See the man page of mkfs
+   with the particular filesystem to read up allowed arguments, e.g. ``man
+   mkfs.fat``.
+
+   Available since: :ref:`release-2.0.0`
+
 ``size`` (integer/string)
    The size of the partition.
 
