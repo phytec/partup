@@ -30,6 +30,7 @@ typedef struct _PuEmmcPartition {
     gchar *partuuid;
     PedPartitionType type;
     gchar *filesystem;
+    gchar *mkfs_extra_args;
     PedSector size;
     PedSector offset;
     PedSector block_size;
@@ -290,7 +291,8 @@ pu_emmc_write_data(PuFlash *flash,
 
         g_debug("Creating filesystem '%s' on '%s'", part->filesystem, part_path);
 
-        if (!pu_make_filesystem(part_path, part->filesystem, part->label, error))
+        if (!pu_make_filesystem(part_path, part->filesystem, part->label,
+                                part->mkfs_extra_args, error))
             return FALSE;
 
         if (!part->input) {
@@ -481,6 +483,7 @@ pu_emmc_class_finalize(GObject *object)
         g_free(part->label);
         g_free(part->partuuid);
         g_free(part->filesystem);
+        g_free(part->mkfs_extra_args);
         g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *in = i->data;
@@ -806,6 +809,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
         part->partuuid = pu_hash_table_lookup_string(v->data.mapping, "partuuid", "");
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", "fat32");
+        part->mkfs_extra_args = pu_hash_table_lookup_string(v->data.mapping, "mkfs-extra-args", NULL);
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
         part->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "offset", 0);
         part->block_size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "block-size", 2);
@@ -840,10 +844,11 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
             }
         }
 
-        g_debug("Parsed partition: label=%s filesystem=%s type=%s size=%lld "
-                "offset=%lld block-size=%lld expand=%s",
-                part->label, part->filesystem, type_str, part->size, part->offset,
-                part->block_size, part->expand ? "true" : "false");
+        g_debug("Parsed partition: label=%s filesystem=%s mkfs-extra-args=%s "
+                "type=%s size=%lld offset=%lld block-size=%lld expand=%s",
+                part->label, part->filesystem, part->mkfs_extra_args, type_str,
+                part->size, part->offset, part->block_size,
+                part->expand ? "true" : "false");
 
         GList *flag_list = pu_hash_table_lookup_list(v->data.mapping, "flags", NULL);
         if (flag_list != NULL) {

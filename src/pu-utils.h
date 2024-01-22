@@ -20,6 +20,7 @@ gboolean pu_archive_extract(const gchar *filename,
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
                             const gchar *label,
+                            const gchar *extra_args,
                             GError **error);
 gboolean pu_set_ext_label(const gchar *part,
                           const gchar *label,
