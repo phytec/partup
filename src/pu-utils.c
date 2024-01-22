@@ -105,6 +105,7 @@ gboolean
 pu_make_filesystem(const gchar *part,
                    const gchar *fstype,
                    const gchar *label,
+                   const gchar *extra_args,
                    GError **error)
 {
     g_autoptr(GString) cmd = NULL;
@@ -137,6 +138,10 @@ pu_make_filesystem(const gchar *part,
         } else if (g_regex_match_simple("^ext[234]$", fstype, 0, 0)) {
             g_string_append_printf(cmd, "-L \"%s\" ", label);
         }
+    }
+
+    if (g_strcmp0(extra_args, "") > 0) {
+        g_string_append_printf(cmd, "%s ", extra_args);
     }
 
     g_string_append(cmd, part);
