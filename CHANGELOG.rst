@@ -1,6 +1,6 @@
-.. _release-1.1.0:
+.. _release-2.0.0:
 
-1.1.0
+2.0.0
 =====
 
 *Release date: TBD*
