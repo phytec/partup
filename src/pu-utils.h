@@ -54,6 +54,9 @@ gboolean pu_wait_for_partitions(GError **error);
 gboolean pu_set_hwreset(const gchar *device,
                         const gchar *hwreset,
                         GError **error);
+gboolean pu_set_bootbus(const gchar *device,
+                        const gchar *bootbus,
+                        GError **error);
 goffset pu_get_file_size(const gchar *path,
                          GError **error);
 gchar * pu_path_from_filename(const gchar *filename,

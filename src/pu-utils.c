@@ -477,6 +477,27 @@ pu_set_hwreset(const gchar *device,
     return TRUE;
 }
 
+gboolean
+pu_set_bootbus(const gchar *device,
+               const gchar *bootbus,
+               GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+    if (g_strcmp0(bootbus, "") <= 0)
+        return TRUE;
+
+    cmd = g_strdup_printf("mmc bootbus set %s %s", bootbus, device);
+
+    if (!pu_spawn_command_line_sync(cmd, error))
+        return FALSE;
+
+    return TRUE;
+}
+
 goffset
 pu_get_file_size(const gchar *path,
                  GError **error)
