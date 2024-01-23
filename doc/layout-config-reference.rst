@@ -70,8 +70,15 @@ options:
    partition table.
 
 ``filesystem`` (string)
-   The filesystem type to use during formatting of the partition, e.g. ``fat32``
-   or ``ext4``.
+   The filesystem type to use during formatting of the partition.
+
+   The following filesystems are currently supported:
+
+   - ``ext2``
+   - ``ext3``
+   - ``ext4``
+   - ``fat16`` (Available since: :ref:`release-2.0.0`)
+   - ``fat32``
 
 ``mkfs-extra-args`` (string)
    Extra arguments to be passed to mkfs. Note, that the allowed arguments may be
