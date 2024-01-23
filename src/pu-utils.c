@@ -442,6 +442,41 @@ pu_wait_for_partitions(GError **error)
     return TRUE;
 }
 
+gboolean
+pu_set_hwreset(const gchar *device,
+               const gchar *hwreset,
+               GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+    if (g_strcmp0(hwreset, "") <= 0)
+        return TRUE;
+
+    if (g_strcmp0(hwreset, "enable") == 0) {
+        cmd = g_strdup_printf("mmc hwreset enable %s", device);
+    } else if (g_strcmp0(hwreset, "disable") == 0) {
+        cmd = g_strdup_printf("mmc hwreset disable %s", device);
+    } else {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Invalid option for hwreset provided: %s", hwreset);
+        return FALSE;
+    }
+
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        if (strstr((*error)->message, "H/W Reset is already permanently")) {
+            g_debug("%s", (*error)->message);
+            g_clear_error(error);
+            return TRUE;
+        }
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 goffset
 pu_get_file_size(const gchar *path,
                  GError **error)

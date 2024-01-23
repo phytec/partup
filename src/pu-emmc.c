@@ -49,6 +49,7 @@ typedef struct _PuEmmcBootPartitions {
     GList *input;
 } PuEmmcBootPartitions;
 typedef struct _PuEmmcControls {
+    gchar *hwreset;
     PuEmmcBootPartitions *boot_partitions;
 } PuEmmcControls;
 typedef struct _PuEmmcClean {
@@ -412,6 +413,12 @@ pu_emmc_write_data(PuFlash *flash,
     if (self->mmc_controls) {
         PuEmmcBootPartitions *boot_partitions = NULL;
 
+        if (pu_has_bootpart(self->device->path)) {
+            if (!pu_set_hwreset(self->device->path,
+                                   self->mmc_controls->hwreset, error))
+                return FALSE;
+        }
+
         boot_partitions = self->mmc_controls->boot_partitions;
         if (boot_partitions && pu_has_bootpart(self->device->path)) {
             GList *input = boot_partitions->input;
@@ -509,6 +516,7 @@ pu_emmc_class_finalize(GObject *object)
     g_list_free(g_steal_pointer(&emmc->raw));
 
     if (emmc->mmc_controls) {
+        g_free(emmc->mmc_controls->hwreset);
         if (emmc->mmc_controls->boot_partitions) {
             GList *input = emmc->mmc_controls->boot_partitions->input;
             for (GList *b = input; b != NULL; b = b->next) {
@@ -585,7 +593,12 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
         return FALSE;
     }
 
-    value_bootpart = g_hash_table_lookup(value_mmc->data.mapping, "boot-partitions");
+    GHashTable *mmc_control = value_mmc->data.mapping;
+    emmc->mmc_controls = g_new0(PuEmmcControls, 1);
+    emmc->mmc_controls->hwreset=
+        pu_hash_table_lookup_string(mmc_control, "hwreset", NULL);
+
+    value_bootpart = g_hash_table_lookup(mmc_control, "boot-partitions");
     if (!value_bootpart) {
         g_debug("No entry 'boot-partitions' found. Skipping...");
         return TRUE;
@@ -597,7 +610,6 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
     }
 
     GHashTable *bootpart = value_bootpart->data.mapping;
-    emmc->mmc_controls = g_new0(PuEmmcControls, 1);
     emmc->mmc_controls->boot_partitions = g_new0(PuEmmcBootPartitions, 1);
     emmc->mmc_controls->boot_partitions->enable =
         pu_hash_table_lookup_int64(bootpart, "enable", 0);
