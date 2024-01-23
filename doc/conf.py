@@ -1,7 +1,7 @@
 # -- Project information -----------------------------------------------------
 
 project = u'partup'
-copyright = u'2023, PHYTEC Messtechnik GmbH'
+copyright = u'2024, PHYTEC Messtechnik GmbH'
 author = u'Martin Schwan'
 
 # -- Options for HTML output -------------------------------------------------
