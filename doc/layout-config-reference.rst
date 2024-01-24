@@ -117,6 +117,15 @@ MMC Controls
 MMC specific controls can be specified using the keyword ``mmc`` containing a
 mapping of the following options:
 
+``hwreset`` (string)
+   Enable or disable the eMMC H/W reset feature with ``enable`` or ``disable``.
+   By default, H/W reset is not changed.
+
+   .. warning::
+      This is a one-time programmable, irreversible change.
+
+   Available since: :ref:`release-2.0.0`
+
 ``boot-partitions`` (mapping)
    An eMMC boot partitions mapping. See :ref:`boot-partitions`.
 
