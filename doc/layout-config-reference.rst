@@ -126,6 +126,13 @@ mapping of the following options:
 
    Available since: :ref:`release-2.0.0`
 
+``bootbus`` (string)
+   Set the boot bus conditions. See the `mmc-utils manpage
+   <https://manpages.debian.org/unstable/mmc-utils/mmc.1.en.html#bootbus>`_ for
+   a description of possible values.
+
+   Available since: :ref:`release-2.0.0`
+
 ``boot-partitions`` (mapping)
    An eMMC boot partitions mapping. See :ref:`boot-partitions`.
 
