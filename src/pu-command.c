@@ -257,6 +257,15 @@ pu_command_context_parse(PuCommandContext *context,
         }
     }
 
+    /* Show help text by default, if no command is provided */
+    if (!context->command && !(*argv)[1]) {
+        g_autofree gchar *args_old = g_strjoinv(" ", *argv);
+        g_autofree gchar *args_new = g_strjoin(" ", args_old, "--help", NULL);
+        g_strfreev(*argv);
+        *argv = g_strsplit(args_new, " ", -1);
+        (*argc)++;
+    }
+
     if (!context->command &&
         !(g_strv_contains((const gchar * const *) *argv, "-h") ||
           g_strv_contains((const gchar * const *) *argv, "--help"))) {
