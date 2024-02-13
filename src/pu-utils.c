@@ -467,7 +467,7 @@ pu_set_hwreset(const gchar *device,
 
     if (!pu_spawn_command_line_sync(cmd, error)) {
         if (strstr((*error)->message, "H/W Reset is already permanently")) {
-            g_debug("%s", (*error)->message);
+            g_debug("H/W reset already permanently set");
             g_clear_error(error);
             return TRUE;
         }
