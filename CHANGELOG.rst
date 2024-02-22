@@ -3,11 +3,22 @@
 2.0.0
 =====
 
-*Release date: TBD*
+*Release date: 2024-02-22*
 
 .. rubric:: Changes
 
--  Allow setting eMMC boot acknowledge.
+-  Allow setting the eMMC boot acknowledgement bit.
+-  Allow enabling or disabling the eMMC H/W reset feature bit. This is a
+   one-time programmable setting.
+-  Allow setting the eMMC bootbus conditions.
+-  Print the layout configuration when using ``partup show``.
+-  Add support for the FAT16 filesystem type.
+-  Allow passing extra arguments to mkfs when making the filesystem on a
+   partition with the option ``mkfs-extra-args``.
+-  Print the help text when no command is provided to partup.
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__,
+`Leonard Anderweit <https://github.com/landerweit-phytec>`__
 
 .. _release-1.0.0:
 
