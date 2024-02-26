@@ -21,8 +21,9 @@
 #define UDEVADM_SETTLE_TIMEOUT 10
 
 gboolean
-pu_spawn_command_line_sync(const gchar *command_line,
-                           GError **error)
+pu_spawn_command_line_sync_result(const gchar *command_line,
+                                  gchar **result,
+                                  GError **error)
 {
     GSpawnFlags spawn_flags;
     gchar **argv = NULL;
@@ -36,9 +37,11 @@ pu_spawn_command_line_sync(const gchar *command_line,
     if (!g_shell_parse_argv(command_line, NULL, &argv, error))
         return FALSE;
 
-    spawn_flags = G_SPAWN_SEARCH_PATH |
-                  G_SPAWN_STDOUT_TO_DEV_NULL;
-    if (!g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, NULL, &errmsg,
+    spawn_flags = G_SPAWN_SEARCH_PATH;
+    if (!result)
+        spawn_flags |= G_SPAWN_STDOUT_TO_DEV_NULL;
+
+    if (!g_spawn_sync(NULL, argv, NULL, spawn_flags, NULL, NULL, result, &errmsg,
                       &wait_status, error)) {
         g_prefix_error(error, "Failed spawning process: ");
         g_strfreev(argv);
@@ -57,6 +60,13 @@ pu_spawn_command_line_sync(const gchar *command_line,
 }
 
 gboolean
+pu_spawn_command_line_sync(const gchar *command_line,
+                           GError **error)
+{
+    return pu_spawn_command_line_sync_result(command_line, NULL, error);
+}
+
+gboolean
 pu_file_copy(const gchar *src,
              const gchar *dest,
              GError **error)
@@ -71,8 +81,12 @@ pu_file_copy(const gchar *src,
 
     g_debug("Copying '%s' to '%s'", src, dest);
 
+    if (g_file_test(dest, G_FILE_TEST_IS_DIR))
+        out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
+    else
+        out_path = g_strdup(dest);
+
     in = g_file_new_for_path(src);
-    out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
     out = g_file_new_for_path(out_path);
 
     return g_file_copy(in, out, G_FILE_COPY_NONE, NULL, NULL, NULL, error);
@@ -597,4 +611,67 @@ pu_str_pre_remove(gchar *string,
     memmove(string, start, strlen((gchar *) start) + 1);
 
     return string;
+}
+
+gboolean
+pu_parse_size(const gchar *string,
+              gsize *size,
+              GError **error)
+{
+    gchar *unit;
+    gsize unit_factor = 0;
+
+    g_return_val_if_fail(g_strcmp0(string, "") > 0, FALSE);
+    g_return_val_if_fail(size, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    *size = g_ascii_strtoull(string, &unit, 10);
+
+    if (strlen(unit) > 1 && g_ascii_tolower(unit[1]) == 'i') {
+        switch (g_ascii_tolower(unit[0])) {
+        case 'k':
+            unit_factor = PED_KIBIBYTE_SIZE;
+            break;
+        case 'm':
+            unit_factor = PED_MEBIBYTE_SIZE;
+            break;
+        case 'g':
+            unit_factor = PED_GIBIBYTE_SIZE;
+            break;
+        case 't':
+            unit_factor = PED_TEBIBYTE_SIZE;
+        }
+    } else if (strlen(unit) > 0) {
+        switch (g_ascii_tolower(unit[0])) {
+        case 's':
+            unit_factor = PED_SECTOR_SIZE_DEFAULT;
+            break;
+        case 'b':
+            unit_factor = 1;
+            break;
+        case 'k':
+            unit_factor = PED_KILOBYTE_SIZE;
+            break;
+        case 'm':
+            unit_factor = PED_MEGABYTE_SIZE;
+            break;
+        case 'g':
+            unit_factor = PED_GIGABYTE_SIZE;
+            break;
+        case 't':
+            unit_factor = PED_TERABYTE_SIZE;
+        }
+    } else {
+        unit_factor = 1;
+    }
+
+    if (unit_factor == 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Size '%s' could not be parsed, unit '%s' is unknown",
+                    string, unit);
+        return FALSE;
+    }
+
+    *size *= unit_factor;
+    return TRUE;
 }

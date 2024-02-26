@@ -36,6 +36,8 @@ jobs:
               layout.yaml random.bin lorem.txt lorem.tar root.ext4
             echo "Show package content"
             sudo G_DEBUG=fatal-warnings partup -s show pkg.partup
+            echo "Validate package"
+            sudo G_DEBUG=fatal-warnings partup -s --size=128MiB validate pkg.partup
             echo "Install package to loop device"
             sudo G_DEBUG=fatal-warnings partup -d install pkg.partup ${{ env.loop_dev }}
             echo "Show loop device info"

@@ -10,6 +10,7 @@
 #include "helper.h"
 #include "pu-emmc.h"
 #include "pu-error.h"
+#include "pu-input.h"
 
 static void
 emmc_simple(void)
@@ -53,10 +54,13 @@ test_raw_overwrite_pass(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
     g_assert_no_error(fixture->error);
     g_assert_nonnull(emmc);
+
+    g_assert_true(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
+    g_assert_no_error(fixture->error);
 }
 
 static void
@@ -71,7 +75,7 @@ test_raw_overwrite_fail_partition_table(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_EMMC_PARSE);
     g_assert_null(emmc);
@@ -91,10 +95,13 @@ test_raw_overwrite_fail_partition(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_FAILED);
-    g_assert_null(emmc);
 
     g_clear_error(&fixture->error);
 }
@@ -110,10 +117,79 @@ test_raw_overwrite_fail_raw(EmptyFileFixture *fixture,
     g_assert_no_error(fixture->error);
     g_assert_nonnull(config);
 
-    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", FALSE,
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", TRUE,
                        &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
     g_assert_error(fixture->error, PU_ERROR, PU_ERROR_FAILED);
-    g_assert_null(emmc);
+
+    g_clear_error(&fixture->error);
+}
+
+static void
+test_no_checksums(EmptyFileFixture *fixture,
+                  G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file("config/raw-non-overlap.yaml", &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", false,
+                       &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
+    g_assert_error(fixture->error, PU_INPUT_ERROR, PU_INPUT_ERROR_NO_CHECKSUM);
+
+    g_clear_error(&fixture->error);
+}
+
+static void
+test_checksums(EmptyFileFixture *fixture,
+               G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file("config/checksums.yaml", &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", false,
+                       &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_true(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    g_clear_error(&fixture->error);
+}
+
+static void
+test_partition_too_small(EmptyFileFixture *fixture,
+                         G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file("config/partition-too-small.yaml", &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, "data", true,
+                       &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(emmc);
+
+    g_assert_false(pu_flash_validate_config(PU_FLASH(emmc), &fixture->error));
+    g_assert_error(fixture->error, PU_ERROR, PU_ERROR_FAILED);
 
     g_clear_error(&fixture->error);
 }
@@ -139,6 +215,15 @@ main(int argc,
                empty_file_tear_down);
     g_test_add("/emmc/raw_overwrite_fail_raw", EmptyFileFixture, "mmcblk0",
                empty_file_set_up, test_raw_overwrite_fail_raw,
+               empty_file_tear_down);
+    g_test_add("/emmc/no_checksums", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_no_checksums,
+               empty_file_tear_down);
+    g_test_add("/emmc/checksums", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_checksums,
+               empty_file_tear_down);
+    g_test_add("/emmc/partition_too_small", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_partition_too_small,
                empty_file_tear_down);
 
     return g_test_run();

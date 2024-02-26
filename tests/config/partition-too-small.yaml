@@ -1,0 +1,11 @@
+api-version: 0
+disklabel: gpt
+
+partitions:
+  - type: primary
+    filesystem: fat32
+    size: 10KB
+    offset: 1MiB
+    input:
+      - filename: lorem.txt
+      - filename: random.bin

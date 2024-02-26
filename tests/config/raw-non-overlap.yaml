@@ -14,5 +14,5 @@ raw:
 partitions:
   - type: primary
     filesystem: fat32
-    size: 128MiB
+    size: 64MiB
     offset: 16MiB

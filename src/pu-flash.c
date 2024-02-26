@@ -28,6 +28,16 @@ static GParamSpec *props[NUM_PROPS] = { NULL };
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE(PuFlash, pu_flash, G_TYPE_OBJECT)
 
 static gboolean
+pu_flash_default_validate_config(PuFlash *self,
+                                 G_GNUC_UNUSED GError **error)
+{
+    g_critical("Flash of type '%s' does not implement PuFlash::validate_config",
+               G_OBJECT_TYPE_NAME(self));
+
+    return FALSE;
+}
+
+static gboolean
 pu_flash_default_init_device(PuFlash *self,
                              G_GNUC_UNUSED GError **error)
 {
@@ -120,6 +130,7 @@ pu_flash_class_init(PuFlashClass *class)
 {
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
+    class->validate_config = pu_flash_default_validate_config;
     class->init_device = pu_flash_default_init_device;
     class->setup_layout = pu_flash_default_setup_layout;
     class->write_data = pu_flash_default_write_data;
@@ -157,6 +168,13 @@ pu_flash_class_init(PuFlashClass *class)
 static void
 pu_flash_init(G_GNUC_UNUSED PuFlash *self)
 {
+}
+
+gboolean
+pu_flash_validate_config(PuFlash *self,
+                         GError **error)
+{
+    return PU_FLASH_GET_CLASS(self)->validate_config(self, error);
 }
 
 gboolean

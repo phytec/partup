@@ -9,6 +9,9 @@
 #include <glib.h>
 #include <parted/parted.h>
 
+gboolean pu_spawn_command_line_sync_result(const gchar *command_line,
+                                           gchar **result,
+                                           GError **error);
 gboolean pu_spawn_command_line_sync(const gchar *command_line,
                                     GError **error);
 gboolean pu_file_copy(const gchar *src,
@@ -69,5 +72,8 @@ gchar * pu_device_get_partition_pattern(const gchar *device,
                                         GError **error);
 gchar * pu_str_pre_remove(gchar *string,
                           guint n);
+gboolean pu_parse_size(const gchar *string,
+                       gsize *size,
+                       GError **error);
 
 #endif /* PARTUP_UTILS_H */
