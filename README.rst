@@ -108,8 +108,8 @@ https://aur.archlinux.org/packages/partup
 Yocto
 -----
 
-A Yocto recipe is available in `meta-ampliphy
-<https://git.phytec.de/meta-ampliphy/tree/recipes-devtools/partup>`_.
+A Yocto recipe is available in `meta-phytec
+<https://git.phytec.de/meta-phytec/tree/recipes-support/partup>`_.
 
 License
 =======
