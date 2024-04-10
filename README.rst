@@ -84,6 +84,21 @@ installed as well::
 
    meson install -C build
 
+Ubuntu and Debian
+-----------------
+
+For Debian-based systems (and most other Linux Distributions), it is easiest to
+install partup by downloading the latest statically built binary from the
+release page: https://github.com/phytec/partup/releases
+
+Install the downloaded binary to a directory contained in ``$PATH``, e.g.
+``/usr/local/bin``::
+
+   install -m 755 ~/Downloads/partup-v0.0.0-amd64 /usr/local/bin/
+
+Make sure to specify the correct path you downloaded partup to, as the above is
+just an example.
+
 Arch Linux
 ----------
 
