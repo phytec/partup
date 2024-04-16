@@ -1,0 +1,25 @@
+api-version: 0
+disklabel: gpt
+
+raw:
+  - input-offset: 0
+    output-offset: 33KiB
+    input:
+      filename: random.bin
+      md5sum: 5b41daa7a946650a4e4ee1a24b5f1f78
+
+partitions:
+  - type: primary
+    filesystem: fat32
+    size: 16MiB
+    offset: 16MiB
+    input:
+      - filename: lorem.txt
+        sha256sum: 25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d
+  - type: primary
+    filesystem: NULL
+    size: 32MiB
+    input:
+      - filename: root.ext4
+        md5sum: 75866bf838812780c94706ce27ce67f8
+        sha256sum: bcd0b814381a47095a18f302a8ec1b76fcdb9161a0af8c2aea56fc8d67d9a489

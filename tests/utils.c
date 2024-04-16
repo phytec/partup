@@ -6,6 +6,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
+#include <parted/parted.h>
 #include "helper.h"
 #include "pu-glib-compat.h"
 #include "pu-utils.h"
@@ -243,6 +244,35 @@ test_device_get_partition_pattern(void)
     g_assert_false(g_regex_match_simple(pattern, "/dev/sdb1", 0, 0));
 }
 
+static void
+test_spawn_command_line_sync_result(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *result = NULL;
+
+    g_assert_true(pu_spawn_command_line_sync_result("echo 123", &result, &error));
+    g_assert_no_error(error);
+    g_assert_nonnull(strstr(result, "123"));
+}
+
+static void
+test_parse_size(void)
+{
+    g_autoptr(GError) error = NULL;
+    gsize size;
+
+    g_assert_true(pu_parse_size("1M", &size, &error));
+    g_assert_no_error(error);
+    g_assert_cmpuint(size, ==, PED_MEGABYTE_SIZE);
+
+    g_assert_true(pu_parse_size("128KiB", &size, &error));
+    g_assert_no_error(error);
+    g_assert_cmpuint(size, ==, 128 * PED_KIBIBYTE_SIZE);
+
+    g_assert_false(pu_parse_size("1x", &size, &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_FAILED);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -276,6 +306,8 @@ main(int argc,
                     test_get_file_size);
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
+    g_test_add_func("/utils/spawn_command_line_sync_result", test_spawn_command_line_sync_result);
+    g_test_add_func("/utils/parse_size", test_parse_size);
 
     return g_test_run();
 }

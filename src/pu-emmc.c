@@ -13,18 +13,11 @@
 #include "pu-mount.h"
 #include "pu-utils.h"
 #include "pu-emmc.h"
+#include "pu-input.h"
 
 #define PARTITION_TABLE_SIZE_MSDOS 1
 #define PARTITION_TABLE_SIZE_GPT   34
 
-typedef struct _PuEmmcInput {
-    gchar *filename;
-    gchar *md5sum;
-    gchar *sha256sum;
-
-    /* Internal members */
-    gsize _size;
-} PuEmmcInput;
 typedef struct _PuEmmcPartition {
     gchar *label;
     gchar *partuuid;
@@ -41,7 +34,7 @@ typedef struct _PuEmmcPartition {
 typedef struct _PuEmmcBinary {
     PedSector input_offset;
     PedSector output_offset;
-    PuEmmcInput *input;
+    PuInput *input;
 } PuEmmcBinary;
 typedef struct _PuEmmcBootPartitions {
     guint enable;
@@ -69,6 +62,7 @@ struct _PuEmmc {
     PedDisk *disk;
 
     PedDiskType *disktype;
+    GList *input_files;
     GList *partitions;
     GList *clean;
     GList *raw;
@@ -172,6 +166,113 @@ emmc_create_partition(PuEmmc *self,
 }
 
 static gboolean
+pu_emmc_check_raw_overwrite(PuEmmc *emmc,
+                            GError **error)
+{
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (emmc->partitions && emmc->raw) {
+        PuEmmcPartition *part = emmc->partitions->data;
+        gsize part_start = part->offset * emmc->device->sector_size;
+        gsize raw_start;
+        gsize raw_end;
+
+        for (GList *b = emmc->raw; b != NULL; b = b->next) {
+            PuEmmcBinary *bin = b->data;
+
+            raw_start = bin->output_offset * emmc->device->sector_size;
+            raw_end = bin->input->_size;
+            raw_end += raw_start;
+            raw_end -= bin->input_offset * emmc->device->sector_size;
+
+            if (raw_end > part_start) {
+                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                            "Raw binary overlaps with first partition");
+                return FALSE;
+            }
+
+            /* Check against all binaries after the current one */
+            for (GList *i = b->next; i != NULL; i = i->next) {
+                PuEmmcBinary *bin2 = i->data;
+
+                gsize raw2_start = bin2->output_offset * emmc->device->sector_size;
+                gsize raw2_end;
+                raw2_end = bin2->input->_size;
+                raw2_end += raw2_start;
+                raw2_end -= bin2->input_offset * emmc->device->sector_size;
+
+                if (!(raw_end < raw2_start || raw_start > raw2_end)) {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                                "Raw binary overlaps with other raw binary");
+                    return FALSE;
+                }
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_emmc_validate_config(PuFlash *flash,
+                        GError **error)
+{
+    PuEmmc *self = PU_EMMC(flash);
+    gboolean skip_checksums = FALSE;
+
+    g_return_val_if_fail(flash != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(flash,
+                 "skip-checksums", &skip_checksums,
+                 NULL);
+
+    if (!skip_checksums) {
+        for (GList *i = self->input_files; i != NULL; i = i->next) {
+            PuInput *input = i->data;
+            if (!pu_input_validate_file(input, error))
+                return FALSE;
+        }
+    }
+
+    for (GList *i = self->input_files; i != NULL; i = i->next) {
+        PuInput *input = i->data;
+        if (!pu_input_get_size(input, error))
+            return FALSE;
+    }
+
+    if (!pu_emmc_check_raw_overwrite(self, error))
+        return FALSE;
+
+    // check if input files fit in partition
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuEmmcPartition *part = p->data;
+        gsize input_size = 0;
+        gsize part_size = 0;
+
+        if (part->expand)
+            part_size = self->expanded_part_size * self->device->sector_size;
+        else
+            part_size = part->size * self->device->sector_size;
+
+        for (GList *i = part->input; i != NULL; i = i->next) {
+            PuInput *input = i->data;
+            input_size += input->_size;
+        }
+        g_debug("input size: %ld part size: %ld", input_size, part_size);
+
+        if (input_size > part_size) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Input files are larger than partition");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_init_device(PuFlash *flash,
                     GError **error)
 {
@@ -254,18 +355,12 @@ pu_emmc_write_data(PuFlash *flash,
     PuEmmc *self = PU_EMMC(flash);
     guint i = 0;
     gboolean first_logical_part = FALSE;
-    gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
     g_autofree gchar *part_mount = NULL;
-    g_autofree gchar *prefix = NULL;
+    gchar *path;
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_object_get(flash,
-                 "prefix", &prefix,
-                 "skip-checksums", &skip_checksums,
-                 NULL);
 
     g_message("Writing data to MMC");
 
@@ -309,27 +404,8 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
 
         for (GList *i = part->input; i != NULL; i = i->next) {
-            PuEmmcInput *input = i->data;
-            g_autofree gchar *path = NULL;
-
-            path = pu_path_from_filename(input->filename, prefix, error);
-            if (path == NULL) {
-                g_prefix_error(error, "Failed parsing input filename for partition: ");
-                return FALSE;
-            }
-
-            if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-                g_debug("Checking MD5 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->md5sum,
-                                             G_CHECKSUM_MD5, error))
-                    return FALSE;
-            }
-            if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-                g_debug("Checking SHA256 sum of input file '%s'", path);
-                if (!pu_checksum_verify_file(path, input->sha256sum,
-                                             G_CHECKSUM_SHA256, error))
-                    return FALSE;
-            }
+            PuInput *input = i->data;
+            path = input->filename;
 
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
@@ -376,32 +452,8 @@ pu_emmc_write_data(PuFlash *flash,
 
     for (GList *b = self->raw; b != NULL; b = b->next) {
         PuEmmcBinary *bin = b->data;
-        PuEmmcInput *input = bin->input;
-        g_autofree gchar *path = NULL;
-
-        path = pu_path_from_filename(input->filename, prefix, error);
-        if (path == NULL) {
-            g_prefix_error(error, "Failed parsing input filename for binary: ");
-            return FALSE;
-        }
-
-        if (g_str_equal(path, "")) {
-            g_warning("No input specified for binary");
-            continue;
-        }
-
-        if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->md5sum,
-                                         G_CHECKSUM_MD5, error))
-                return FALSE;
-        }
-        if (!g_str_equal(input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of input file '%s'", path);
-            if (!pu_checksum_verify_file(path, input->sha256sum,
-                                         G_CHECKSUM_SHA256, error))
-                return FALSE;
-        }
+        PuInput *input = bin->input;
+        path = input->filename;
 
         g_debug("Writing raw data: filename=%s input_offset=%lld output_offset=%lld",
                 input->filename, bin->input_offset, bin->output_offset);
@@ -434,32 +486,7 @@ pu_emmc_write_data(PuFlash *flash,
 
             for (GList *i = input; i != NULL; i = i->next) {
                 PuEmmcBinary *bin = i->data;
-                g_autofree gchar *path = NULL;
-
-                path = pu_path_from_filename(bin->input->filename, prefix, error);
-                if (path == NULL) {
-                    g_prefix_error(error, "Failed parsing input filename for eMMC boot partition: ");
-                    return FALSE;
-                }
-
-                if (g_str_equal(path, "")) {
-                    g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
-                                "No input specified for eMMC boot partition");
-                    return FALSE;
-                }
-
-                if (!g_str_equal(bin->input->md5sum, "") && !skip_checksums) {
-                    g_debug("Checking MD5 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, bin->input->md5sum,
-                                                 G_CHECKSUM_MD5, error))
-                        return FALSE;
-                }
-                if (!g_str_equal(bin->input->sha256sum, "") && !skip_checksums) {
-                    g_debug("Checking SHA256 sum of input file '%s'", path);
-                    if (!pu_checksum_verify_file(path, bin->input->sha256sum,
-                                                 G_CHECKSUM_SHA256, error))
-                        return FALSE;
-                }
+                path = bin->input->filename;
 
                 g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
                         bin->input->filename, bin->input_offset,
@@ -498,7 +525,7 @@ pu_emmc_class_finalize(GObject *object)
         g_free(part->mkfs_extra_args);
         g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
-            PuEmmcInput *in = i->data;
+            PuInput *in = i->data;
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
@@ -539,6 +566,8 @@ pu_emmc_class_finalize(GObject *object)
         g_free(emmc->mmc_controls);
     }
 
+    g_list_free(g_steal_pointer(&emmc->input_files));
+
     if (emmc->disk)
         ped_disk_destroy(emmc->disk);
     if (emmc->device)
@@ -553,6 +582,7 @@ pu_emmc_class_init(PuEmmcClass *class)
     PuFlashClass *flash_class = PU_FLASH_CLASS(class);
     GObjectClass *object_class = G_OBJECT_CLASS(class);
 
+    flash_class->validate_config = pu_emmc_validate_config;
     flash_class->init_device = pu_emmc_init_device;
     flash_class->setup_layout = pu_emmc_setup_layout;
     flash_class->write_data = pu_emmc_write_data;
@@ -649,7 +679,7 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
             return FALSE;
         }
 
-        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        PuInput *input = g_new0(PuInput, 1);
         input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
@@ -714,16 +744,10 @@ pu_emmc_parse_raw(PuEmmc *emmc,
 {
     PuConfigValue *value_raw = g_hash_table_lookup(root, "raw");
     GList *raw;
-    g_autofree gchar *path = NULL;
-    g_autofree gchar *prefix = NULL;
 
     g_return_val_if_fail(emmc != NULL, FALSE);
     g_return_val_if_fail(root != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_object_get(emmc,
-                 "prefix", &prefix,
-                 NULL);
 
     if (!value_raw) {
         g_debug("No entry 'raw' found. Skipping...");
@@ -755,18 +779,10 @@ pu_emmc_parse_raw(PuEmmc *emmc,
                         "'input' of binary does not contain a mapping");
             return FALSE;
         }
-        PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+        PuInput *input = g_new0(PuInput, 1);
         input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
         input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
         input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
-
-        path = pu_path_from_filename(input->filename, prefix, error);
-        if (path == NULL)
-            return FALSE;
-
-        input->_size = pu_get_file_size(path, error);
-        if (!input->_size)
-            return FALSE;
 
         bin->input = input;
         g_debug("Parsed raw input: filename=%s md5sum=%s sha256sum=%s",
@@ -782,6 +798,7 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         }
 
         emmc->raw = g_list_prepend(emmc->raw, bin);
+        emmc->input_files = g_list_prepend(emmc->input_files, input);
     }
 
     emmc->raw = g_list_reverse(emmc->raw);
@@ -901,11 +918,12 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                     return FALSE;
                 }
 
-                PuEmmcInput *input = g_new0(PuEmmcInput, 1);
+                PuInput *input = g_new0(PuInput, 1);
                 input->filename = pu_hash_table_lookup_string(iv->data.mapping, "filename", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
                 part->input = g_list_prepend(part->input, input);
+                emmc->input_files = g_list_prepend(emmc->input_files, input);
 
                 g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
                         input->filename, input->md5sum, input->sha256sum);
@@ -932,6 +950,12 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 
     emmc->partitions = g_list_reverse(emmc->partitions);
 
+    if (fixed_parts_size > emmc->device->length) {
+        g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                    "Combined partition size is larger than device");
+        return FALSE;
+    }
+
     if (emmc->num_expanded_parts > 0) {
         emmc->expanded_part_size = emmc->device->length - fixed_parts_size
                                    - 2 * emmc->num_logical_parts;
@@ -944,55 +968,6 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         emmc->expanded_part_size /= emmc->num_expanded_parts;
         g_debug("%u expanding partitions, each of size %llds",
                 emmc->num_expanded_parts, emmc->expanded_part_size);
-    }
-
-    return TRUE;
-}
-
-static gboolean
-pu_emmc_check_raw_overwrite(PuEmmc *emmc,
-                            GError **error)
-{
-    g_return_val_if_fail(emmc != NULL, FALSE);
-    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    if (emmc->partitions && emmc->raw) {
-        PuEmmcPartition *part = emmc->partitions->data;
-        gsize part_start = part->offset * emmc->device->sector_size;
-        gsize raw_start;
-        gsize raw_end;
-
-        for (GList *b = emmc->raw; b != NULL; b = b->next) {
-            PuEmmcBinary *bin = b->data;
-
-            raw_start = bin->output_offset * emmc->device->sector_size;
-            raw_end = bin->input->_size;
-            raw_end += raw_start;
-            raw_end -= bin->input_offset * emmc->device->sector_size;
-
-            if (raw_end > part_start) {
-                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                            "Raw binary overlaps with first partition");
-                return FALSE;
-            }
-
-            /* Check against all binaries after the current one */
-            for (GList *i = b->next; i != NULL; i = i->next) {
-                PuEmmcBinary *bin2 = i->data;
-
-                gsize raw2_start = bin2->output_offset * emmc->device->sector_size;
-                gsize raw2_end;
-                raw2_end = bin2->input->_size;
-                raw2_end += raw2_start;
-                raw2_end -= bin2->input_offset * emmc->device->sector_size;
-
-                if (!(raw_end < raw2_start || raw_start > raw2_end)) {
-                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                                "Raw binary overlaps with other raw binary");
-                    return FALSE;
-                }
-            }
-        }
     }
 
     return TRUE;
@@ -1048,8 +1023,11 @@ pu_emmc_new(const gchar *device_path,
     if (!pu_emmc_parse_clean(self, root, error))
         return NULL;
 
-    if (!pu_emmc_check_raw_overwrite(self, error))
-        return NULL;
+    for (GList *i = self->input_files; i != NULL; i = i->next) {
+        PuInput *input = i->data;
+        if (!pu_input_prefix_filename(input, prefix, error))
+            return NULL;
+    }
 
     return g_steal_pointer(&self);
 }

@@ -21,16 +21,18 @@
  * PuFlash is the base object used for specific implementations of flash
  * devices. An example can be found for eMMC flash with PuEmmc.
  *
- * Implementations of PuFlash use three different functions representing the
- * different stages of initializing, formatting and writing a flash device. The
- * implementation of these functions are flash device specific and may vary
- * depending on its type.
+ * Implementations of PuFlash use four different functions representing the
+ * different stages of validating, initializing, formatting and writing a flash
+ * device. The implementation of these functions are flash device specific and
+ * may vary depending on its type.
  */
 G_DECLARE_DERIVABLE_TYPE(PuFlash, pu_flash, PU, FLASH, GObject)
 
 struct _PuFlashClass {
     GObjectClass parent_class;
 
+    gboolean (*validate_config)(PuFlash *self,
+                                GError **error);
     gboolean (*init_device)(PuFlash *self,
                             GError **error);
     gboolean (*setup_layout)(PuFlash *self,
@@ -40,6 +42,20 @@ struct _PuFlashClass {
 
     gpointer padding[8];
 };
+
+/**
+ * Validate the config for the flash device.
+ *
+ * Validate the config, e.g. check if input files exist and the checksum is
+ * correct.
+ *
+ * @param self the PuFlash instance.
+ * @param error a GError used for error handling.
+ *
+ * @return TRUE on success or FALSE if an error occurred.
+ */
+gboolean pu_flash_validate_config(PuFlash *self,
+                                  GError **error);
 
 /**
  * Initialize the flash device.

@@ -3,11 +3,13 @@ tests = [
   'command',
   'config',
   'emmc',
+  'input',
   'package',
   'utils'
 ]
 
 tests_root = [
+  'loopdev-root',
   'mount-root',
   'package-root',
   'utils-root'
