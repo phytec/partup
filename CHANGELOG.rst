@@ -1,3 +1,10 @@
+.. _release-2.1.0:
+
+2.1.0
+=====
+
+*Release date: TBD*
+
 .. _release-2.0.0:
 
 2.0.0
