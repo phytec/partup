@@ -6,6 +6,7 @@
 #include <gio/gio.h>
 #include "pu-checksum.h"
 #include "pu-error.h"
+#include "pu-file.h"
 
 gboolean
 pu_checksum_verify_file(const gchar *filename,
@@ -48,4 +49,48 @@ pu_checksum_verify_file(const gchar *filename,
     }
 
     return TRUE;
+}
+
+gboolean
+pu_checksum_verify_raw(const gchar *filename,
+                       goffset offset,
+                       gsize size,
+                       const gchar *checksum,
+                       GChecksumType checksum_type,
+                       GError **error)
+{
+    g_autofree guchar *buffer = NULL;
+    g_autofree gchar *computed_checksum = NULL;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!pu_file_read_raw(filename, &buffer, offset, size, NULL, error))
+        return FALSE;
+
+    computed_checksum = g_compute_checksum_for_data(checksum_type, buffer, size);
+    if (!g_str_equal(checksum, computed_checksum)) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CHECKSUM,
+                    "Given checksum '%s' of '%s' at offset %ld and size %ld does not match '%s'",
+                    checksum, filename, offset, size, computed_checksum);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gchar *
+pu_checksum_new_from_file(const gchar *filename,
+                          goffset offset,
+                          GChecksumType checksum_type,
+                          GError **error)
+{
+    g_autofree guchar *buffer = NULL;
+    gsize bytes_read = 0;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!pu_file_read_raw(filename, &buffer, offset, -1, &bytes_read, error))
+        return FALSE;
+
+    return g_compute_checksum_for_data(checksum_type, buffer, bytes_read);
 }
