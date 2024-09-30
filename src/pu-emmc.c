@@ -378,6 +378,8 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcBinary *bin = b->data;
         PuEmmcInput *input = bin->input;
         g_autofree gchar *path = NULL;
+        gsize size = 0;
+        g_autofree gchar *output_sha256sum = NULL;
 
         path = pu_path_from_filename(input->filename, prefix, error);
         if (path == NULL) {
@@ -388,6 +390,12 @@ pu_emmc_write_data(PuFlash *flash,
         if (g_str_equal(path, "")) {
             g_warning("No input specified for binary");
             continue;
+        }
+
+        size = pu_get_file_size(path, error);
+        if (size == 0) {
+            g_prefix_error(error, "Failed retrieving file size for binary: ");
+            return FALSE;
         }
 
         if (!g_str_equal(input->md5sum, "") && !skip_checksums) {
@@ -402,6 +410,9 @@ pu_emmc_write_data(PuFlash *flash,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
+        output_sha256sum = pu_checksum_new_from_file(path, bin->input_offset *
+                                                     self->device->sector_size,
+                                                     G_CHECKSUM_SHA256, error);
 
         g_debug("Writing raw data: filename=%s input_offset=%lld output_offset=%lld",
                 input->filename, bin->input_offset, bin->output_offset);
@@ -409,6 +420,16 @@ pu_emmc_write_data(PuFlash *flash,
         if (!pu_write_raw(path, self->device->path, self->device,
                           bin->input_offset, bin->output_offset, 0, error))
             return FALSE;
+
+        if (!skip_checksums) {
+            g_debug("Checking SHA256 sum of written output: %s", output_sha256sum);
+            if (!pu_checksum_verify_raw(self->device->path, bin->output_offset *
+                                        self->device->sector_size,
+                                        size - bin->input_offset *
+                                        self->device->sector_size, output_sha256sum,
+                                        G_CHECKSUM_SHA256, error))
+                return FALSE;
+        }
     }
 
     if (self->mmc_controls) {
