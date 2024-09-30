@@ -37,6 +37,9 @@ Raw Data
 The section ``raw`` contains a sequence of mappings describing data that is
 written outside of partitions. Each entry may contain the following options:
 
+Since :ref:`release-2.1.0`, the written output is also being verified by
+checking against the input's SHA256 sum, including any given offsets.
+
 ``input-offset`` (integer/string)
    Offset of the input data to be written.
 
