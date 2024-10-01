@@ -154,9 +154,6 @@ cmd_show(PuCommandContext *context,
 {
     gchar **args;
 
-    if (getuid() != 0)
-        return error_not_root(error);
-
     args = pu_command_context_get_args(context);
 
     return pu_package_show_contents(args[0], arg_show_size, error);

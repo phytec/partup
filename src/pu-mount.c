@@ -85,6 +85,21 @@ pu_find_mounted(const gchar *device)
 }
 
 gboolean
+pu_mount_squashfs(const gchar *source,
+         const gchar *mount_point,
+         GError **error)
+{
+    gchar *cmd;
+
+    cmd = g_strdup_printf("squashfuse %s %s", source, mount_point);
+
+    if (!pu_spawn_command_line_sync(cmd, error))
+        return FALSE;
+
+    return TRUE;
+}
+
+gboolean
 pu_mount(const gchar *source,
          const gchar *mount_point,
          const gchar *type,
@@ -99,6 +114,9 @@ pu_mount(const gchar *source,
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     g_debug("Mounting %s on %s", source, mount_point);
+
+    if (!g_strcmp0(type, "squashfs"))
+        return pu_mount_squashfs(source, mount_point, error);
 
     ctx = mnt_new_context();
     if (!ctx) {
