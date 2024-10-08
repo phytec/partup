@@ -19,7 +19,7 @@ pu_checksum_verify_file(const gchar *filename,
     g_autoptr(GFileInfo) file_info = NULL;
     goffset file_size;
     g_autofree guchar *buffer = NULL;
-    g_autoptr(GChecksum) checksum_obj = NULL;
+    g_autofree gchar *computed_checksum = NULL;
 
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
@@ -38,13 +38,11 @@ pu_checksum_verify_file(const gchar *filename,
                                  NULL, NULL, error))
         return FALSE;
 
-    checksum_obj = g_checksum_new(checksum_type);
-    g_checksum_update(checksum_obj, buffer, file_size);
-
-    if (!g_str_equal(checksum, g_checksum_get_string(checksum_obj))) {
+    computed_checksum = g_compute_checksum_for_data(checksum_type, buffer, file_size);
+    if (!g_str_equal(checksum, computed_checksum)) {
         g_set_error(error, PU_ERROR, PU_ERROR_CHECKSUM,
-                    "Given checksum '%s' of file '%s' does not match",
-                    checksum, filename);
+                    "Given checksum '%s' of file '%s' does not match '%s'",
+                    checksum, filename, computed_checksum);
         return FALSE;
     }
 
