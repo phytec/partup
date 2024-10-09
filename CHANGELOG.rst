@@ -24,6 +24,8 @@
    partition with the option ``mkfs-extra-args``.
 -  Print the help text when no command is provided to partup.
 
+.. rubric:: Contributors
+
 `Martin Schwan <https://github.com/mschwan-phytec>`__,
 `Leonard Anderweit <https://github.com/landerweit-phytec>`__
 
