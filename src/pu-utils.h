@@ -11,9 +11,6 @@
 
 gboolean pu_spawn_command_line_sync(const gchar *command_line,
                                     GError **error);
-gboolean pu_file_copy(const gchar *src,
-                      const gchar *dest,
-                      GError **error);
 gboolean pu_archive_extract(const gchar *filename,
                             const gchar *dest,
                             GError **error);
@@ -57,8 +54,6 @@ gboolean pu_set_hwreset(const gchar *device,
 gboolean pu_set_bootbus(const gchar *device,
                         const gchar *bootbus,
                         GError **error);
-goffset pu_get_file_size(const gchar *path,
-                         GError **error);
 gchar * pu_path_from_filename(const gchar *filename,
                               const gchar *prefix,
                               GError **error);

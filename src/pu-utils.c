@@ -57,28 +57,6 @@ pu_spawn_command_line_sync(const gchar *command_line,
 }
 
 gboolean
-pu_file_copy(const gchar *src,
-             const gchar *dest,
-             GError **error)
-{
-    g_autoptr(GFile) in = NULL;
-    g_autofree gchar *out_path = NULL;
-    g_autoptr(GFile) out = NULL;
-
-    g_return_val_if_fail(src != NULL, FALSE);
-    g_return_val_if_fail(dest != NULL, FALSE);
-    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-    g_debug("Copying '%s' to '%s'", src, dest);
-
-    in = g_file_new_for_path(src);
-    out_path = g_build_filename(dest, g_path_get_basename(src), NULL);
-    out = g_file_new_for_path(out_path);
-
-    return g_file_copy(in, out, G_FILE_COPY_NONE, NULL, NULL, NULL, error);
-}
-
-gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
                    GError **error)
@@ -496,25 +474,6 @@ pu_set_bootbus(const gchar *device,
         return FALSE;
 
     return TRUE;
-}
-
-goffset
-pu_get_file_size(const gchar *path,
-                 GError **error)
-{
-    g_autoptr(GFile) file = NULL;
-    g_autoptr(GFileInfo) file_info = NULL;
-
-    g_return_val_if_fail(g_strcmp0(path, "") > 0, 0);
-    g_return_val_if_fail(error == NULL || *error == NULL, 0);
-
-    file = g_file_new_for_path(path);
-    file_info = g_file_query_info(file, G_FILE_ATTRIBUTE_STANDARD_SIZE,
-                                  G_FILE_QUERY_INFO_NONE, NULL, error);
-    if (file_info == NULL)
-        return 0;
-
-    return g_file_info_get_size(file_info);
 }
 
 gchar *
