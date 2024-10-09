@@ -3,7 +3,18 @@
 2.1.0
 =====
 
-*Release date: TBD*
+*Release date: 2024-10-09*
+
+.. rubric:: Changes
+
+-  Verify the checksum of written data, independent of a provided input
+   checksum.
+-  Reorder some file-related helper functions into their own module. There were
+   no functional changes in this case.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
 
 .. _release-2.0.0:
 
