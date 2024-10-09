@@ -31,14 +31,6 @@ static gboolean arg_show_size = FALSE;
 static gchar **arg_remaining = NULL;
 
 static inline gboolean
-error_not_root(GError **error)
-{
-    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                "%s must be run as root", g_get_prgname());
-    return FALSE;
-}
-
-static inline gboolean
 error_out(const gchar *mountpoint)
 {
     pu_package_umount(mountpoint, NULL);
@@ -57,9 +49,6 @@ cmd_install(PuCommandContext *context,
     g_autoptr(PuEmmc) emmc = NULL;
     gchar **args;
     gboolean is_mounted;
-
-    if (getuid() != 0)
-        return error_not_root(error);
 
     args = pu_command_context_get_args(context);
     package_path = g_strdup(args[0]);
