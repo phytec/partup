@@ -3,6 +3,7 @@ tests = [
   'command',
   'config',
   'emmc',
+  'file',
   'package',
   'utils'
 ]
