@@ -14,5 +14,10 @@ gboolean pu_file_read_raw(const gchar *filename,
                           gssize count,
                           gsize *bytes_read,
                           GError **error);
+gboolean pu_file_copy(const gchar *src,
+                      const gchar *dest,
+                      GError **error);
+goffset pu_file_get_size(const gchar *path,
+                         GError **error);
 
 #endif /* PARTUP_FILE_H */

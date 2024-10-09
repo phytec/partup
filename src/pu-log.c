@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include "pu-log.h"
 
-#define PU_LOG_DOMAINS "partup partup-config partup-emmc partup-mount partup-package partup-utils"
+#define PU_LOG_DOMAINS "partup partup-config partup-emmc partup-file partup-mount partup-package partup-utils"
 
 GLogLevelFlags log_output_level = G_LOG_LEVEL_INFO;
 

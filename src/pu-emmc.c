@@ -9,6 +9,7 @@
 #include <glib/gstdio.h>
 #include "pu-checksum.h"
 #include "pu-error.h"
+#include "pu-file.h"
 #include "pu-hashtable.h"
 #include "pu-mount.h"
 #include "pu-utils.h"
@@ -392,7 +393,7 @@ pu_emmc_write_data(PuFlash *flash,
             continue;
         }
 
-        size = pu_get_file_size(path, error);
+        size = pu_file_get_size(path, error);
         if (size == 0) {
             g_prefix_error(error, "Failed retrieving file size for binary: ");
             return FALSE;
@@ -785,7 +786,7 @@ pu_emmc_parse_raw(PuEmmc *emmc,
         if (path == NULL)
             return FALSE;
 
-        input->_size = pu_get_file_size(path, error);
+        input->_size = pu_file_get_size(path, error);
         if (!input->_size)
             return FALSE;
 
