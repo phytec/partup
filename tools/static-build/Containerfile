@@ -15,4 +15,5 @@ RUN git clone --branch $PARTUP_BRANCH $PARTUP_REPO && \
     cd partup && \
     meson setup build --buildtype=release -Dstatic-glib=true && \
     meson compile -C build && \
+    strip -s build/partup && \
     git describe --tags > /partup-version
