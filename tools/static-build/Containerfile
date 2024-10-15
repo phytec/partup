@@ -13,6 +13,6 @@ RUN apt-get update && \
 
 RUN git clone --branch $PARTUP_BRANCH $PARTUP_REPO && \
     cd partup && \
-    meson setup build -Dstatic-glib=true && \
+    meson setup build --buildtype=release -Dstatic-glib=true && \
     meson compile -C build && \
     git describe --tags > /partup-version
