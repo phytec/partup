@@ -182,6 +182,11 @@ pu_emmc_init_device(PuFlash *flash,
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+    if (self->disktype == NULL) {
+        g_debug("Nothing to initialize");
+        return TRUE;
+    }
+
     g_message("Initializing MMC with new disklabel");
 
     newdisk = ped_disk_new_fresh(self->device, self->disktype);
@@ -209,6 +214,11 @@ pu_emmc_setup_layout(PuFlash *flash,
 
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (self->disktype == NULL) {
+        g_debug("No partitions to set up");
+        return TRUE;
+    }
 
     g_message("Partitioning MMC");
 
@@ -590,7 +600,9 @@ pu_emmc_init(G_GNUC_UNUSED PuEmmc *self)
 static PedSector
 pu_emmc_get_partition_table_size(PuEmmc *emmc)
 {
-    if (g_str_equal(emmc->disktype->name, "msdos"))
+    if (emmc->disktype == NULL)
+        return 0;
+    else if (g_str_equal(emmc->disktype->name, "msdos"))
         return PARTITION_TABLE_SIZE_MSDOS;
     else if (g_str_equal(emmc->disktype->name, "gpt"))
         return PARTITION_TABLE_SIZE_GPT;
@@ -1053,24 +1065,28 @@ pu_emmc_new(const gchar *device_path,
 
     ped_unit_set_default(PED_UNIT_SECTOR);
 
-    g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", "msdos");
-    self->disktype = ped_disk_type_get(disklabel);
-    if (!self->disktype) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Disklabel '%s' is not supported by libparted", disklabel);
-        return NULL;
+    g_autofree gchar *disklabel = pu_hash_table_lookup_string(root, "disklabel", NULL);
+    if (disklabel == NULL) {
+        g_debug("No disklabel specified! Skipping partitioning and overwrite checks...");
+    } else {
+        self->disktype = ped_disk_type_get(disklabel);
+        if (!self->disktype) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Disklabel '%s' is not supported by libparted", disklabel);
+            return NULL;
+        }
     }
 
     if (!pu_emmc_parse_mmc_controls(self, root, error))
         return NULL;
     if (!pu_emmc_parse_raw(self, root, error))
         return NULL;
-    if (!pu_emmc_parse_partitions(self, root, error))
+    if (disklabel && !pu_emmc_parse_partitions(self, root, error))
         return NULL;
     if (!pu_emmc_parse_clean(self, root, error))
         return NULL;
 
-    if (!pu_emmc_check_raw_overwrite(self, error))
+    if (disklabel && !pu_emmc_check_raw_overwrite(self, error))
         return NULL;
 
     return g_steal_pointer(&self);
