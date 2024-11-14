@@ -1,3 +1,23 @@
+.. _release-2.2.0:
+
+2.2.0
+=====
+
+*Release date: 2024-11-14*
+
+.. rubric:: Changes
+
+-  Allow an empty disklabel and thus skipping partitioning. This also disables
+   any checks whether written raw data would overwrite the partition table and
+   any partitions. Setting eMMC-specific features is still possible in this
+   mode.
+-  Optimize the statically built binaries of partup by building with the release
+   type and stripping symbols after it.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
+
 .. _release-2.1.0:
 
 2.1.0
