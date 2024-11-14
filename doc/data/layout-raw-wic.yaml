@@ -1,0 +1,18 @@
+api-version: 1
+
+mmc:
+  boot-partitions:
+    enable: 1
+    binaries:
+      - input-offset: 0
+        output-offset: 32kiB
+        input:
+          filename: u-boot.bin
+          sha256sum: a4d0b0802fc30fbdc987def1975f665190aa35af64fcd9dae26fc1b121c71966
+
+raw:
+  - input-offset: 0
+    output-offset: 0
+    input:
+      filename: phytec-headless-image.wic
+      sha256sum: d623a50cd9db0863174d21b640f39f066c2c55ea6b7926d7b5e2f49544b51167
