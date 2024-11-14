@@ -18,6 +18,11 @@ Disk Options
    Partition table for the device. Currently supported options are ``msdos``
    (default) and ``gpt``.
 
+   Since :ref:`release-2.2.0`, not specifying ``disklabel`` or setting it to
+   ``null`` will skip partitioning altogether and omit any overwrite checks. In
+   particular, this can be used to flash devices with raw disk images that
+   already contain a partition table and associated partitions.
+
 Clean Data
 ..........
 
