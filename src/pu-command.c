@@ -172,7 +172,7 @@ get_help_text(PuCommandContext *context,
         g_string_append(string, get_main_help(context));
 
     g_string_append(string,
-                    "\n\nDocumentation: <https://phytec.github.io/partup>\n"
+                    "\n\nDocumentation: <https://partup.readthedocs.io>\n"
                     "Report any issues at: <https://github.com/phytec/partup/issues>");
 
     return g_string_free_and_steal(string);
