@@ -77,9 +77,11 @@ are valid::
    Do *not* attempt to write to existing partitions, like ``/dev/mmcblk1p2``!
    Specify the raw device, as mentioned above, instead.
 
-Devices with raw access to memory, not incorporating a flash translation layer,
-like those accessible through the `Linux MTD interface
-<http://www.linux-mtd.infradead.org/>`_, are currently not supported.
+.. note::
+
+   Devices with raw access to memory, not incorporating a flash translation
+   layer, like those accessible through the `Linux MTD interface
+   <http://www.linux-mtd.infradead.org/>`_, are currently not supported.
 
 .. _example-usage:
 
