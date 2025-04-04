@@ -26,6 +26,5 @@ Main Features
 
    usage
    layout-config
-   package
    contributing
    changelog
