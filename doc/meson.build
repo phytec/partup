@@ -10,7 +10,6 @@ if sphinx.found()
     'layout-config.rst',
     'layout-config-reference.rst',
     'layout-config-examples.rst',
-    'package.rst',
     'contributing.rst',
     'index.rst',
     'usage.rst',
