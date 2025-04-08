@@ -22,6 +22,7 @@ struct _PuConfigPrivate {
 
     GHashTable *root;
     gint api_version;
+    gchar *device_type;
 };
 struct _PuConfig {
     GObject parent;
@@ -30,6 +31,7 @@ struct _PuConfig {
 enum {
     PROP_0,
     PROP_API_VERSION,
+    PROP_DEVICE_TYPE,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
@@ -290,6 +292,9 @@ pu_config_set_property(GObject *object,
     case PROP_API_VERSION:
         priv->api_version = g_value_get_int(value);
         break;
+    case PROP_DEVICE_TYPE:
+        priv->device_type = g_strdup(g_value_get_string(value));
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -308,6 +313,9 @@ pu_config_get_property(GObject *object,
     switch (prop_id) {
     case PROP_API_VERSION:
         g_value_set_int(value, priv->api_version);
+        break;
+    case PROP_DEVICE_TYPE:
+        g_value_set_string(value, priv->device_type);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -340,10 +348,17 @@ pu_config_class_init(PuConfigClass *class)
     object_class->finalize = pu_config_class_finalize;
 
     props[PROP_API_VERSION] =
-        g_param_spec_pointer("api-version",
+        g_param_spec_int("api-version",
                              "API version",
                              "The API version of the layout configuration file",
+                             0, G_MAXINT32, 0,
                              G_PARAM_READWRITE);
+    props[PROP_DEVICE_TYPE] =
+        g_param_spec_string("device-type",
+                            "Device type",
+                            "The target flash device type",
+                            "mmc",
+                            G_PARAM_READWRITE);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
@@ -356,6 +371,7 @@ pu_config_init(G_GNUC_UNUSED PuConfig *self)
     priv->contents = NULL;
     priv->contents_len = 0;
     priv->api_version = -1;
+    priv->device_type = NULL;
     priv->root = NULL;
 }
 
