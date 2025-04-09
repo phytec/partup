@@ -17,6 +17,11 @@ static gboolean
 pu_mtd_init_device(PuFlash *flash,
                    GError **error)
 {
+    /* TODO:
+     * 1. Check for existing partitioning through device tree or commandline. If
+     *    there is any, abort with an error.
+     * 2. Delete any existing partitions, like "mtdpart del" does.
+     */
     return TRUE;
 }
 
@@ -24,6 +29,10 @@ static gboolean
 pu_mtd_setup_layout(PuFlash *flash,
                     GError **error)
 {
+    /* TODO:
+     * 1. Add partitions as specified in the config. See "mtdpart add".
+     * 2. Erase each partition's content. See "flash_erase".
+     */
     return TRUE;
 }
 
@@ -31,6 +40,13 @@ static gboolean
 pu_mtd_write_data(PuFlash *flash,
                   GError **error)
 {
+    /* TODO:
+     * 1. Check if input binary fits target partition.
+     * 2. Get length and checksum of input binary.
+     * 3. Write input binary byte-wise to target partition.
+     * 4. Verify checksum of written data in target partition with the one
+     *    produced earlier.
+     */
     return TRUE;
 }
 
