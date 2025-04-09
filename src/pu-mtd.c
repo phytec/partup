@@ -5,6 +5,12 @@
 
 #define G_LOG_DOMAIN "partup-mtd"
 
+#include <fcntl.h>
+#include <glib/glib.h>
+#include <linux/blkpg.h>
+#include <sys/ioctl.h>
+#include "pu-error.h"
+#include "pu-flash.h"
 #include "pu-mtd.h"
 
 struct _PuMtd {
@@ -33,6 +39,42 @@ pu_mtd_setup_layout(PuFlash *flash,
      * 1. Add partitions as specified in the config. See "mtdpart add".
      * 2. Erase each partition's content. See "flash_erase".
      */
+    PuMtd *self = PU_MTD(flash);
+    int fd;
+    struct blkpg_partition part;
+    struct blkpg_ioctl_arg arg;
+    g_autofree gchar *device_path = NULL;
+
+    g_object_get(flash,
+                 "device-path", &device_path,
+                 NULL);
+
+    /* Add partitions */
+    fd = g_open(device_path, O_RDWR | O_CLOEXEC);
+    if (fd < 0) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Failed opening %s", device_path);
+        return FALSE;
+    }
+    memset(&part, 0, sizeof(part));
+    memset(&arg, 0, sizeof(arg));
+    arg.datalen = sizeof(part);
+    arg.data = &part;
+    arg.op = BLKPG_ADD_PARTITION;
+    part.start = 0; // TODO
+    part.length = 0x80000; // TODO
+    strncpy(part.devname, "tiboot3", // TODO
+            sizeof(part.devname) - 1);
+    part.devname[sizeof(part.devname) - 1] = '\0';
+    if (ioctl(fd, BLKPG, &arg)) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Failed issuing BLKPG ioctl for new partition '%s'", "tiboot3");
+        return FALSE;
+    }
+    close(fd);
+
+    /* Erase partitions' content */
+
     return TRUE;
 }
 
