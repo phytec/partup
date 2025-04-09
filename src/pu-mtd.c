@@ -6,15 +6,37 @@
 #define G_LOG_DOMAIN "partup-mtd"
 
 #include <fcntl.h>
-#include <glib/glib.h>
+#include <glib.h>
 #include <linux/blkpg.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
 #include "pu-error.h"
+#include "pu-file.h"
 #include "pu-flash.h"
+#include "pu-hashtable.h"
+#include "pu-utils.h"
 #include "pu-mtd.h"
+
+typedef struct _PuMtdInput {
+    gchar *filename;
+    gchar *md5sum;
+    gchar *sha256sum;
+
+    /* Internal members */
+    gsize _size;
+} PuMtdInput;
+typedef struct _PuMtdPartition {
+    gchar *label;
+    gsize size;
+    gsize offset;
+    gboolean erase;
+    PuMtdInput *input;
+} PuMtdPartition;
 
 struct _PuMtd {
     PuFlash parent_instance;
+
+    GList *partitions;
 };
 
 G_DEFINE_TYPE(PuMtd, pu_mtd, PU_TYPE_FLASH)
@@ -116,6 +138,88 @@ pu_mtd_init(G_GNUC_UNUSED PuMtd *self)
 {
 }
 
+static gboolean
+pu_mtd_parse_partitions(PuMtd *mtd,
+                        GHashTable *root,
+                        GError **error)
+{
+    PuConfigValue *value_partitions = g_hash_table_lookup(root, "partitions");
+    GList *partitions;
+    g_autofree gchar *path = NULL;
+    g_autofree gchar *prefix = NULL;
+
+    g_return_val_if_fail(mtd != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_object_get(emmc,
+                 "prefix", &prefix,
+                 NULL);
+
+    if (!value_partitions) {
+        g_debug("No entry 'partitions' found. Skipping...");
+        return TRUE;
+    }
+
+    if (value_partitions->type != PU_CONFIG_VALUE_TYPE_SEQUENCE) {
+        g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                    "'partitions' is not a sequence");
+        return FALSE;
+    }
+    partitions = value_partitions->data.sequence;
+
+    for (GList *p = partitions; p != NULL; p = p->next) {
+        PuConfigValue *v = p->data;
+        if (v->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+            g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                        "'partitions' does not contain sequence of mappings");
+            return FALSE;
+        }
+
+        PuMtdPartition *part = g_new0(PuMtdPartition, 1);
+        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
+        part->size = pu_hash_table_lookup_int64(v->data.mapping, mtd->device, "size", 0);
+        part->offset = pu_hash_table_lookup_sector(v->data.mapping, mtd->device, "offset", 0);
+        part->erase = pu_hash_table_lookup_boolean(v->data.mapping, "erase", FALSE);
+        PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
+        if (value_input) {
+            if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+                g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                            "'input' of partition does not contain a mapping");
+                return FALSE;
+            }
+            PuMtdInput *input = g_new0(PuMtdInput, 1);
+            input->filename = pu_hash_table_lookup_string(value_input->data.mapping, "filename", "");
+            input->md5sum = pu_hash_table_lookup_string(value_input->data.mapping, "md5sum", "");
+            input->sha256sum = pu_hash_table_lookup_string(value_input->data.mapping, "sha256sum", "");
+
+            path = pu_path_from_filename(input->filename, prefix, error);
+            if (path == NULL)
+                return FALSE;
+
+            input->_size = pu_file_get_size(path, error);
+            if (!input->_size)
+                return FALSE;
+
+            part->input = input;
+            g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
+                    input->filename, input->md5sum, input->sha256sum);
+
+            if (input->_size >= part->size) {
+                g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                            "Input size (%lld bytes) exceeds partition size (%lld bytes)");
+                return FALSE;
+            }
+        }
+
+        mtd->partitions = g_list_prepend(emmc->partitions, part);
+    }
+
+    mtd->partitions = g_list_reverse(emmc->partitions);
+
+    return TRUE;
+}
+
 PuMtd *
 pu_mtd_new(const gchar *device_path,
            PuConfig *config,
@@ -124,6 +228,7 @@ pu_mtd_new(const gchar *device_path,
            GError **error)
 {
     PuMtd *self;
+    GHashTable *root;
 
     g_return_val_if_fail(device_path != NULL, NULL);
     g_return_val_if_fail(!g_str_equal(device_path, ""), NULL);
@@ -137,6 +242,10 @@ pu_mtd_new(const gchar *device_path,
                         "prefix", prefix,
                         "skip-checksums", skip_checksums,
                         NULL);
+    root = pu_config_get_root(config);
+
+    if (!pu_mtd_parse_partitions(self, root, error))
+        return NULL;
 
     return g_steal_pointer(&self);
 }
