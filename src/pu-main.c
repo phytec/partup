@@ -55,6 +55,8 @@ cmd_install(PuCommandContext *context,
     g_autofree gchar *package_path = NULL;
     g_autofree gchar *device_path = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
+    g_autoptr(PuMtd) mtd = NULL;
+    PuFlash *flash = NULL;
     gchar **args;
     gboolean is_mounted;
 
@@ -100,21 +102,37 @@ cmd_install(PuCommandContext *context,
     if (!pu_config_is_version_compatible(config, PARTUP_VERSION_MAJOR, error))
         return error_out(mount_path);
 
-    emmc = pu_emmc_new(device_path, config, mount_path,
-                       arg_install_skip_checksums, error);
-    if (emmc == NULL) {
-        g_prefix_error(error, "Failed parsing eMMC info from config: ");
+    if (g_regex_match_simple("(mmcblk[0-9]+|sd[a-z]+)$", device_path, 0, 0)) {
+        emmc = pu_emmc_new(device_path, config, mount_path,
+                           arg_install_skip_checksums, error);
+        if (emmc == NULL) {
+            g_prefix_error(error, "Failed parsing eMMC info from config: ");
+            return error_out(mount_path);
+        }
+        flash = PU_FLASH(emmc);
+    } else if (g_regex_match_simple("mtd[0-9]+$", device_path, 0, 0)) {
+        mtd = pu_mtd_new(device_path, config, mount_path,
+                         arg_install_skip_checksums, error);
+        if (mtd == NULL) {
+            g_prefix_error(error, "Failed parsing MTD info from config: ");
+            return error_out(mount_path);
+        }
+        flash = PU_FLASH(mtd);
+    } else {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Invalid or unsupported device: %s", device_path);
         return error_out(mount_path);
     }
-    if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
+
+    if (!pu_flash_init_device(flash, error)) {
         g_prefix_error(error, "Failed initializing device: ");
         return error_out(mount_path);
     }
-    if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
+    if (!pu_flash_setup_layout(flash, error)) {
         g_prefix_error(error, "Failed setting up layout on device: ");
         return error_out(mount_path);
     }
-    if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
+    if (!pu_flash_write_data(flash, error)) {
         g_prefix_error(error, "Failed writing data to device: ");
         pu_umount_all(device_path, NULL);
         return error_out(mount_path);
