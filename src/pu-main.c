@@ -17,6 +17,7 @@
 #include "pu-flash.h"
 #include "pu-log.h"
 #include "pu-mount.h"
+#include "pu-mtd.h"
 #include "pu-package.h"
 #include "pu-utils.h"
 #include "pu-version.h"
