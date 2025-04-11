@@ -72,7 +72,7 @@ pu_mtd_setup_layout(PuFlash *flash,
                  NULL);
 
     /* Add partitions */
-    fd = g_open(device_path, O_RDWR | O_CLOEXEC);
+    /*fd = g_open(device_path, O_RDWR | O_CLOEXEC);
     if (fd < 0) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "Failed opening %s", device_path);
@@ -93,9 +93,9 @@ pu_mtd_setup_layout(PuFlash *flash,
                     "Failed issuing BLKPG ioctl for new partition '%s'", "tiboot3");
         return FALSE;
     }
-    close(fd);
+    close(fd);*/
 
-    /* Erase partitions' content */
+    /* Erase partitions' content if erase == TRUE */
 
     return TRUE;
 }
@@ -178,9 +178,14 @@ pu_mtd_parse_partitions(PuMtd *mtd,
 
         PuMtdPartition *part = g_new0(PuMtdPartition, 1);
         part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
-        part->size = pu_hash_table_lookup_int64(v->data.mapping, mtd->device, "size", 0);
-        part->offset = pu_hash_table_lookup_sector(v->data.mapping, mtd->device, "offset", 0);
-        part->erase = pu_hash_table_lookup_boolean(v->data.mapping, "erase", FALSE);
+        part->size = pu_hash_table_lookup_bytes(v->data.mapping, "size", 0);
+        part->offset = pu_hash_table_lookup_bytes(v->data.mapping, "offset", 0);
+        part->erase = pu_hash_table_lookup_boolean(v->data.mapping, "erase", TRUE);
+        if (part->size == 0) {
+            g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                        "Partition is missing a size");
+            return FALSE;
+        }
         PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
         if (value_input) {
             if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
@@ -207,7 +212,8 @@ pu_mtd_parse_partitions(PuMtd *mtd,
 
             if (input->_size >= part->size) {
                 g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
-                            "Input size (%lld bytes) exceeds partition size (%lld bytes)");
+                            "Input file '%s' (%lld bytes) exceeds partition size (%lld bytes)",
+                            input->filename, input->_size, part->size);
                 return FALSE;
             }
         }
