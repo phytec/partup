@@ -18,6 +18,9 @@ gint64 pu_hash_table_lookup_int64(GHashTable *hash_table,
 gboolean pu_hash_table_lookup_boolean(GHashTable *hash_table,
                                       const gchar *key,
                                       gboolean def);
+gint64 pu_hash_table_lookup_bytes(GHashTable *hash_table,
+                                  const gchar *key,
+                                  gint64 def);
 PedSector pu_hash_table_lookup_sector(GHashTable *hash_table,
                                       PedDevice *device,
                                       const gchar *key,
