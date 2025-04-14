@@ -12,6 +12,18 @@
 #include "pu-config.h"
 #include "pu-error.h"
 
+struct device_type {
+    const gchar *name;
+    const gchar *regex;
+};
+static const struct device_type supported_device_types[] = {
+    { "mmc", "(mmcblk[0-9]+|sd[a-z]+)$" },
+    { "hd", "sd[a-z]+$" },
+    { "mtd", "mtd[0-9]+$" },
+    { NULL, NULL }
+};
+static const gchar *default_device_types[] = { "mmc", "hd" };
+
 typedef struct _PuConfigPrivate PuConfigPrivate;
 
 struct _PuConfigPrivate {
@@ -22,7 +34,7 @@ struct _PuConfigPrivate {
 
     GHashTable *root;
     gint api_version;
-    gchar *device_type;
+    GList *supported_device_types;
 };
 struct _PuConfig {
     GObject parent;
@@ -293,7 +305,7 @@ pu_config_set_property(GObject *object,
         priv->api_version = g_value_get_int(value);
         break;
     case PROP_DEVICE_TYPE:
-        priv->device_type = g_strdup(g_value_get_string(value));
+        priv->supported_device_types = g_strdup(g_value_get_string(value));
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -315,7 +327,7 @@ pu_config_get_property(GObject *object,
         g_value_set_int(value, priv->api_version);
         break;
     case PROP_DEVICE_TYPE:
-        g_value_set_string(value, priv->device_type);
+        g_value_set_string(value, priv->supported_device_types);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -354,9 +366,9 @@ pu_config_class_init(PuConfigClass *class)
                              0, G_MAXINT32, 0,
                              G_PARAM_READWRITE);
     props[PROP_DEVICE_TYPE] =
-        g_param_spec_string("device-type",
-                            "Device type",
-                            "The target flash device type",
+        g_param_spec_string("supported-device-types",
+                            "Supported device types",
+                            "The supported flash device types",
                             "mmc",
                             G_PARAM_READWRITE);
 
@@ -371,8 +383,46 @@ pu_config_init(G_GNUC_UNUSED PuConfig *self)
     priv->contents = NULL;
     priv->contents_len = 0;
     priv->api_version = -1;
-    priv->device_type = NULL;
+    priv->supported_device_types = NULL;
     priv->root = NULL;
+}
+
+static gboolean
+pu_config_parse_globals(PuConfigPrivate *priv)
+{
+    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
+    if (value == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                    "'api-version' is not set");
+        return FALSE;
+    }
+    if (value->type != PU_CONFIG_VALUE_TYPE_INTEGER_10) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                    "'api-version' has wrong type");
+        return FALSE;
+    }
+    priv->api_version = value->data.integer;
+
+    GList *sdt = pu_hash_table_lookup_list(priv->root, "supported-device-types", NULL);
+    if (sdt != NULL) {
+        for (GList *t = sdt; t != NULL; t = t->next) {
+            PuConfigValue *tv = t->data;
+            if (tv->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED
+                            "'supported-device-types' does not contain a sequence of strings");
+                return FALSE;
+            }
+
+            priv->supported_device_types = g_list_prepend(
+                    priv->supported_device_types, tv->data.string);
+        }
+        part->flags = g_list_reverse(part->flags);
+    } else {
+        for (gsize i = 0; default_device_types[i] != NULL; i++) {
+            priv->supported_device_types = g_list_prepend(
+                    priv->supported_device_types, default_device_types[i]);
+        }
+    }
 }
 
 PuConfig *
@@ -423,10 +473,11 @@ pu_config_new_from_file(const gchar *filename,
         }
     } while (priv->event.type != YAML_DOCUMENT_END_EVENT);
 
-    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
-    g_return_val_if_fail(value != NULL, NULL);
-    g_return_val_if_fail(value->type == PU_CONFIG_VALUE_TYPE_INTEGER_10, NULL);
-    priv->api_version = value->data.integer;
+    if (!pu_config_parse_globals(priv)) {
+        g_prefix_error(error, "Failed parsing global variables: ");
+        g_object_unref(config);
+        return NULL;
+    }
 
     return g_steal_pointer(&config);
 }
@@ -448,6 +499,25 @@ pu_config_is_version_compatible(PuConfig *config,
     }
 
     return TRUE;
+}
+
+gboolean
+pu_config_is_device_supported(PuConfig *config,
+                              const gchar *device_path,
+                              GError *error)
+{
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    for (GList *l = priv->supported_device_types; l != NULL; l = l->next) {
+        if (g_regex_match_simple(l->data, device_path))
+            return TRUE;
+    }
+
+    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                "Unsupported device %s", device_path);
+    return FALSE;
 }
 
 GHashTable *

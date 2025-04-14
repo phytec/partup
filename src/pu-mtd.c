@@ -27,8 +27,8 @@ typedef struct _PuMtdInput {
 } PuMtdInput;
 typedef struct _PuMtdPartition {
     gchar *label;
-    gsize size;
-    gsize offset;
+    gint64 size;
+    gint64 offset;
     gboolean erase;
     PuMtdInput *input;
 } PuMtdPartition;

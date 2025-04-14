@@ -59,6 +59,10 @@ gboolean pu_config_is_version_compatible(PuConfig *config,
                                          gint version,
                                          GError **error);
 
+gboolean pu_config_is_device_supported(PuConfig *config,
+                                       const gchar *device_path,
+                                       GError *error);
+
 GHashTable * pu_config_get_root(PuConfig *config);
 
 #endif /* PARTUP_CONFIG_H */
