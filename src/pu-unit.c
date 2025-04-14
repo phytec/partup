@@ -46,7 +46,6 @@ pu_unit_parse_bytes(const gchar *str, gint64 *bytes)
             return FALSE;
     }
 
-    /* Get unit at end of string */
     for (unit_idx = 0; str[unit_idx] != 0 && g_ascii_isdigit(str[unit_idx]); unit_idx++);
 
     unit_len = strlen(str + unit_idx);
