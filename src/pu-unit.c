@@ -39,23 +39,23 @@ pu_unit_parse_bytes(const gchar *str, gint64 *bytes)
     g_autofree gchar *digits = NULL;
     g_autofree gchar *unit = NULL;
     gsize unit_len;
+    gsize unit_idx;
 
-    /* Temporarly copy digits from unmodified string */
-    digits = g_strdup(str);
+    for (gsize i = 0; str[i] != 0; i++) {
+        if (g_ascii_ispunct(str[i]))
+            return FALSE;
+    }
 
     /* Get unit at end of string */
-    while (str[0] != 0 && g_ascii_isdigit(str[0]))
-        str++;
+    for (unit_idx = 0; str[unit_idx] != 0 && g_ascii_isdigit(str[unit_idx]); unit_idx++);
 
-    unit_len = strlen(str);
+    unit_len = strlen(str + unit_idx);
     if (unit_len)
-        unit = g_strdup(str);
+        unit = g_strdup(str + unit_idx);
     else
         unit = g_strdup("B");
 
-    /* Modify digits string to only include actual digits */
-    digits = g_strndup(digits, strlen(digits) - unit_len);
-
+    digits = g_strndup(str, strlen(str) - unit_len);
     *bytes = g_ascii_strtoll(digits, NULL, 10) * pu_unit_get_factor(unit);
 
     return *bytes >= 0;
