@@ -61,7 +61,7 @@ gboolean pu_config_is_version_compatible(PuConfig *config,
 
 gboolean pu_config_is_device_supported(PuConfig *config,
                                        const gchar *device_path,
-                                       GError *error);
+                                       GError **error);
 
 GHashTable * pu_config_get_root(PuConfig *config);
 
