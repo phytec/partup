@@ -43,7 +43,6 @@ struct _PuConfig {
 enum {
     PROP_0,
     PROP_API_VERSION,
-    PROP_DEVICE_TYPE,
     NUM_PROPS
 };
 static GParamSpec *props[NUM_PROPS] = { NULL };
@@ -304,9 +303,6 @@ pu_config_set_property(GObject *object,
     case PROP_API_VERSION:
         priv->api_version = g_value_get_int(value);
         break;
-    case PROP_DEVICE_TYPE:
-        priv->supported_device_types = g_strdup(g_value_get_string(value));
-        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -325,9 +321,6 @@ pu_config_get_property(GObject *object,
     switch (prop_id) {
     case PROP_API_VERSION:
         g_value_set_int(value, priv->api_version);
-        break;
-    case PROP_DEVICE_TYPE:
-        g_value_set_string(value, priv->supported_device_types);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -365,12 +358,6 @@ pu_config_class_init(PuConfigClass *class)
                              "The API version of the layout configuration file",
                              0, G_MAXINT32, 0,
                              G_PARAM_READWRITE);
-    props[PROP_DEVICE_TYPE] =
-        g_param_spec_string("supported-device-types",
-                            "Supported device types",
-                            "The supported flash device types",
-                            "mmc",
-                            G_PARAM_READWRITE);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
@@ -388,8 +375,11 @@ pu_config_init(G_GNUC_UNUSED PuConfig *self)
 }
 
 static gboolean
-pu_config_parse_globals(PuConfigPrivate *priv)
+pu_config_parse_globals(PuConfigPrivate *priv,
+                        GError **error)
 {
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
     PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
     if (value == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
@@ -408,7 +398,7 @@ pu_config_parse_globals(PuConfigPrivate *priv)
         for (GList *t = sdt; t != NULL; t = t->next) {
             PuConfigValue *tv = t->data;
             if (tv->type != PU_CONFIG_VALUE_TYPE_STRING) {
-                g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED
+                g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
                             "'supported-device-types' does not contain a sequence of strings");
                 return FALSE;
             }
@@ -416,11 +406,10 @@ pu_config_parse_globals(PuConfigPrivate *priv)
             priv->supported_device_types = g_list_prepend(
                     priv->supported_device_types, tv->data.string);
         }
-        part->flags = g_list_reverse(part->flags);
     } else {
         for (gsize i = 0; default_device_types[i] != NULL; i++) {
             priv->supported_device_types = g_list_prepend(
-                    priv->supported_device_types, default_device_types[i]);
+                    priv->supported_device_types, (gchar *) default_device_types[i]);
         }
     }
 }
@@ -473,7 +462,7 @@ pu_config_new_from_file(const gchar *filename,
         }
     } while (priv->event.type != YAML_DOCUMENT_END_EVENT);
 
-    if (!pu_config_parse_globals(priv)) {
+    if (!pu_config_parse_globals(priv, error)) {
         g_prefix_error(error, "Failed parsing global variables: ");
         g_object_unref(config);
         return NULL;
@@ -504,15 +493,19 @@ pu_config_is_version_compatible(PuConfig *config,
 gboolean
 pu_config_is_device_supported(PuConfig *config,
                               const gchar *device_path,
-                              GError *error)
+                              GError **error)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
 
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     for (GList *l = priv->supported_device_types; l != NULL; l = l->next) {
-        if (g_regex_match_simple(l->data, device_path))
-            return TRUE;
+        for (gsize i = 0; supported_device_types[i].name != NULL; i++) {
+            if (g_str_equal(l->data, supported_device_types[i].name)) {
+                if (g_regex_match_simple(supported_device_types[i].regex, device_path, 0, 0))
+                    return TRUE;
+            }
+        }
     }
 
     g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
