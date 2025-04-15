@@ -75,23 +75,6 @@ cmd_install(PuCommandContext *context,
         return FALSE;
     }
 
-    if (!pu_is_drive(device_path)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is not a drive", device_path);
-        return FALSE;
-    }
-
-    if (!pu_device_mounted(device_path, &is_mounted, error)) {
-        g_prefix_error(error, "Failed checking if device is in use: ");
-        return FALSE;
-    }
-
-    if (is_mounted) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is in use", device_path);
-        return FALSE;
-    }
-
     if (!pu_package_mount(package_path, &mount_path, &config_path, error))
         return FALSE;
 
@@ -109,6 +92,20 @@ cmd_install(PuCommandContext *context,
     switch (device_type) {
     case PU_CONFIG_DEVICE_TYPE_MMC:
     case PU_CONFIG_DEVICE_TYPE_HD:
+        if (!pu_device_mounted(device_path, &is_mounted, error)) {
+            g_prefix_error(error, "Failed checking if device is in use: ");
+            return FALSE;
+        }
+        if (is_mounted) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Device '%s' is in use", device_path);
+            return FALSE;
+        }
+        if (!pu_is_drive(device_path)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Device '%s' is not a drive", device_path);
+            return FALSE;
+        }
         emmc = pu_emmc_new(device_path, config, mount_path,
                            arg_install_skip_checksums, error);
         if (emmc == NULL) {
@@ -127,9 +124,9 @@ cmd_install(PuCommandContext *context,
         flash = PU_FLASH(mtd);
         break;
     default:
-        g_prefix_error(error, PU_ERROR, PU_ERROR_FAILED,
-                       "Device '%s' is not supported or of unknown type",
-                       device_path);
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Device '%s' is not supported or of unknown type",
+                    device_path);
         return error_out(mount_path);
     }
 
