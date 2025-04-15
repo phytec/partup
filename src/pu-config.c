@@ -15,12 +15,13 @@
 struct device_type {
     const gchar *name;
     const gchar *regex;
+    const PuConfigDeviceType type;
 };
-static const struct device_type supported_device_types[] = {
-    { "mmc", "(mmcblk[0-9]+|sd[a-z]+)$" },
-    { "hd", "sd[a-z]+$" },
-    { "mtd", "mtd[0-9]+$" },
-    { NULL, NULL }
+static const struct device_type device_types[] = {
+    { "mmc", "(mmcblk[0-9]+|sd[a-z]+)$", PU_CONFIG_DEVICE_TYPE_MMC },
+    { "hd", "sd[a-z]+$", PU_CONFIG_DEVICE_TYPE_HD },
+    { "mtd", "mtd[0-9]+$", PU_CONFIG_DEVICE_TYPE_MTD },
+    { NULL, NULL, 0 }
 };
 static const gchar *default_device_types[] = { "mmc", "hd" };
 
@@ -493,20 +494,29 @@ pu_config_is_version_compatible(PuConfig *config,
 gboolean
 pu_config_is_device_supported(PuConfig *config,
                               const gchar *device_path,
+                              PuConfigDeviceType *device_type,
                               GError **error)
 {
     PuConfigPrivate *priv = pu_config_get_instance_private(config);
 
+    g_return_val_if_fail(device_path != NULL, FALSE);
+    g_return_val_if_fail(!g_str_equal(device_path, ""), FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     for (GList *l = priv->supported_device_types; l != NULL; l = l->next) {
-        for (gsize i = 0; supported_device_types[i].name != NULL; i++) {
-            if (g_str_equal(l->data, supported_device_types[i].name)) {
-                if (g_regex_match_simple(supported_device_types[i].regex, device_path, 0, 0))
+        for (gsize i = 0; device_types[i].name != NULL; i++) {
+            if (g_str_equal(l->data, device_types[i].name)) {
+                if (g_regex_match_simple(device_types[i].regex, device_path, 0, 0)) {
+                    if (device_type != NULL)
+                        *device_type = device_types[i].type;
                     return TRUE;
+                }
             }
         }
     }
+
+    if (device_type != NULL)
+        *device_type = PU_CONFIG_DEVICE_TYPE_NONE;
 
     g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                 "Unsupported device %s", device_path);

@@ -60,6 +60,7 @@ cmd_install(PuCommandContext *context,
     PuFlash *flash = NULL;
     gchar **args;
     gboolean is_mounted;
+    PuConfigDeviceType device_type;
 
     if (getuid() != 0)
         return error_not_root(error);
@@ -102,8 +103,12 @@ cmd_install(PuCommandContext *context,
     }
     if (!pu_config_is_version_compatible(config, PARTUP_VERSION_MAJOR, error))
         return error_out(mount_path);
+    if (!pu_config_is_device_supported(config, device_path, &device_type, error))
+        return error_out(mount_path);
 
-    if (g_regex_match_simple("(mmcblk[0-9]+|sd[a-z]+)$", device_path, 0, 0)) {
+    switch (device_type) {
+    case PU_CONFIG_DEVICE_TYPE_MMC:
+    case PU_CONFIG_DEVICE_TYPE_HD:
         emmc = pu_emmc_new(device_path, config, mount_path,
                            arg_install_skip_checksums, error);
         if (emmc == NULL) {
@@ -111,7 +116,8 @@ cmd_install(PuCommandContext *context,
             return error_out(mount_path);
         }
         flash = PU_FLASH(emmc);
-    } else if (g_regex_match_simple("mtd[0-9]+$", device_path, 0, 0)) {
+        break;
+    case PU_CONFIG_DEVICE_TYPE_MTD:
         mtd = pu_mtd_new(device_path, config, mount_path,
                          arg_install_skip_checksums, error);
         if (mtd == NULL) {
@@ -119,9 +125,11 @@ cmd_install(PuCommandContext *context,
             return error_out(mount_path);
         }
         flash = PU_FLASH(mtd);
-    } else {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Invalid or unsupported device: %s", device_path);
+        break;
+    default:
+        g_prefix_error(error, PU_ERROR, PU_ERROR_FAILED,
+                       "Device '%s' is not supported or of unknown type",
+                       device_path);
         return error_out(mount_path);
     }
 
