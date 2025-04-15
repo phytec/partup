@@ -1,0 +1,8 @@
+api-version: 3
+supported-device-types:
+  - mtd
+partitions:
+  - label: first
+    size: 512kiB
+  - label: second
+    size: 2MiB
