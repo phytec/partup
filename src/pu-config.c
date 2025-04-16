@@ -10,6 +10,7 @@
 #include <gmodule.h>
 #include <yaml.h>
 #include "pu-config.h"
+#include "pu-hashtable.h"
 #include "pu-error.h"
 
 struct device_type {
@@ -413,6 +414,8 @@ pu_config_parse_globals(PuConfigPrivate *priv,
                     priv->supported_device_types, (gchar *) default_device_types[i]);
         }
     }
+
+    return TRUE;
 }
 
 PuConfig *
@@ -519,7 +522,8 @@ pu_config_is_device_supported(PuConfig *config,
         *device_type = PU_CONFIG_DEVICE_TYPE_NONE;
 
     g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                "Unsupported device %s", device_path);
+                "Provided partup package does not support device %s",
+                device_path);
     return FALSE;
 }
 
