@@ -10,6 +10,7 @@
 #include <linux/blkpg.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <glib/gstdio.h>
 #include "pu-error.h"
 #include "pu-file.h"
 #include "pu-flash.h"
@@ -91,6 +92,7 @@ pu_mtd_setup_layout(PuFlash *flash,
     if (ioctl(fd, BLKPG, &arg)) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                     "Failed issuing BLKPG ioctl for new partition '%s'", "tiboot3");
+        close(fd);
         return FALSE;
     }
     close(fd);*/
