@@ -94,17 +94,17 @@ cmd_install(PuCommandContext *context,
     case PU_CONFIG_DEVICE_TYPE_HD:
         if (!pu_device_mounted(device_path, &is_mounted, error)) {
             g_prefix_error(error, "Failed checking if device is in use: ");
-            return FALSE;
+            return error_out(mount_path);
         }
         if (is_mounted) {
             g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                         "Device '%s' is in use", device_path);
-            return FALSE;
+            return error_out(mount_path);
         }
         if (!pu_is_drive(device_path)) {
             g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                         "Device '%s' is not a drive", device_path);
-            return FALSE;
+            return error_out(mount_path);
         }
         emmc = pu_emmc_new(device_path, config, mount_path,
                            arg_install_skip_checksums, error);

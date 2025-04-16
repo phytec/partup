@@ -210,7 +210,7 @@ pu_mtd_parse_partitions(PuMtd *mtd,
             g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
                     input->filename, input->md5sum, input->sha256sum);
 
-            if (input->_size >= part->size) {
+            if ((gint64) input->_size >= part->size) {
                 g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
                             "Input file '%s' (%ld bytes) exceeds partition size (%ld bytes)",
                             input->filename, input->_size, part->size);
