@@ -46,11 +46,29 @@ static gboolean
 pu_mtd_init_device(PuFlash *flash,
                    GError **error)
 {
+    PuMtd *self = PU_MTD(flash);
+    g_autofree gchar *device_path = NULL;
+
+    g_object_get(flash,
+                 "device-path", &device_path,
+                 NULL);
+
     /* TODO:
      * 1. Check for existing partitioning through device tree or commandline. If
      *    there is any, abort with an error.
      * 2. Delete any existing partitions, like "mtdpart del" does.
      */
+    /* Check if MTD is actual device and not a partition */
+    g_autofree gchar *path_offset = NULL;
+    path_offset = g_build_filename("/sys/class/mtd", g_path_get_basename(device_path),
+                                   "offset", NULL);
+    if (g_file_test(path_offset, G_FILE_TEST_EXISTS)) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                    "Device '%s' appears to be a partition, but only complete "
+                    "MTDs can be written");
+        return FALSE;
+    }
+
     return TRUE;
 }
 
