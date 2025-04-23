@@ -10,6 +10,7 @@
 #include <linux/blkpg.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <gio/gio.h>
 #include <glib/gstdio.h>
 #include "pu-error.h"
 #include "pu-file.h"
@@ -32,6 +33,9 @@ typedef struct _PuMtdPartition {
     gint64 offset;
     gboolean erase;
     PuMtdInput *input;
+
+    /* Internal members */
+    guint _devnum;
 } PuMtdPartition;
 
 struct _PuMtd {
@@ -42,31 +46,170 @@ struct _PuMtd {
 
 G_DEFINE_TYPE(PuMtd, pu_mtd, PU_TYPE_FLASH)
 
+#if 0
+static GList *
+pu_mtd_get_partition_devnums(PuMtd *self)
+{
+    GList *devnums = NULL;
+    g_autofree gchar *device_path = NULL;
+    g_autofree gchar *sysfs_path = NULL;
+    g_autoptr(GFile) dir = NULL;
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
+    g_autoptr(GRegex) regex_part_num = NULL;
+
+    g_object_get(PU_FLASH(self),
+                 "device-path", &device_path,
+                 NULL);
+
+    sysfs_path = g_build_filename("/sys/class/mtd", g_path_get_basename(device_path), NULL);
+    regex_part_num = g_regex_new("[0-9]+$", 0, 0, NULL);
+
+    dir = g_file_new_for_path(sysfs_path);
+    dir_enum = g_file_enumerate_children(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
+    if (!dir_enum) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                    "Failed creating enumerator for '%s'", g_file_get_path(dir));
+        return NULL;
+    }
+
+    while (TRUE) {
+        GFileInfo *child_info;
+        g_autofree gchar *part_path = NULL;
+        g_autofree gchar *offset_path = NULL;
+        g_autofree gchar *name_path = NULL;
+        g_autofree gchar *name = NULL;
+        g_autoptr(GMatchInfo) match_info = NULL;
+        guint devnum;
+
+        if (!g_file_enumerator_iterate(dir_enum, &child_info, NULL, NULL, error)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                        "Failed iterating file enumerator for '%s'",
+                        g_file_get_path(dir));
+            return NULL;
+        }
+
+        if (!child_info)
+            break;
+
+        part_path = g_build_filename(g_file_get_path(dir),
+                                     g_file_info_get_name(child_info), NULL);
+        offset_path = g_build_filename(part_path, "offset", NULL);
+        if (!g_file_test(offset_path, G_FILE_TEST_EXISTS))
+            continue;
+
+        g_regex_match(regex_part_num, part_path, 0, &match_info);
+        if (!g_match_info_matches(match_info)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                        "Failed finding partition number for '%s'", part_path);
+            g_list_free(g_steal_pointer(&devnums));
+            return NULL;
+        }
+        devnum = g_ascii_strtoll(g_match_info_fetch(match_info, 0));
+        devnums = g_list_prepend(devnums, GINT_TO_POINTER(devnum));
+
+        name_path = g_build_filename(part_path, "name", NULL);
+        if (!g_file_get_contents(name_path, &name, NULL, error)) {
+            g_prefix_error(error, "Failed getting name of partition %u of "
+                           "device '%s'", devnum, device_path);
+            return NULL;
+        }
+
+        cmd = g_strdup_printf("mtdpart del %s %ld", device_path, devnum);
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed deleting partition %ld of device '%s'", d->data);
+            g_list_free(g_steal_pointer(&devnums));
+            return FALSE;
+        }
+
+        for (GList *p = self->partitions; p != NULL; p = p->next) {
+            PuMtdPartition *part = p->data;
+            if (g_str_equal(part->name, name))
+                part->_devnum = devnum;
+        }
+    }
+
+    return g_steal_pointer(&devnums);
+}
+#endif
+
 static gboolean
 pu_mtd_init_device(PuFlash *flash,
                    GError **error)
 {
-    PuMtd *self = PU_MTD(flash);
+    //PuMtd *self = PU_MTD(flash);
     g_autofree gchar *device_path = NULL;
+    g_autofree gchar *offset_path = NULL;
+    g_autofree gchar *device_offset_path = NULL;
+    g_autofree gchar *partitions = NULL;
+    g_autofree gchar *sysfs_path = NULL;
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
+    g_autoptr(GFile) dir = NULL;
+    g_autoptr(GRegex) regex_part_num = NULL;
+    const gchar *file_attr = G_FILE_ATTRIBUTE_STANDARD_NAME;
 
     g_object_get(flash,
                  "device-path", &device_path,
                  NULL);
 
-    /* TODO:
-     * 1. Check for existing partitioning through device tree or commandline. If
-     *    there is any, abort with an error.
-     * 2. Delete any existing partitions, like "mtdpart del" does.
-     */
     /* Check if MTD is actual device and not a partition */
-    g_autofree gchar *path_offset = NULL;
-    path_offset = g_build_filename("/sys/class/mtd", g_path_get_basename(device_path),
-                                   "offset", NULL);
-    if (g_file_test(path_offset, G_FILE_TEST_EXISTS)) {
+    sysfs_path = g_build_filename("/sys/class/mtd", g_path_get_basename(device_path), NULL);
+    device_offset_path = g_build_filename(sysfs_path, "offset", NULL);
+    if (g_file_test(device_offset_path, G_FILE_TEST_EXISTS)) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
-                    "Device '%s' appears to be a partition, but only complete "
-                    "MTDs can be written");
+                    "'%s' appears to be a partition, but only complete devices "
+                    "can be written", device_path);
         return FALSE;
+    }
+
+    /* Delete device's old partitions */
+    regex_part_num = g_regex_new("[0-9]+$", 0, 0, NULL);
+
+    dir = g_file_new_for_path(sysfs_path);
+    dir_enum = g_file_enumerate_children(dir, file_attr, G_FILE_QUERY_INFO_NONE, NULL, error);
+    if (!dir_enum) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                    "Failed creating enumerator for '%s'", g_file_get_path(dir));
+        return FALSE;
+    }
+
+    while (TRUE) {
+        GFileInfo *child_info;
+        guint devnum;
+        g_autofree gchar *part_path = NULL;
+        g_autofree gchar *cmd = NULL;
+        g_autoptr(GMatchInfo) match_info = NULL;
+
+        if (!g_file_enumerator_iterate(dir_enum, &child_info, NULL, NULL, error)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                        "Failed iterating file enumerator for '%s'",
+                        g_file_get_path(dir));
+            return FALSE;
+        }
+
+        if (!child_info)
+            break;
+
+        part_path = g_build_filename(g_file_get_path(dir),
+                                     g_file_info_get_name(child_info), NULL);
+        g_free(offset_path);
+        offset_path = g_build_filename(part_path, "offset", NULL);
+        if (!g_file_test(offset_path, G_FILE_TEST_EXISTS))
+            continue;
+
+        g_regex_match(regex_part_num, part_path, 0, &match_info);
+        if (!g_match_info_matches(match_info)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_INIT,
+                        "Failed finding partition number for '%s'", part_path);
+            return FALSE;
+        }
+
+        devnum = g_ascii_strtoll(g_match_info_fetch(match_info, 0), NULL, 10);
+        cmd = g_strdup_printf("mtdpart del %s %u", device_path, devnum);
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed deleting partition %u of device '%s'",
+                           devnum, device_path);
+            return FALSE;
+        }
     }
 
     return TRUE;
@@ -81,9 +224,7 @@ pu_mtd_setup_layout(PuFlash *flash,
      * 2. Erase each partition's content. See "flash_erase".
      */
     PuMtd *self = PU_MTD(flash);
-    int fd;
-    struct blkpg_partition part;
-    struct blkpg_ioctl_arg arg;
+    //GList *devnums = NULL;
     g_autofree gchar *device_path = NULL;
 
     g_object_get(flash,
@@ -91,31 +232,35 @@ pu_mtd_setup_layout(PuFlash *flash,
                  NULL);
 
     /* Add partitions */
-    /*fd = g_open(device_path, O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Failed opening %s", device_path);
-        return FALSE;
-    }
-    memset(&part, 0, sizeof(part));
-    memset(&arg, 0, sizeof(arg));
-    arg.datalen = sizeof(part);
-    arg.data = &part;
-    arg.op = BLKPG_ADD_PARTITION;
-    part.start = 0; // TODO
-    part.length = 0x80000; // TODO
-    strncpy(part.devname, "tiboot3", // TODO
-            sizeof(part.devname) - 1);
-    part.devname[sizeof(part.devname) - 1] = '\0';
-    if (ioctl(fd, BLKPG, &arg)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Failed issuing BLKPG ioctl for new partition '%s'", "tiboot3");
-        close(fd);
-        return FALSE;
-    }
-    close(fd);*/
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        g_autofree gchar *cmd = NULL;
+        PuMtdPartition *part = p->data;
 
-    /* Erase partitions' content if erase == TRUE */
+        cmd = g_strdup_printf("mtdpart add %s \"%s\" %ld %ld", device_path,
+                              part->label, part->offset, part->size);
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed adding partition '%s' at offset %ld "
+                           "for device '%s'", part->label, part->offset, device_path);
+            return FALSE;
+        }
+    }
+
+#if 0
+    devnums = pu_mtd_get_partition_devnums(device_path);
+
+    for (GList *d = devnums; d != NULL; d = d->next) {
+        g_autofree gchar *cmd = NULL;
+        gint64 devnum = d->data;
+
+        /* Erase partitions */
+        cmd = g_strdup_printf("flash_erase -q \"/dev/mtd/by-name/%s\" 0 0", part->label);
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed erasing partition '%s' at offset %ld "
+                           "for device '%s'", part->label, part->offset, device_path);
+            return FALSE;
+        }
+    }
+#endif
 
     return TRUE;
 }
