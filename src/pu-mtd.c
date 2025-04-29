@@ -179,6 +179,7 @@ pu_mtd_partition_enumerator_iterate(PuMtdPartitionEnumerator *part_enum,
                            "device '%s': ", out_info->devnum, device_path);
             return FALSE;
         }
+        out_info->name = g_strstrip(out_info->name);
         break;
     }
 
@@ -244,6 +245,27 @@ pu_mtd_init_device(PuFlash *flash,
     return TRUE;
 }
 
+static PuMtdPartition *
+find_partition(PuMtd *self,
+               const gchar *name,
+               gint64 offset,
+               GError **error)
+{
+    PuMtdPartition *part;
+
+    for (GList *p = self->partitions; p; p = p->next) {
+        part = p->data;
+        if (g_str_equal(part->label, name) && part->offset == offset) {
+            return part;
+        }
+    }
+
+    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                "Couldn't find partition for label '%s' and offset %ld",
+                name, offset);
+    return NULL;
+}
+
 static gboolean
 pu_mtd_setup_layout(PuFlash *flash,
                     GError **error)
@@ -254,6 +276,8 @@ pu_mtd_setup_layout(PuFlash *flash,
      */
     PuMtd *self = PU_MTD(flash);
     g_autofree gchar *device_path = NULL;
+    g_autoptr(PuMtdPartitionEnumerator) part_enum = NULL;
+    g_autoptr(PuMtdPartitionInfo) part_info = NULL;
 
     g_object_get(flash,
                  "device-path", &device_path,
@@ -278,6 +302,34 @@ pu_mtd_setup_layout(PuFlash *flash,
 
     /* Erase partitions */
     /* TODO: Only erase, if appropriate flag is set for partition in layout config */
+    part_enum = pu_mtd_enumerate_partitions(device_path, error);
+    if (!part_enum) {
+        return FALSE;
+    }
+    while (TRUE) {
+        g_autofree gchar *cmd = NULL;
+        const PuMtdPartition *p = NULL;
+
+        if (!pu_mtd_partition_enumerator_iterate(part_enum, &part_info, error)) {
+            g_prefix_error(error, "Failed iterating partition enumerator: ");
+            return FALSE;
+        }
+        if (!part_info)
+            break;
+
+        p = find_partition(self, part_info->name, part_info->offset, error);
+        if (!p)
+            return FALSE;
+        if (!p->erase)
+            continue;
+
+        cmd = g_strdup_printf("flash_erase -q /dev/mtd%u 0 0", part_info->devnum);
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed erasing partition %u of device '%s'",
+                           part_info->devnum, device_path);
+            return FALSE;
+        }
+    }
 #if 0
     sysfs_path = g_build_filename("/sys/class/mtd", g_path_get_basename(device_path), NULL);
     regex_part_num = g_regex_new("[0-9]+$", 0, 0, NULL);
