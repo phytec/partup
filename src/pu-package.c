@@ -131,8 +131,7 @@ pu_package_create(gchar **files,
     cmd = g_strdup_printf("mksquashfs %s %s", input, output);
 
     if (!pu_spawn_command_line_sync(cmd, error)) {
-        g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_CREATION_FAILED,
-                    "Failed creating package '%s': ", output);
+        g_prefix_error(error, "Failed creating package '%s': ", output);
         return FALSE;
     }
 
