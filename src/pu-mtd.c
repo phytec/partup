@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <gio/gio.h>
 #include <glib/gstdio.h>
+#include "pu-checksum.h"
 #include "pu-error.h"
 #include "pu-file.h"
 #include "pu-flash.h"
@@ -355,6 +356,7 @@ pu_mtd_write_data(PuFlash *flash,
      *    produced earlier.
      */
     PuMtd *self = PU_MTD(flash);
+    gboolean skip_checksums = FALSE;
     g_autofree gchar *device_path = NULL;
     g_autofree gchar *prefix = NULL;
     g_autoptr(PuMtdPartitionEnumerator) part_enum = NULL;
@@ -363,6 +365,7 @@ pu_mtd_write_data(PuFlash *flash,
     g_object_get(flash,
                  "device-path", &device_path,
                  "prefix", &prefix,
+                 "skip-checksums", &skip_checksums,
                  NULL);
 
     g_message("Writing data to MTD");
@@ -375,6 +378,8 @@ pu_mtd_write_data(PuFlash *flash,
     while (TRUE) {
         g_autofree gchar *cmd = NULL;
         g_autofree gchar *path = NULL;
+        g_autofree gchar *sha256sum = NULL;
+        g_autofree gchar *part_dev = NULL;
         const PuMtdPartition *p = NULL;
 
         if (!pu_mtd_partition_enumerator_iterate(part_enum, &part_info, error)) {
@@ -396,17 +401,27 @@ pu_mtd_write_data(PuFlash *flash,
             return FALSE;
         }
 
-        /* TODO: Verify input checksums */
-        cmd = g_strdup_printf("flashcp %s /dev/mtd%u", path, part_info->devnum);
+        part_dev = g_strdup_printf("/dev/mtd%u", part_info->devnum);
+        cmd = g_strdup_printf("flashcp %s %s", path, part_dev);
         if (!pu_spawn_command_line_sync(cmd, error)) {
             g_prefix_error(error, "Failed writing data to partition '%s': ",
                            part_info->name);
             return FALSE;
         }
+        /* TODO: Verify written data checksums */
+        if (!g_str_equal(p->input->md5sum, "") && !skip_checksums) {
+            g_debug("Checking MD5 sum of output data in '%s'", path);
+            if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
+                                        p->input->md5sum, G_CHECKSUM_MD5, error))
+                return FALSE;
+        }
     }
 
     /* TODO: Output message informing to update the partitions in the device
-     * tree or kernel and/or bootloader. */
+     * tree or kernel and/or bootloader. Maybe print a short partition table, so
+     * the user knows which names, sizes and offsets to use. Some output of
+     * mtd_debug/mtdinfo could be useful. */
+    g_message("Update MTD partitions in kernel/bootloader to match new one!");
 
     return TRUE;
 }
