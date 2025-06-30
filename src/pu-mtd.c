@@ -260,7 +260,6 @@ find_partition(PuMtd *self,
     for (GList *p = self->partitions; p; p = p->next) {
         part = p->data;
         acc_offset += part->offset;
-        g_debug("Checking partition '%s' at %ld", part->label, acc_offset);
         if (g_str_equal(part->label, name) && acc_offset == offset) {
             return part;
         }
@@ -277,10 +276,6 @@ static gboolean
 pu_mtd_setup_layout(PuFlash *flash,
                     GError **error)
 {
-    /* TODO:
-     * 1. Add partitions as specified in the config. See "mtdpart add".
-     * 2. Erase each partition's content. See "flash_erase".
-     */
     PuMtd *self = PU_MTD(flash);
     g_autofree gchar *device_path = NULL;
     g_autoptr(PuMtdPartitionEnumerator) part_enum = NULL;
@@ -349,13 +344,6 @@ static gboolean
 pu_mtd_write_data(PuFlash *flash,
                   GError **error)
 {
-    /* TODO:
-     * 1. Check if input binary fits target partition.
-     * 2. Get length and checksum of input binary.
-     * 3. Write input binary byte-wise to target partition.
-     * 4. Verify checksum of written data in target partition with the one
-     *    produced earlier.
-     */
     PuMtd *self = PU_MTD(flash);
     gboolean skip_checksums = FALSE;
     g_autofree gchar *device_path = NULL;
@@ -409,7 +397,7 @@ pu_mtd_write_data(PuFlash *flash,
                            part_info->name);
             return FALSE;
         }
-        /* TODO: Verify written data checksums */
+
         if (!g_str_equal(p->input->md5sum, "") && !skip_checksums) {
             g_debug("Checking MD5 sum of output data in '%s'", path);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
@@ -428,7 +416,7 @@ pu_mtd_write_data(PuFlash *flash,
      * tree or kernel and/or bootloader. Maybe print a short partition table, so
      * the user knows which names, sizes and offsets to use. Some output of
      * mtd_debug/mtdinfo could be useful. */
-    g_message("Update MTD partitions in kernel/bootloader to match new one!");
+    g_info("MTD partitions need to be updated in bootloader and/or kernel!");
 
     return TRUE;
 }
