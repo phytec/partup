@@ -334,6 +334,7 @@ pu_mtd_setup_layout(PuFlash *flash,
         if (!p->erase)
             continue;
 
+        /* TODO: Correct partition devnum? Test with i.MX6 */
         cmd = g_strdup_printf("flash_erase -q /dev/mtd%u 0 0", part_info->devnum);
         if (!pu_spawn_command_line_sync(cmd, error)) {
             g_prefix_error(error, "Failed erasing partition '%s'", part_info->name);
@@ -413,6 +414,12 @@ pu_mtd_write_data(PuFlash *flash,
             g_debug("Checking MD5 sum of output data in '%s'", path);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
                                         p->input->md5sum, G_CHECKSUM_MD5, error))
+                return FALSE;
+        }
+        if (!g_str_equal(p->input->sha256sum, "") && !skip_checksums) {
+            g_debug("Checking SHA256 sum of output data in '%s'", path);
+            if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
+                                        p->input->sha256sum, G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
     }
