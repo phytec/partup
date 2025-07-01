@@ -260,16 +260,18 @@ find_partition(PuMtd *self,
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         part = p->data;
         acc_offset += part->offset;
-        g_debug("Checking partition '%s' at %ld", part->label, acc_offset);
+        g_debug("Checking partition '%s' at %" G_GINT64_FORMAT,
+                part->label, acc_offset);
         if (g_str_equal(part->label, name) && acc_offset == offset) {
-            g_debug("Found partition '%s' at acc_offset=%ld", name, acc_offset);
+            g_debug("Found partition '%s' at acc_offset=%" G_GINT64_FORMAT,
+                    name, acc_offset);
             return part;
         }
         acc_offset += part->size;
     }
 
     g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                "Couldn't find partition for name '%s' and offset %ld",
+                "Couldn't find partition for name '%s' and offset %" G_GINT64_FORMAT,
                 name, offset);
     return NULL;
 }
@@ -297,21 +299,23 @@ pu_mtd_setup_layout(PuFlash *flash,
 
         /* TODO: partition offset must add size of previous partitions */
         acc_offset += part->offset;
-        g_debug("acc_offset=%ld part->offset=%ld part->size=%ld",
+        g_debug("acc_offset=%" G_GINT64_FORMAT " "
+                "part->offset=%" G_GINT64_FORMAT " "
+                "part->size=%" G_GINT64_FORMAT,
                 acc_offset, part->offset, part->size);
         /* TODO: Check partition offset and size not overlapping with device
          * size of other partitions */
-        cmd = g_strdup_printf("mtdpart add %s \"%s\" %ld %ld", device_path,
-                              part->label, acc_offset, part->size);
+        cmd = g_strdup_printf("mtdpart add %s \"%s\" %" G_GINT64_FORMAT " %" G_GINT64_FORMAT,
+                              device_path, part->label, acc_offset, part->size);
         if (!pu_spawn_command_line_sync(cmd, error)) {
-            g_prefix_error(error, "Failed adding partition '%s' at offset %ld "
-                           "for device '%s'", part->label, acc_offset, device_path);
+            g_prefix_error(error, "Failed adding partition '%s' at offset %" G_GINT64_FORMAT
+                           " for device '%s'", part->label, acc_offset, device_path);
             return FALSE;
         }
         acc_offset += part->size;
     }
 
-    /* Erase partitions */
+    /* Erase partitions' content */
     part_enum = pu_mtd_enumerate_partitions(device_path, error);
     if (!part_enum)
         return FALSE;
@@ -333,7 +337,6 @@ pu_mtd_setup_layout(PuFlash *flash,
         if (!p->erase)
             continue;
 
-        /* TODO: Correct partition devnum? Test with i.MX6 */
         cmd = g_strdup_printf("flash_erase -q /dev/mtd%u 0 0", part_info->devnum);
         if (!pu_spawn_command_line_sync(cmd, error)) {
             g_prefix_error(error, "Failed erasing partition '%s'", part_info->name);
@@ -525,7 +528,8 @@ pu_mtd_parse_partitions(PuMtd *mtd,
 
             if ((gint64) input->_size >= part->size) {
                 g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
-                            "Input file '%s' (%ld bytes) exceeds partition size (%ld bytes)",
+                            "Input file '%s' (%" G_GINT64_FORMAT " bytes) "
+                            "exceeds partition size (%" G_GINT64_FORMAT " bytes)",
                             input->filename, input->_size, part->size);
                 return FALSE;
             }
