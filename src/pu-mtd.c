@@ -257,10 +257,12 @@ find_partition(PuMtd *self,
     g_return_val_if_fail(PU_IS_MTD(self), NULL);
     g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
-    for (GList *p = self->partitions; p; p = p->next) {
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
         part = p->data;
         acc_offset += part->offset;
+        g_debug("Checking partition '%s' at %ld", part->label, acc_offset);
         if (g_str_equal(part->label, name) && acc_offset == offset) {
+            g_debug("Found partition '%s' at acc_offset=%ld", name, acc_offset);
             return part;
         }
         acc_offset += part->size;
@@ -295,6 +297,8 @@ pu_mtd_setup_layout(PuFlash *flash,
 
         /* TODO: partition offset must add size of previous partitions */
         acc_offset += part->offset;
+        g_debug("acc_offset=%ld part->offset=%ld part->size=%ld",
+                acc_offset, part->offset, part->size);
         /* TODO: Check partition offset and size not overlapping with device
          * size of other partitions */
         cmd = g_strdup_printf("mtdpart add %s \"%s\" %ld %ld", device_path,
@@ -493,6 +497,8 @@ pu_mtd_parse_partitions(PuMtd *mtd,
                         "Partition is missing a size");
             return FALSE;
         }
+        g_debug("Parsed partition: label=%s size=%lld offset=%lld erase=%s",
+                part->label, part->size, part->offset, part->erase ? "true" : "false");
         PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
         if (value_input) {
             if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
