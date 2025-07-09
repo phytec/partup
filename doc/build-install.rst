@@ -107,3 +107,89 @@ Yocto
 
 A Yocto recipe is available in `meta-phytec
 <https://git.phytec.de/meta-phytec/tree/recipes-support/partup>`_.
+
+WSL (Windows Subsystem for Linux)
+..................................
+
+While partup only runs on Linux and does not support Microsoft Windows natively,
+it can be run via WSL (Windows Subsystem for Linux). This section describes how
+to setup WSL2 on a Windows machine, pass through a USB SD card reader and use
+partup to flash an SD card, as an example.
+
+Open the Windows command prompt as an administrator and install a WSL2
+distribution::
+
+   wsl --install --no-distribution
+   wsl --install Ubuntu --version 2
+
+Running a WSL2 distribution is as simple as clicking on the appropriate
+shortcut, e.g. "Ubuntu", in the Windows start menu, or by running it from a
+regular command prompt::
+
+   wsl
+
+For a detailed documentation, see the official instructions from Microsoft:
+https://learn.microsoft.com/en-us/windows/wsl/install
+
+Since WSL kernel version 6.6.29, USB storage support is built as a kernel module
+and no further modifications to the WSL distribution have to be done.
+
+.. note::
+   For older WSL kernel releases prior to 6.6.29, USB storage support must be
+   added manually by compiling your own version of the WSL kernel. See the
+   offical Microsoft documentation on how to compile your kernel:
+   https://learn.microsoft.com/en-us/community/content/wsl-user-msft-kernel-v6
+
+   Add the following configuration options to a new file named ``usb.cfg`` in
+   the WSL kernel source tree::
+
+      CONFIG_USB=y
+      CONFIG_USB_STORAGE=y
+      CONFIG_MMC=y
+      CONFIG_MMC_BLOCK=y
+      CONFIG_MMC_SDHCI=y
+      CONFIG_MMC_SDHCI_PCI=y
+
+   Clone the WSL kernel, install dependencies, merge the ``usb.cfg`` config
+   fragment and compile the kernel::
+
+      sudo apt update
+      sudo apt upgrade
+      sudo apt install build-essential flex bison dwarves libssl-dev libelf-dev
+      cpio qemu-utils pahole
+      git clone https://github.com/microsoft/WSL2-Linux-Kernel.git --depth=1 -b linux-msft-wsl-5.15.y ~/kernel
+      cd ~/kernel
+      ./scripts/kconfig/merge_config.sh Microsoft/config-wsl usb.cfg
+      make -j$(nproc) KCONFIG_CONFIG=Microsoft/config-wsl
+      make INSTALL_MOD_PATH="$PWD/modules" modules_install
+      cp arch/x86/boot/bzImage /mnt/c/
+
+   Add the following content to the file ``%USERPROFILE%\.wslconfig``::
+
+      [wsl2]
+      kernel=C:\\bzImage
+
+To pass through USB storage devices, like an SD card reader, to the WSL
+distribution, install `usbipd-win <https://github.com/dorssel/usbipd-win>`_. As
+an administrator in a Windows command prompt, do::
+
+   winget install usbipd
+
+Find the desired USB device and its bus ID::
+
+   usbipd list
+
+Bind the USB device (replace ``<BUSID>`` with the correct bus ID from above,
+e.g. ``2-1``)::
+
+   usbipd bind -b <BUSID>
+
+Each time the WSL distribution is started, the USB device has to be attached. In
+a regular Windows command prompt, execute::
+
+   usbipd attach -w -b <BUSID>
+
+To automatically attach a USB device usbipd, `wsl-usb-gui
+<https://gitlab.com/alelec/wsl-usb-gui>`_ can be used. usbipd itself probably
+`will not support this feature
+<https://github.com/dorssel/usbipd-win/issues/371#issuecomment-1120202537>`_.
