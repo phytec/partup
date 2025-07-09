@@ -24,6 +24,7 @@ Main Features
    :maxdepth: 2
    :caption: Contents
 
+   build-install
    usage
    layout-config
    contributing
