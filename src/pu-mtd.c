@@ -28,9 +28,8 @@ typedef struct _PuMtdInput {
     /* Internal members */
     gsize _size;
 } PuMtdInput;
-/* TODO: rename label to name, to fit MTD's usage of partition "names" */
 typedef struct _PuMtdPartition {
-    gchar *label;
+    gchar *name;
     gint64 size;
     gint64 offset;
     gboolean erase;
@@ -261,8 +260,8 @@ find_partition(PuMtd *self,
         part = p->data;
         acc_offset += part->offset;
         g_debug("Checking partition '%s' at %" G_GINT64_FORMAT,
-                part->label, acc_offset);
-        if (g_str_equal(part->label, name) && acc_offset == offset) {
+                part->name, acc_offset);
+        if (g_str_equal(part->name, name) && acc_offset == offset) {
             g_debug("Found partition '%s' at acc_offset=%" G_GINT64_FORMAT,
                     name, acc_offset);
             return part;
@@ -306,10 +305,10 @@ pu_mtd_setup_layout(PuFlash *flash,
         /* TODO: Check partition offset and size not overlapping with device
          * size of other partitions */
         cmd = g_strdup_printf("mtdpart add %s \"%s\" %" G_GINT64_FORMAT " %" G_GINT64_FORMAT,
-                              device_path, part->label, acc_offset, part->size);
+                              device_path, part->name, acc_offset, part->size);
         if (!pu_spawn_command_line_sync(cmd, error)) {
             g_prefix_error(error, "Failed adding partition '%s' at offset %" G_GINT64_FORMAT
-                           " for device '%s'", part->label, acc_offset, device_path);
+                           " for device '%s'", part->name, acc_offset, device_path);
             return FALSE;
         }
         acc_offset += part->size;
@@ -491,7 +490,7 @@ pu_mtd_parse_partitions(PuMtd *mtd,
         }
 
         PuMtdPartition *part = g_new0(PuMtdPartition, 1);
-        part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
+        part->name = pu_hash_table_lookup_string(v->data.mapping, "name", NULL);
         part->size = pu_hash_table_lookup_bytes(v->data.mapping, "size", 0);
         part->offset = pu_hash_table_lookup_bytes(v->data.mapping, "offset", 0);
         part->erase = pu_hash_table_lookup_boolean(v->data.mapping, "erase", TRUE);
@@ -500,8 +499,8 @@ pu_mtd_parse_partitions(PuMtd *mtd,
                         "Partition is missing a size");
             return FALSE;
         }
-        g_debug("Parsed partition: label=%s size=%lld offset=%lld erase=%s",
-                part->label, part->size, part->offset, part->erase ? "true" : "false");
+        g_debug("Parsed partition: name=%s size=%lld offset=%lld erase=%s",
+                part->name, part->size, part->offset, part->erase ? "true" : "false");
         PuConfigValue *value_input = g_hash_table_lookup(v->data.mapping, "input");
         if (value_input) {
             if (value_input->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
