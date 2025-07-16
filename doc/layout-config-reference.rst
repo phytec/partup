@@ -5,9 +5,26 @@ API Version
 -----------
 
 ``api-version`` (integer)
-   The API version used in this configuration file. The provided number must be
-   equal or smaller than the major version of the currently used partup
-   executable.
+   The API version used in this configuration file. The API version must reflect
+   the options being used in the layout configuration file. E.g. when using the
+   option ``bootbus`` from the ``mmc`` section, the API version must be at least
+   2.
+
+   The provided number must be equal or smaller than the major version of the
+   currently used partup executable. This means the partup executable is
+   backwards-compatible with previous API versions of layout configuration
+   files. An exception are alpha releases with program and API version 0, which
+   are never compatible with stable releases starting with 1. See the following
+   table for examples of compatible version combinations:
+
+   ===========  ==========================
+   API version  Compatible partup versions
+   ===========  ==========================
+   0            0 only
+   1            1, 2, 3, …
+   2            2, 3, 4, …
+   3            3, 4, 5, …
+   ===========  ==========================
 
    This scalar is mandatory.
 
