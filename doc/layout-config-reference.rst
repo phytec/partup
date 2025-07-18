@@ -11,6 +11,19 @@ API Version
 
    This scalar is mandatory.
 
+Supported Device Types
+----------------------
+
+``supported-device-types`` (sequence)
+   A sequence of supported device type strings. Possible options are:
+
+   -  ``mmc``: MMC devices, such as SD cards and eMMC.
+   -  ``hd``: Hard disk drives, including SSD and NVMe devices.
+   -  ``mtd``: Memory Technology Devices (MTD) used as an abstraction layer for
+      raw NOR and NAND flash devices.
+
+   Available since: :ref:`release-3.0.0`
+
 Disk Options
 ------------
 
@@ -182,6 +195,9 @@ of mappings with at least an ``input``.
    An input mapping. See :ref:`input-files`.
 
 .. _input-files:
+
+MTD Partitions
+--------------
 
 Input Files
 -----------
