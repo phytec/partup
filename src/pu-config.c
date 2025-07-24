@@ -340,10 +340,11 @@ pu_config_class_init(PuConfigClass *class)
     object_class->finalize = pu_config_class_finalize;
 
     props[PROP_API_VERSION] =
-        g_param_spec_pointer("api-version",
-                             "API version",
-                             "The API version of the layout configuration file",
-                             G_PARAM_READWRITE);
+        g_param_spec_int("api-version",
+                         "API version",
+                         "The API version of the layout configuration file",
+                         0, G_MAXINT32, 0,
+                         G_PARAM_READWRITE);
 
     g_object_class_install_properties(object_class, NUM_PROPS, props);
 }
