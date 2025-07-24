@@ -43,6 +43,7 @@ src = [
   'src/pu-log.c',
   'src/pu-mount.c',
   'src/pu-package.c',
+  'src/pu-unit.c',
   'src/pu-utils.c'
 ]
 
