@@ -42,6 +42,7 @@ src = [
   'src/pu-hashtable.c',
   'src/pu-log.c',
   'src/pu-mount.c',
+  'src/pu-mtd.c',
   'src/pu-package.c',
   'src/pu-unit.c',
   'src/pu-utils.c'
