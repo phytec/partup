@@ -1,3 +1,14 @@
+.. _release-3.0.0:
+
+3.0.0
+=====
+
+*Release date: TBA*
+
+.. rubric:: Changes
+
+.. rubric:: Contributors
+
 .. _release-2.2.0:
 
 2.2.0
