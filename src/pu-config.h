@@ -52,12 +52,24 @@ typedef struct {
     } data;
 } PuConfigValue;
 
+typedef enum {
+    PU_CONFIG_DEVICE_TYPE_NONE = 0,
+    PU_CONFIG_DEVICE_TYPE_MMC,
+    PU_CONFIG_DEVICE_TYPE_HD,
+    PU_CONFIG_DEVICE_TYPE_MTD
+} PuConfigDeviceType;
+
 PuConfig * pu_config_new_from_file(const gchar *filename,
                                    GError **error);
 
 gboolean pu_config_is_version_compatible(PuConfig *config,
                                          gint version,
                                          GError **error);
+
+gboolean pu_config_is_device_supported(PuConfig *config,
+                                       const gchar *device_path,
+                                       PuConfigDeviceType *device_type,
+                                       GError **error);
 
 GHashTable * pu_config_get_root(PuConfig *config);
 

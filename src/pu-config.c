@@ -10,7 +10,21 @@
 #include <gmodule.h>
 #include <yaml.h>
 #include "pu-config.h"
+#include "pu-hashtable.h"
 #include "pu-error.h"
+
+typedef struct _PuConfigDeviceTypeMatch {
+    const gchar *name;
+    const gchar *regex;
+    const PuConfigDeviceType type;
+} PuConfigDeviceTypeMatch;
+static const PuConfigDeviceTypeMatch device_types[] = {
+    { "mmc", "mmcblk[0-9]+$", PU_CONFIG_DEVICE_TYPE_MMC },
+    { "hd", "(sd[a-z]+|loop[0-9]+)$", PU_CONFIG_DEVICE_TYPE_HD },
+    { "mtd", "mtd[0-9]+$", PU_CONFIG_DEVICE_TYPE_MTD },
+    { NULL, NULL, 0 }
+};
+static const gchar *default_device_types[] = { "mmc", "hd", NULL };
 
 typedef struct _PuConfigPrivate PuConfigPrivate;
 
@@ -22,6 +36,7 @@ struct _PuConfigPrivate {
 
     GHashTable *root;
     gint api_version;
+    GList *supported_device_types;
 };
 struct _PuConfig {
     GObject parent;
@@ -321,6 +336,7 @@ pu_config_class_finalize(GObject *object)
     PuConfig *self = PU_CONFIG(object);
     PuConfigPrivate *priv = pu_config_get_instance_private(self);
 
+    g_list_free_full(g_steal_pointer(&priv->supported_device_types), g_free);
     g_free(priv->contents);
     pu_config_free_mapping(priv->root);
 
@@ -357,7 +373,50 @@ pu_config_init(G_GNUC_UNUSED PuConfig *self)
     priv->contents = NULL;
     priv->contents_len = 0;
     priv->api_version = -1;
+    priv->supported_device_types = NULL;
     priv->root = NULL;
+}
+
+static gboolean
+pu_config_parse_globals(PuConfigPrivate *priv,
+                        GError **error)
+{
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
+    if (value == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                    "'api-version' is not set");
+        return FALSE;
+    }
+    if (value->type != PU_CONFIG_VALUE_TYPE_INTEGER_10) {
+        g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                    "'api-version' has wrong type");
+        return FALSE;
+    }
+    priv->api_version = value->data.integer;
+
+    GList *sdt = pu_hash_table_lookup_list(priv->root, "supported-device-types", NULL);
+    if (sdt != NULL) {
+        for (GList *t = sdt; t != NULL; t = t->next) {
+            PuConfigValue *tv = t->data;
+            if (tv->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                g_set_error(error, PU_ERROR, PU_ERROR_CONFIG_PARSING_FAILED,
+                            "'supported-device-types' does not contain a sequence of strings");
+                return FALSE;
+            }
+
+            priv->supported_device_types = g_list_prepend(
+                    priv->supported_device_types, g_strdup(tv->data.string));
+        }
+    } else {
+        for (gsize i = 0; default_device_types[i] != NULL; i++) {
+            priv->supported_device_types = g_list_prepend(
+                    priv->supported_device_types, g_strdup((gchar *) default_device_types[i]));
+        }
+    }
+
+    return TRUE;
 }
 
 PuConfig *
@@ -408,10 +467,11 @@ pu_config_new_from_file(const gchar *filename,
         }
     } while (priv->event.type != YAML_DOCUMENT_END_EVENT);
 
-    PuConfigValue *value = g_hash_table_lookup(priv->root, "api-version");
-    g_return_val_if_fail(value != NULL, NULL);
-    g_return_val_if_fail(value->type == PU_CONFIG_VALUE_TYPE_INTEGER_10, NULL);
-    priv->api_version = value->data.integer;
+    if (!pu_config_parse_globals(priv, error)) {
+        g_prefix_error(error, "Failed parsing global variables: ");
+        g_object_unref(config);
+        return NULL;
+    }
 
     return g_steal_pointer(&config);
 }
@@ -433,6 +493,39 @@ pu_config_is_version_compatible(PuConfig *config,
     }
 
     return TRUE;
+}
+
+gboolean
+pu_config_is_device_supported(PuConfig *config,
+                              const gchar *device_path,
+                              PuConfigDeviceType *device_type,
+                              GError **error)
+{
+    PuConfigPrivate *priv = pu_config_get_instance_private(config);
+
+    g_return_val_if_fail(device_path != NULL, FALSE);
+    g_return_val_if_fail(!g_str_equal(device_path, ""), FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    for (GList *l = priv->supported_device_types; l != NULL; l = l->next) {
+        for (gsize i = 0; device_types[i].name != NULL; i++) {
+            if (g_str_equal(l->data, device_types[i].name)) {
+                if (g_regex_match_simple(device_types[i].regex, device_path, 0, 0)) {
+                    if (device_type != NULL)
+                        *device_type = device_types[i].type;
+                    return TRUE;
+                }
+            }
+        }
+    }
+
+    if (device_type != NULL)
+        *device_type = PU_CONFIG_DEVICE_TYPE_NONE;
+
+    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                "Provided partup package does not support device %s",
+                device_path);
+    return FALSE;
 }
 
 GHashTable *
