@@ -14,6 +14,9 @@ gboolean pu_file_read_raw(const gchar *filename,
                           gssize count,
                           gsize *bytes_read,
                           GError **error);
+gboolean pu_file_read_int64(const gchar *filename,
+                            gint64 *out,
+                            GError **error);
 gboolean pu_file_copy(const gchar *src,
                       const gchar *dest,
                       GError **error);

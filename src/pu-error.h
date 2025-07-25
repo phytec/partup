@@ -22,6 +22,9 @@ typedef enum {
     /* eMMC errors */
     PU_ERROR_EMMC_PARSE,
 
+    /* MTD errors */
+    PU_ERROR_MTD_PARSE,
+
     /* Config parsing errors */
     PU_ERROR_CONFIG_INIT_FAILED,
     PU_ERROR_CONFIG_INVALID_ROOT,

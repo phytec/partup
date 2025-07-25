@@ -5,6 +5,7 @@ tests = [
   'emmc',
   'file',
   'package',
+  'unit',
   'utils'
 ]
 
