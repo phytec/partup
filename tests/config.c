@@ -17,11 +17,18 @@ config_simple(void)
     GHashTable *root;
     PuConfigValue *value;
     gchar *disklabel;
+    PuConfigDeviceType device_type;
 
     config = pu_config_new_from_file("config/simple.yaml", &error);
     g_assert_nonnull(config);
     g_assert_false(pu_config_is_version_compatible(config, 0, NULL));
     g_assert_true(pu_config_is_version_compatible(config, 1, &error));
+    g_assert_true(pu_config_is_device_supported(config, "/dev/mmcblk3", &device_type, &error));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_MMC);
+    g_assert_true(pu_config_is_device_supported(config, "/dev/sda", &device_type, &error));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_HD);
+    g_assert_false(pu_config_is_device_supported(config, "/dev/mtd0", &device_type, NULL));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_NONE);
     root = pu_config_get_root(config);
     g_assert_nonnull(root);
     value = g_hash_table_lookup(root, "disklabel");
