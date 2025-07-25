@@ -17,6 +17,7 @@
 #include "pu-flash.h"
 #include "pu-log.h"
 #include "pu-mount.h"
+#include "pu-mtd.h"
 #include "pu-package.h"
 #include "pu-utils.h"
 #include "pu-version.h"
@@ -55,8 +56,11 @@ cmd_install(PuCommandContext *context,
     g_autofree gchar *package_path = NULL;
     g_autofree gchar *device_path = NULL;
     g_autoptr(PuEmmc) emmc = NULL;
+    g_autoptr(PuMtd) mtd = NULL;
+    PuFlash *flash = NULL;
     gchar **args;
     gboolean is_mounted;
+    PuConfigDeviceType device_type;
 
     if (getuid() != 0)
         return error_not_root(error);
@@ -71,23 +75,6 @@ cmd_install(PuCommandContext *context,
         return FALSE;
     }
 
-    if (!pu_is_drive(device_path)) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is not a drive", device_path);
-        return FALSE;
-    }
-
-    if (!pu_device_mounted(device_path, &is_mounted, error)) {
-        g_prefix_error(error, "Failed checking if device is in use: ");
-        return FALSE;
-    }
-
-    if (is_mounted) {
-        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                    "Device '%s' is in use", device_path);
-        return FALSE;
-    }
-
     if (!pu_package_mount(package_path, &mount_path, &config_path, error))
         return FALSE;
 
@@ -99,22 +86,59 @@ cmd_install(PuCommandContext *context,
     }
     if (!pu_config_is_version_compatible(config, PARTUP_VERSION_MAJOR, error))
         return error_out(mount_path);
+    if (!pu_config_is_device_supported(config, device_path, &device_type, error))
+        return error_out(mount_path);
 
-    emmc = pu_emmc_new(device_path, config, mount_path,
-                       arg_install_skip_checksums, error);
-    if (emmc == NULL) {
-        g_prefix_error(error, "Failed parsing eMMC info from config: ");
+    switch (device_type) {
+    case PU_CONFIG_DEVICE_TYPE_MMC:
+    case PU_CONFIG_DEVICE_TYPE_HD:
+        if (!pu_is_drive(device_path)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Device '%s' is not a drive", device_path);
+            return error_out(mount_path);
+        }
+        if (!pu_device_mounted(device_path, &is_mounted, error)) {
+            g_prefix_error(error, "Failed checking if device is in use: ");
+            return error_out(mount_path);
+        }
+        if (is_mounted) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Device '%s' is in use", device_path);
+            return error_out(mount_path);
+        }
+        emmc = pu_emmc_new(device_path, config, mount_path,
+                           arg_install_skip_checksums, error);
+        if (emmc == NULL) {
+            g_prefix_error(error, "Failed parsing eMMC info from config: ");
+            return error_out(mount_path);
+        }
+        flash = PU_FLASH(emmc);
+        break;
+    case PU_CONFIG_DEVICE_TYPE_MTD:
+        mtd = pu_mtd_new(device_path, config, mount_path,
+                         arg_install_skip_checksums, error);
+        if (mtd == NULL) {
+            g_prefix_error(error, "Failed parsing MTD info from config: ");
+            return error_out(mount_path);
+        }
+        flash = PU_FLASH(mtd);
+        break;
+    default:
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Device '%s' is not supported or of unknown type",
+                    device_path);
         return error_out(mount_path);
     }
-    if (!pu_flash_init_device(PU_FLASH(emmc), error)) {
+
+    if (!pu_flash_init_device(flash, error)) {
         g_prefix_error(error, "Failed initializing device: ");
         return error_out(mount_path);
     }
-    if (!pu_flash_setup_layout(PU_FLASH(emmc), error)) {
+    if (!pu_flash_setup_layout(flash, error)) {
         g_prefix_error(error, "Failed setting up layout on device: ");
         return error_out(mount_path);
     }
-    if (!pu_flash_write_data(PU_FLASH(emmc), error)) {
+    if (!pu_flash_write_data(flash, error)) {
         g_prefix_error(error, "Failed writing data to device: ");
         pu_umount_all(device_path, NULL);
         return error_out(mount_path);
