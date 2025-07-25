@@ -40,6 +40,34 @@ config_simple(void)
 }
 
 static void
+config_mtd(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autoptr(PuConfig) config = NULL;
+    GHashTable *root;
+    PuConfigValue *value;
+    PuConfigDeviceType device_type;
+
+    config = pu_config_new_from_file("config/mtd.yaml", &error);
+    g_assert_nonnull(config);
+    g_assert_false(pu_config_is_version_compatible(config, 0, NULL));
+    g_assert_false(pu_config_is_version_compatible(config, 2, NULL));
+    g_assert_true(pu_config_is_version_compatible(config, 3, &error));
+    g_assert_true(pu_config_is_device_supported(config, "/dev/mtd0", &device_type, &error));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_MTD);
+    g_assert_false(pu_config_is_device_supported(config, "/dev/mmcblk1", &device_type, NULL));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_NONE);
+    g_assert_false(pu_config_is_device_supported(config, "/dev/sdb", &device_type, NULL));
+    g_assert_cmpint(device_type, ==, PU_CONFIG_DEVICE_TYPE_NONE);
+    root = pu_config_get_root(config);
+    g_assert_nonnull(root);
+    value = g_hash_table_lookup(root, "partitions");
+    g_assert_nonnull(value);
+    g_assert_cmpint(value->type, ==, PU_CONFIG_VALUE_TYPE_SEQUENCE);
+    g_clear_error(&error);
+}
+
+static void
 config_types(void)
 {
     g_autoptr(GError) error = NULL;
@@ -93,6 +121,7 @@ main(int argc,
 #endif
 
     g_test_add_func("/config/simple", config_simple);
+    g_test_add_func("/config/mtd", config_mtd);
     g_test_add_func("/config/types", config_types);
 
     return g_test_run();

@@ -1,0 +1,8 @@
+api-version: 3
+supported-device-types:
+  - mtd
+partitions:
+  - name: first
+    size: 512kiB
+  - name: second
+    size: 2MiB
