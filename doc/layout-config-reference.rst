@@ -28,8 +28,26 @@ API Version
 
    This scalar is mandatory.
 
+Supported Device Types
+----------------------
+
+``supported-device-types`` (sequence)
+   A sequence of supported device type strings. Possible options are:
+
+   -  ``mmc``: MultiMediaCard (MMC) devices, such as SD cards and eMMC.
+   -  ``hd``: Hard disk drives, including SSD and NVMe devices.
+   -  ``mtd``: Memory Technology Devices (MTD) used as an abstraction layer for
+      raw NOR and NAND flash devices.
+
+   The default value is ``[mmc, hd]``.
+
+   Available since: :ref:`release-3.0.0`
+
+MMC and HD Options
+------------------
+
 Disk Options
-------------
+............
 
 ``disklabel`` (string)
    Partition table for the device. Currently supported options are ``msdos``
@@ -136,8 +154,8 @@ options:
 ``input`` (sequence)
    A sequence of input mappings. See :ref:`input-files`.
 
-MMC Controls
-------------
+MMC-specific Controls
+.....................
 
 MMC specific controls can be specified using the keyword ``mmc`` containing a
 mapping of the following options:
@@ -199,6 +217,48 @@ of mappings with at least an ``input``.
    An input mapping. See :ref:`input-files`.
 
 .. _input-files:
+
+MTD Options
+-----------
+
+Memory Technology Device (MTD) support is available since: :ref:`release-3.0.0`
+
+MTD Partitions
+..............
+
+The section ``partitions`` contains a sequence of mappings describing the
+contained partitions of an MTD. Each entry may contain the following options:
+
+``name`` (string)
+   The partition name. The name is used to identify the partition. However,
+   multiple partitions may have the same name. The default value is ``null``.
+
+   Available since: :ref:`release-3.0.0`
+
+``size`` (integer/string)
+   The size of the partition. This scalar is mandatory and must be greater than
+   zero. The size must also be a multiple of the underlying device's erase block
+   size, if not using an expanding partition.
+
+   Available since: :ref:`release-3.0.0`
+
+``offset`` (integer/string)
+   The offset of a partition, relative to the previous partition (or the
+   beginning of the device for the first partition). The default value is ``0``.
+
+   Available since: :ref:`release-3.0.0`
+
+``erase`` (boolean)
+   Erases the partition after creation and before writing any data. The default
+   value is ``true``.
+
+   Available since: :ref:`release-3.0.0`
+
+``expand`` (boolean)
+   Expand a partition to the rest of the device. Only the last partition can be
+   expanded. The default is ``false`` for all partitions.
+
+   Available since: :ref:`release-3.0.0`
 
 Input Files
 -----------
