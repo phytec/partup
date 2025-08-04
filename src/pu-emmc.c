@@ -467,6 +467,8 @@ pu_emmc_write_data(PuFlash *flash,
             for (GList *i = input; i != NULL; i = i->next) {
                 PuEmmcBinary *bin = i->data;
                 g_autofree gchar *path = NULL;
+                gsize size = 0;
+                g_autofree gchar *output_sha256sum = NULL;
 
                 path = pu_path_from_filename(bin->input->filename, prefix, error);
                 if (path == NULL) {
@@ -477,6 +479,12 @@ pu_emmc_write_data(PuFlash *flash,
                 if (g_str_equal(path, "")) {
                     g_set_error(error, PU_ERROR, PU_ERROR_FLASH_DATA,
                                 "No input specified for eMMC boot partition");
+                    return FALSE;
+                }
+
+                size = pu_file_get_size(path, error);
+                if (size == 0) {
+                    g_prefix_error(error, "Failed retrieving file size for binary: ");
                     return FALSE;
                 }
 
@@ -492,6 +500,9 @@ pu_emmc_write_data(PuFlash *flash,
                                                  G_CHECKSUM_SHA256, error))
                         return FALSE;
                 }
+                output_sha256sum = pu_checksum_new_from_file(
+                        path, bin->input_offset * self->device->sector_size,
+                        G_CHECKSUM_SHA256, error);
 
                 g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
                         bin->input->filename, bin->input_offset,
@@ -508,6 +519,28 @@ pu_emmc_write_data(PuFlash *flash,
                                            bin->output_offset,
                                            error))
                     return FALSE;
+
+                if (!skip_checksums) {
+                    g_debug("Checking SHA256 sum of written output: %s",
+                            output_sha256sum);
+                    if (!pu_checksum_verify_raw_bootpart(self->device->path, 0,
+                                                         bin->output_offset *
+                                                         self->device->sector_size,
+                                                         size - bin->input_offset *
+                                                         self->device->sector_size,
+                                                         output_sha256sum,
+                                                         G_CHECKSUM_SHA256, error))
+                        return FALSE;
+
+                    if (!pu_checksum_verify_raw_bootpart(self->device->path, 1,
+                                                         bin->output_offset *
+                                                         self->device->sector_size,
+                                                         size - bin->input_offset *
+                                                         self->device->sector_size,
+                                                         output_sha256sum,
+                                                         G_CHECKSUM_SHA256, error))
+                        return FALSE;
+                }
             }
         }
     }

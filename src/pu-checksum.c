@@ -76,6 +76,28 @@ pu_checksum_verify_raw(const gchar *filename,
     return TRUE;
 }
 
+gboolean
+pu_checksum_verify_raw_bootpart(const gchar *device,
+                                guint bootpart,
+                                goffset offset,
+                                gsize size,
+                                const gchar *checksum,
+                                GChecksumType checksum_type,
+                                GError **error)
+{
+    g_autofree gchar *bootpart_device = NULL;
+
+    g_return_val_if_fail(g_regex_match_simple("(mmcblk)[0-9]+$", device, 0, 0), FALSE);
+    g_return_val_if_fail(bootpart <= 1, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    bootpart_device = g_strdup_printf("%sboot%d", device, bootpart);
+
+    return pu_checksum_verify_raw(bootpart_device, offset, size, checksum,
+                                  checksum_type, error);
+}
+
+
 gchar *
 pu_checksum_new_from_file(const gchar *filename,
                           goffset offset,
