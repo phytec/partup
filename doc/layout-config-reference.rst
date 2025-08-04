@@ -75,10 +75,15 @@ Raw Data
 ........
 
 The section ``raw`` contains a sequence of mappings describing data that is
-written outside of partitions. Each entry may contain the following options:
+written outside of partitions.
 
-Since :ref:`release-2.1.0`, the written output is also being verified by
-checking against the input's SHA256 sum, including any given offsets.
+Since :ref:`release-2.1.0`, the written output is always being verified by
+checking against the input's SHA256 sum, including any given offsets. The
+checksum is not being verified when ``--skip-checksum`` is given as a runtime
+argument. Note, that this checksum is indenpendent from the input's
+``sha256sum`` option.
+
+Each raw entry may contain the following options:
 
 ``input-offset`` (integer/string)
    Offset of the input data to be written.
@@ -207,6 +212,12 @@ eMMC's special boot partitions can be specified using the keyword
 Binary files are specified by a scalar named ``binaries`` containing a sequence
 of mappings with at least an ``input``.
 
+Since :ref:`release-3.0.0`, the written output is always being verified by
+checking against the input's SHA256 sum, including any given offsets. The
+checksum is not being verified when ``--skip-checksum`` is given as a runtime
+argument. Note, that this checksum is indenpendent from the input's
+``sha256sum`` option.
+
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.
 
@@ -264,7 +275,7 @@ Input Files
 -----------
 
 Input files are specified by a scalar named ``input`` containing a mapping with
-at least a ``filename``. For verifying the checksum of the given file by
+at least a ``filename``. For verifying the checksum of the given input file by
 ``filename``, an optional checksum can be provided with ``md5sum`` and/or
 ``sha256sum``.
 
