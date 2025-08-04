@@ -19,6 +19,13 @@ gboolean pu_checksum_verify_raw(const gchar *filename,
                                 const gchar *checksum,
                                 GChecksumType checksum_type,
                                 GError **error);
+gboolean pu_checksum_verify_raw_bootpart(const gchar *device,
+                                         guint bootpart,
+                                         goffset offset,
+                                         gsize size,
+                                         const gchar *checksum,
+                                         GChecksumType checksum_type,
+                                         GError **error);
 gchar * pu_checksum_new_from_file(const gchar *filename,
                                   goffset offset,
                                   GChecksumType checksum_type,
