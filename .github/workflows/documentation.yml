@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted-v2, self-hosted-ubuntu-22.04-v2]
     steps:
       - uses: actions/checkout@v3
         with:
