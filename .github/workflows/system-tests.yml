@@ -9,7 +9,11 @@ on:
 
 jobs:
   system-tests:
+<<<<<<< HEAD
     runs-on: ubuntu-latest
+=======
+    runs-on: [self-hosted-v2, self-hosted-ubuntu-22.04-v2]
+>>>>>>> db3dace (workflows: changes workflow definitions)
     steps:
       - uses: actions/checkout@v3
       - name: Install build dependencies
