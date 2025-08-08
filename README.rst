@@ -3,11 +3,11 @@
 partup - System Initialization Program
 ######################################
 
-.. image:: https://github.com/phytec/partup/workflows/build/badge.svg
+.. image:: https://github.com/phytec/partup/actions/workflows/build.yml/badge.svg?branch=main
    :target: https://github.com/phytec/partup/actions/workflows/build.yml
-.. image:: https://github.com/phytec/partup/workflows/unit-tests/badge.svg
+.. image:: https://github.com/phytec/partup/actions/workflows/unit-tests.yml/badge.svg?branch=main
    :target: https://github.com/phytec/partup/actions/workflows/unit-tests.yml
-.. image:: https://github.com/phytec/partup/workflows/system-tests/badge.svg
+.. image:: https://github.com/phytec/partup/actions/workflows/system-tests.yml/badge.svg?branch=main
    :target: https://github.com/phytec/partup/actions/workflows/system-tests.yml
 .. image:: https://readthedocs.org/projects/partup/badge/?version=latest
    :target: https://partup.readthedocs.io/en/latest/?badge=latest
