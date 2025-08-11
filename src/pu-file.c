@@ -49,6 +49,28 @@ pu_file_read_raw(const gchar *filename,
 }
 
 gboolean
+pu_file_read_int64(const gchar *filename,
+                   gint64 *out,
+                   GError **error)
+{
+    g_autofree gchar *content = NULL;
+    gchar *endptr;
+
+    if (!g_file_get_contents(filename, &content, NULL, error))
+        return FALSE;
+
+    *out = g_ascii_strtoll(content, &endptr, 10);
+    if (*out == 0 && content == endptr) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Failed converting content of file '%s' to int64",
+                    filename);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
 pu_file_copy(const gchar *src,
              const gchar *dest,
              GError **error)

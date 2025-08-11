@@ -5,6 +5,7 @@
 
 #include "pu-config.h"
 #include "pu-error.h"
+#include "pu-unit.h"
 #include "pu-hashtable.h"
 
 gchar *
@@ -44,6 +45,32 @@ pu_hash_table_lookup_boolean(GHashTable *hash_table,
         return def;
 
     return value->data.boolean;
+}
+
+gint64
+pu_hash_table_lookup_bytes(GHashTable *hash_table,
+                           const gchar *key,
+                           gint64 def)
+{
+    PuConfigValue *value = g_hash_table_lookup(hash_table, key);
+    gint64 bytes;
+
+    if (value == NULL)
+        return def;
+
+    if (value->type == PU_CONFIG_VALUE_TYPE_INTEGER_10 ||
+        value->type == PU_CONFIG_VALUE_TYPE_INTEGER_16) {
+        return value->data.integer;
+    }
+
+    if (value->type != PU_CONFIG_VALUE_TYPE_STRING ||
+        !pu_unit_parse_bytes(value->data.string, &bytes)) {
+        g_warning("Failed parsing value '%s' to bytes, using default '%ld'",
+                  value->data.string, def);
+        return def;
+    }
+
+    return bytes;
 }
 
 PedSector
