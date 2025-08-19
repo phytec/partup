@@ -15,6 +15,7 @@ partup to run:
 -  `squashfs-tools <https://github.com/plougher/squashfs-tools>`_
 -  `dosfstools <https://github.com/dosfstools/dosfstools>`_
 -  `e2fsprogs <https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git>`_
+-  `mtd-utils <http://linux-mtd.infradead.org/>`_
 
 For building partup from source and generating its documentation the following
 additional dependencies are needed:
