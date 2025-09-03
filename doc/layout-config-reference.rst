@@ -227,8 +227,6 @@ argument. Note, that this checksum is indenpendent from the input's
 ``input`` (mapping)
    An input mapping. See :ref:`input-files`.
 
-.. _input-files:
-
 MTD Options
 -----------
 
@@ -270,6 +268,8 @@ contained partitions of an MTD. Each entry may contain the following options:
    expanded. The default is ``false`` for all partitions.
 
    Available since: :ref:`release-3.0.0`
+
+.. _input-files:
 
 Input Files
 -----------
