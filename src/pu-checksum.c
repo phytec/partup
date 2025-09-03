@@ -3,6 +3,8 @@
  * Copyright (c) 2022 PHYTEC Messtechnik GmbH
  */
 
+#define G_LOG_DOMAIN "partup-checksum"
+
 #include <gio/gio.h>
 #include "pu-checksum.h"
 #include "pu-error.h"
@@ -59,13 +61,20 @@ pu_checksum_verify_raw(const gchar *filename,
 {
     g_autofree guchar *buffer = NULL;
     g_autofree gchar *computed_checksum = NULL;
+    g_autofree GTimer *timer = NULL;
 
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+    timer = g_timer_new();
     if (!pu_file_read_raw(filename, &buffer, offset, size, NULL, error))
         return FALSE;
+    g_timer_stop(timer);
+    g_debug("Time for reading raw data: %.6f", g_timer_elapsed(timer, NULL));
 
+    g_timer_start(timer);
     computed_checksum = g_compute_checksum_for_data(checksum_type, buffer, size);
+    g_timer_stop(timer);
+    g_debug("Time for computing checksum of raw data: %.6f", g_timer_elapsed(timer, NULL));
     if (!g_str_equal(checksum, computed_checksum)) {
         g_set_error(error, PU_ERROR, PU_ERROR_CHECKSUM,
                     "Given checksum '%s' of '%s' at offset %ld and size %ld does not match '%s'",
