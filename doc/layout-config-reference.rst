@@ -269,6 +269,11 @@ contained partitions of an MTD. Each entry may contain the following options:
 
    Available since: :ref:`release-3.0.0`
 
+``input`` (mapping)
+   An input mapping. See :ref:`input-files`.
+
+   Available since: :ref:`release-3.0.0`
+
 .. _input-files:
 
 Input Files
