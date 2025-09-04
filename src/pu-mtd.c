@@ -413,7 +413,7 @@ pu_mtd_write_data(PuFlash *flash,
     while (TRUE) {
         g_autofree gchar *cmd = NULL;
         g_autofree gchar *path = NULL;
-        g_autofree gchar *sha256sum = NULL;
+        g_autofree gchar *output_sha1sum = NULL;
         g_autofree gchar *part_dev = NULL;
         const PuMtdPartition *p = NULL;
 
@@ -436,6 +436,20 @@ pu_mtd_write_data(PuFlash *flash,
             return FALSE;
         }
 
+        if (!g_str_equal(p->input->md5sum, "") && !skip_checksums) {
+            g_debug("Checking MD5 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, p->input->md5sum,
+                                         G_CHECKSUM_MD5, error))
+                return FALSE;
+        }
+        if (!g_str_equal(p->input->sha256sum, "") && !skip_checksums) {
+            g_debug("Checking SHA256 sum of input file '%s'", path);
+            if (!pu_checksum_verify_file(path, p->input->sha256sum,
+                                         G_CHECKSUM_SHA256, error))
+                return FALSE;
+        }
+        output_sha1sum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA1, error);
+
         part_dev = g_strdup_printf("/dev/mtd%u", part_info->devnum);
         cmd = g_strdup_printf("flashcp %s %s", path, part_dev);
         if (!pu_spawn_command_line_sync(cmd, error)) {
@@ -444,16 +458,10 @@ pu_mtd_write_data(PuFlash *flash,
             return FALSE;
         }
 
-        if (!g_str_equal(p->input->md5sum, "") && !skip_checksums) {
-            g_debug("Checking MD5 sum of output data in '%s'", path);
+        if (!skip_checksums) {
+            g_debug("Verifying SHA1 sum of written output: %s", output_sha1sum);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
-                                        p->input->md5sum, G_CHECKSUM_MD5, error))
-                return FALSE;
-        }
-        if (!g_str_equal(p->input->sha256sum, "") && !skip_checksums) {
-            g_debug("Checking SHA256 sum of output data in '%s'", path);
-            if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
-                                        p->input->sha256sum, G_CHECKSUM_SHA256, error))
+                                        output_sha1sum, G_CHECKSUM_SHA1, error))
                 return FALSE;
         }
     }
