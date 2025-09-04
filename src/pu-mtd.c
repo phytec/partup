@@ -460,7 +460,7 @@ pu_mtd_write_data(PuFlash *flash,
         if (!skip_checksums) {
             g_debug("Checking SHA256 sum of output data in '%s'", part_dev);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
-                                        p->input->sha256sum, G_CHECKSUM_SHA256, error))
+                                        p->input->sha256sum, G_CHECKSUM_SHA1, error))
                 return FALSE;
         }
     }
