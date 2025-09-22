@@ -78,10 +78,9 @@ The section ``raw`` contains a sequence of mappings describing data that is
 written outside of partitions.
 
 Since :ref:`release-2.1.0`, the written output is always being verified by
-checking against the input's SHA256 sum, including any given offsets. The
-checksum is not being verified when ``--skip-checksum`` is given as a runtime
-argument. Note, that this checksum is indenpendent from the input's
-``sha256sum`` option.
+checking against the input's SHA1 sum, including any given offsets. The checksum
+is not being verified when ``--skip-checksum`` is given as a runtime argument.
+Note, that this checksum is independent from the input's ``sha256sum`` option.
 
 Each raw entry may contain the following options:
 
@@ -213,10 +212,9 @@ Binary files are specified by a scalar named ``binaries`` containing a sequence
 of mappings with at least an ``input``.
 
 Since :ref:`release-3.0.0`, the written output is always being verified by
-checking against the input's SHA256 sum, including any given offsets. The
-checksum is not being verified when ``--skip-checksum`` is given as a runtime
-argument. Note, that this checksum is indenpendent from the input's
-``sha256sum`` option.
+checking against the input's SHA1 sum, including any given offsets. The checksum
+is not being verified when ``--skip-checksum`` is given as a runtime argument.
+Note, that this checksum is independent from the input's ``sha256sum`` option.
 
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.
