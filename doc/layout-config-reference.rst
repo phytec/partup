@@ -270,6 +270,11 @@ contained partitions of an MTD. Each entry may contain the following options:
 ``input`` (mapping)
    An input mapping. See :ref:`input-files`.
 
+   The written output is always being verified by checking against the input's
+   SHA1 sum, including any given offsets. The checksum is not being verified
+   when ``--skip-checksum`` is given as a runtime argument. Note, that this
+   checksum is independent from the input's ``sha256sum`` option.
+
    Available since: :ref:`release-3.0.0`
 
 .. _input-files:
