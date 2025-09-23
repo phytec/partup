@@ -448,7 +448,6 @@ pu_mtd_write_data(PuFlash *flash,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
-        output_sha1sum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA1, error);
 
         part_dev = g_strdup_printf("/dev/mtd%u", part_info->devnum);
         cmd = g_strdup_printf("flashcp %s %s", path, part_dev);
@@ -459,6 +458,7 @@ pu_mtd_write_data(PuFlash *flash,
         }
 
         if (!skip_checksums) {
+            output_sha1sum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA1, error);
             g_debug("Verifying SHA1 sum of written output: %s", output_sha1sum);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
                                         output_sha1sum, G_CHECKSUM_SHA1, error))

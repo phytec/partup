@@ -421,9 +421,6 @@ pu_emmc_write_data(PuFlash *flash,
                                          G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
-        output_sha1sum = pu_checksum_new_from_file(path, bin->input_offset *
-                                                   self->device->sector_size,
-                                                   G_CHECKSUM_SHA1, error);
 
         g_debug("Writing raw data: filename=%s input_offset=%lld output_offset=%lld",
                 input->filename, bin->input_offset, bin->output_offset);
@@ -433,6 +430,9 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
 
         if (!skip_checksums) {
+            output_sha1sum = pu_checksum_new_from_file(path, bin->input_offset *
+                                                       self->device->sector_size,
+                                                       G_CHECKSUM_SHA1, error);
             g_debug("Verifying SHA1 sum of written output: %s", output_sha1sum);
             if (!pu_checksum_verify_raw(self->device->path, bin->output_offset *
                                         self->device->sector_size,
@@ -500,9 +500,6 @@ pu_emmc_write_data(PuFlash *flash,
                                                  G_CHECKSUM_SHA256, error))
                         return FALSE;
                 }
-                output_sha1sum = pu_checksum_new_from_file(
-                        path, bin->input_offset * self->device->sector_size,
-                        G_CHECKSUM_SHA1, error);
 
                 g_debug("Writing eMMC boot partitions: filename=%s input_offset=%lld output_offset=%lld",
                         bin->input->filename, bin->input_offset,
@@ -521,6 +518,9 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
 
                 if (!skip_checksums) {
+                    output_sha1sum = pu_checksum_new_from_file(
+                            path, bin->input_offset * self->device->sector_size,
+                            G_CHECKSUM_SHA1, error);
                     g_debug("Verifying SHA1 sum of written output: %s",
                             output_sha1sum);
                     if (!pu_checksum_verify_raw_bootpart(self->device->path, 0,
