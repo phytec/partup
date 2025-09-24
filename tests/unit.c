@@ -66,6 +66,7 @@ main(int argc,
 #endif
 
     g_test_add_func("/unit/factor", unit_factor);
+    g_test_add_func("/unit/parse_bytes", unit_parse_bytes);
 
     return g_test_run();
 }
