@@ -1,0 +1,49 @@
+name: container
+
+on:
+  push:
+    branches: [ 'main' ]
+    paths: [ '.github/workflows/container.yml', '.github/Containerfile' ]
+    workflow_dispatch:
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install qemu-user-static
+      - name: Build container images
+        id: build-images
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: partup-ci
+          tags: latest
+          platforms: linux/amd64, linux/arm/v7, linux/arm64/v8
+          containerfiles: |
+            .github/Containerfile
+      - name: Echo outputs
+        run: |
+          echo "Image: ${{ steps.build-images.outputs.image }}"
+          echo "Tags: ${{ steps.build-images.outputs.tags }}"
+          echo "Tagged Image: ${{ steps.build-images.outputs.image-with-tag }}"
+      - name: Check created images
+        run: |
+          buildah images
+      - name: Check manifest
+        run: |
+          buildah manifest inspect ${{ steps.build-images.outputs.image-with-tag }}
+      - name: Push images
+        id: push-ghcr
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-images.outputs.image }}
+          tags: ${{ steps.build-images.outputs.tags }}
+          registry: ghcr.io/${{ github.repository }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Echo push
+        run: echo "Image pushed to ${{ steps.push-ghcr.outputs.registry-paths }}"
