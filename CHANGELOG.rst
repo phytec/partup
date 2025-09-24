@@ -3,11 +3,66 @@
 3.0.0
 =====
 
-*Release date: TBA*
+*Release date: 2025-09-24*
 
 .. rubric:: Changes
 
+-  Various small improvements to the documentation.
+-  Describe how to build and install partup in Windows' Subsystem for Linux
+   (WSL).
+-  Add a new module for parsing units and their corresponding factors. This
+   allows for parsing sizes and offsets, independent of any underlying device.
+-  Add logic for parsing a list of supported device types. This is needed for
+   differentiating layout configuration files meant for different devices, such
+   as eMMC and MTD. By default, and to support older layout API versions,
+   supported-device-types includes MMC and HD type devices, if not specified
+   otherwise.
+-  Add a new module to support flashing Memory Technology Devices (MTD). This
+   requires specifying the appropriate ``supported-device-type`` ``mtd``.
+
+   MTDs can be partitioned. However, partitions are just a statically specified
+   section in the flash device, with an offset and size. There is no partition
+   table in MTDs and care must be taken not to overlap the partitions. This is
+   automatically done with partup, so partitions do not overlap or exceed the
+   maximum device size.
+
+   This feature requires the Linux kernel being configured with
+   ``MTD_PARTITIONED_MASTER``, so the master device of the MTD is always
+   exposed, regardless of it already being partitioned or not.
+
+   As of this point in time (July 2025, Linux 6.15.8), the kernel only properly
+   exposes the MTD master device for one MTD at a time. For systems with
+   multiple MTDs, e.g. a raw NAND flash and an SPI NOR flash, this does not
+   work. This is currently a limitation of the Linux MTD driver.
+-  Test a simple MTD layout configuration.
+-  Describe how to flash MTDs and how the supported device types function. While
+   at it, reorder the sections for MMC devices to be separate from the MTD
+   sections. This should clarify the difference between MMC/HD partitions and
+   MTD partitions.
+-  For binary data in eMMC boot partitions, verify the written output data, in
+   addition to the already existing input verification. This adds the same
+   output verification as exists for the "raw" section.
+
+   First, a checksum is created of the input file while accounting any input
+   offset. Then the data is written as usual to the device. Finally, the written
+   data is verified at the specified output offset against the previously
+   determined checksum.
+-  Unify raw output data checksum verification for the MTD and MMC modules.
+   Provided SHA256 and MD5 sums are only used for verifying the input data.
+   Output data is always independently checked with a separately generated SHA1
+   sum.
+-  Only generate the output data checksum, if not skipping the checksum
+   verification. If checksum verification is skipped, there is no point in
+   generating an output checksum.
+
+.. rubric:: Bug Fixes
+
+-  Prefix a GError when package creation failed, instead of overwriting it.
+-  Correctly store the api-version property as an integer, not as a pointer.
+
 .. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
 
 .. _release-2.2.0:
 
