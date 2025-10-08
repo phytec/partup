@@ -11,6 +11,8 @@
 #include <glib/gstdio.h>
 #include <stdio.h>
 #include <blkid.h>
+#include <linux/mmc/ioctl.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "pu-config.h"
@@ -469,6 +471,69 @@ pu_set_bootbus(const gchar *device,
         return TRUE;
 
     cmd = g_strdup_printf("mmc bootbus set %s %s", bootbus, device);
+
+    if (!pu_spawn_command_line_sync(cmd, error))
+        return FALSE;
+
+    return TRUE;
+}
+
+gboolean
+pu_set_enh_area(const gchar *device,
+                const gchar *enh_area,
+                GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+    g_autofree gchar *opts = NULL;
+    guint8 ext_csd[512];
+    gint64 max_size;
+    gint fd;
+    gint ret = 0;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+    if (g_strcmp0(enh_area, "") <= 0)
+        return TRUE;
+
+    if (g_regex_match_simple("^(auto|all|full)$", enh_area, 0, 0)) {
+        fd = g_open(device, O_RDONLY);
+        if (fd < 0) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "failed opening device '%s' to read EXT_CSD", device);
+            return FALSE;
+        }
+
+        memset(ext_csd, 0, sizeof(guint8) * 512);
+        struct mmc_ioc_cmd idata = {
+            .write_flag = 0,
+            .opcode = 8,
+            .arg = 0,
+            .flags = (1 << 7) | ((1 << 0) | (1 << 2) | (1 << 4)) | (1 << 5),
+            .blksz = 512,
+            .blocks = 1
+        };
+        mmc_ioc_cmd_set_data(idata, ext_csd);
+
+        ret = ioctl(fd, MMC_IOC_CMD, &idata);
+        if (ret) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "ioctl reading EXT_CSD failed");
+            return FALSE;
+        }
+
+        max_size = 512l * ((ext_csd[159] << 16) | (ext_csd[158] << 8) | ext_csd[157])
+                        * ext_csd[224] * ext_csd[221];
+
+        if (!g_close(fd, error))
+            return FALSE;
+
+        opts = g_strdup_printf("0 %" G_GINT64_FORMAT, max_size);
+    } else {
+        opts = g_strdup(enh_area);
+    }
+
+    cmd = g_strdup_printf("mmc enh_area set -n %s %s", opts, device);
 
     if (!pu_spawn_command_line_sync(cmd, error))
         return FALSE;

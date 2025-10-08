@@ -52,6 +52,7 @@ typedef struct _PuEmmcBootPartitions {
 typedef struct _PuEmmcControls {
     gchar *hwreset;
     gchar *bootbus;
+    gchar *enh_area;
     PuEmmcBootPartitions *boot_partitions;
 } PuEmmcControls;
 typedef struct _PuEmmcClean {
@@ -454,6 +455,10 @@ pu_emmc_write_data(PuFlash *flash,
             if (!pu_set_bootbus(self->device->path,
                                 self->mmc_controls->bootbus, error))
                 return FALSE;
+
+            if (!pu_set_enh_area(self->device->path,
+                                 self->mmc_controls->enh_area, error))
+                return FALSE;
         }
 
         boot_partitions = self->mmc_controls->boot_partitions;
@@ -588,6 +593,7 @@ pu_emmc_class_finalize(GObject *object)
     if (emmc->mmc_controls) {
         g_free(emmc->mmc_controls->hwreset);
         g_free(emmc->mmc_controls->bootbus);
+        g_free(emmc->mmc_controls->enh_area);
         if (emmc->mmc_controls->boot_partitions) {
             GList *input = emmc->mmc_controls->boot_partitions->input;
             for (GList *b = input; b != NULL; b = b->next) {
@@ -672,6 +678,8 @@ pu_emmc_parse_mmc_controls(PuEmmc *emmc,
         pu_hash_table_lookup_string(mmc_control, "hwreset", NULL);
     emmc->mmc_controls->bootbus =
         pu_hash_table_lookup_string(mmc_control, "bootbus", NULL);
+    emmc->mmc_controls->enh_area =
+        pu_hash_table_lookup_string(mmc_control, "enh-area", NULL);
 
     value_bootpart = g_hash_table_lookup(mmc_control, "boot-partitions");
     if (!value_bootpart) {
