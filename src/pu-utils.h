@@ -54,9 +54,6 @@ gboolean pu_set_hwreset(const gchar *device,
 gboolean pu_set_bootbus(const gchar *device,
                         const gchar *bootbus,
                         GError **error);
-gboolean pu_set_enh_area(const gchar *device,
-                         const gchar *enh_area,
-                         GError **error);
 gchar * pu_path_from_filename(const gchar *filename,
                               const gchar *prefix,
                               GError **error);

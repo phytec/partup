@@ -8,6 +8,7 @@
 #include <parted/parted.h>
 #include <glib/gstdio.h>
 #include "pu-checksum.h"
+#include "pu-emmc-utils.h"
 #include "pu-error.h"
 #include "pu-file.h"
 #include "pu-hashtable.h"
@@ -456,8 +457,8 @@ pu_emmc_write_data(PuFlash *flash,
                                 self->mmc_controls->bootbus, error))
                 return FALSE;
 
-            if (!pu_set_enh_area(self->device->path,
-                                 self->mmc_controls->enh_area, error))
+            if (!pu_emmc_utils_set_enh_area(self->device->path,
+                                            self->mmc_controls->enh_area, error))
                 return FALSE;
         }
 
