@@ -69,9 +69,9 @@ pu_emmc_utils_read_extcsd(const gchar *device,
 }
 
 gboolean
-pu_emmc_utils_read_max_enh_area_size(const gchar *device,
-                                     gint64 *max_size,
-                                     GError **error)
+pu_emmc_utils_get_enh_area_max_size(const gchar *device,
+                                    gint64 *max_size,
+                                    GError **error)
 {
     gint64 wp_size;
     gint64 erase_size;
@@ -93,6 +93,24 @@ pu_emmc_utils_read_max_enh_area_size(const gchar *device,
 }
 
 gboolean
+pu_emmc_utils_get_enh_completed(const gchar *device,
+                                gboolean *completed,
+                                GError **error)
+{
+    guint8 ext_csd[512];
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+    if (!pu_emmc_utils_read_extcsd(device, ext_csd, error))
+        return FALSE;
+
+    *completed = ext_csd[155];
+
+    return TRUE;
+}
+
+gboolean
 pu_emmc_utils_set_enh_area(const gchar *device,
                            const gchar *enh_area,
                            GError **error)
@@ -108,7 +126,7 @@ pu_emmc_utils_set_enh_area(const gchar *device,
         return TRUE;
 
     if (g_regex_match_simple("^(max|full|all|auto)$", enh_area, 0, 0)) {
-        if (!pu_emmc_utils_read_max_enh_area_size(device, &max_size, error))
+        if (!pu_emmc_utils_get_enh_area_max_size(device, &max_size, error))
             return FALSE;
 
         opts = g_strdup_printf("0 %" G_GINT64_FORMAT, max_size);

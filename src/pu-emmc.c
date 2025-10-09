@@ -76,6 +76,8 @@ struct _PuEmmc {
     GList *clean;
     GList *raw;
     PuEmmcControls *mmc_controls;
+
+    gboolean enh_completed;
 };
 
 G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
@@ -457,9 +459,20 @@ pu_emmc_write_data(PuFlash *flash,
                                 self->mmc_controls->bootbus, error))
                 return FALSE;
 
-            if (!pu_emmc_utils_set_enh_area(self->device->path,
-                                            self->mmc_controls->enh_area, error))
-                return FALSE;
+            if (self->enh_completed) {
+                g_debug("eMMC enhanced area settings already complete");
+            } else {
+                /* FIXME: This should run first, prior to any partitioning or
+                 * even disk label setup. */
+                if (!pu_emmc_utils_set_enh_area(self->device->path,
+                                                self->mmc_controls->enh_area,
+                                                error))
+                    g_clear_error(error);
+
+                g_message("eMMC enhanced area set. Must reboot now for changes "
+                          "to take effect! Skipping partitioning.");
+                return TRUE;
+            }
         }
 
         boot_partitions = self->mmc_controls->boot_partitions;
@@ -1104,6 +1117,8 @@ pu_emmc_new(const gchar *device_path,
                     "Failed getting device '%s'", device_path);
         return NULL;
     }
+
+    pu_emmc_utils_get_enh_completed(device_path, &self->enh_completed, error);
 
     ped_unit_set_default(PED_UNIT_SECTOR);
 

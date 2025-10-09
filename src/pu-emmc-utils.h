@@ -11,9 +11,12 @@
 gboolean pu_emmc_utils_read_extcsd(const gchar *device,
                                    guint8 ext_csd[512],
                                    GError **error);
-gboolean pu_emmc_utils_read_max_enh_area_size(const gchar *device,
-                                              gint64 *max_size,
-                                              GError **error);
+gboolean pu_emmc_utils_get_enh_area_max_size(const gchar *device,
+                                             gint64 *max_size,
+                                             GError **error);
+gboolean pu_emmc_utils_get_enh_completed(const gchar *device,
+                                         gboolean *completed,
+                                         GError **error);
 gboolean pu_emmc_utils_set_enh_area(const gchar *device,
                                     const gchar *enh_area,
                                     GError **error);
