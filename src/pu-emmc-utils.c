@@ -120,10 +120,8 @@ pu_emmc_utils_set_enh_area(const gchar *device,
     gint64 max_size;
 
     g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(g_strcmp0(enh_area, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, 0);
-
-    if (g_strcmp0(enh_area, "") <= 0)
-        return TRUE;
 
     if (g_regex_match_simple("^(max|full|all|auto)$", enh_area, 0, 0)) {
         if (!pu_emmc_utils_get_enh_area_max_size(device, &max_size, error))

@@ -186,6 +186,26 @@ pu_emmc_init_device(PuFlash *flash,
     g_return_val_if_fail(flash != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+    if (pu_has_bootpart(self->device->path) && g_strcmp0(self->mmc_controls->enh_area, "") > 0) {
+        if (!pu_emmc_utils_get_enh_completed(self->device->path,
+                                             &self->enh_completed, error))
+            return FALSE;
+
+        if (self->enh_completed) {
+            g_debug("eMMC enhanced area settings already complete");
+        } else {
+            /* FIXME: this should return FALSE on error */
+            if (!pu_emmc_utils_set_enh_area(self->device->path,
+                                            self->mmc_controls->enh_area,
+                                            error))
+                g_clear_error(error);
+
+            g_message("eMMC enhanced area set. Must reboot now for changes "
+                      "to take effect! Skipping partitioning.");
+            return TRUE;
+        }
+    }
+
     if (self->disktype == NULL) {
         g_debug("Nothing to initialize");
         return TRUE;
@@ -458,21 +478,6 @@ pu_emmc_write_data(PuFlash *flash,
             if (!pu_set_bootbus(self->device->path,
                                 self->mmc_controls->bootbus, error))
                 return FALSE;
-
-            if (self->enh_completed) {
-                g_debug("eMMC enhanced area settings already complete");
-            } else {
-                /* FIXME: This should run first, prior to any partitioning or
-                 * even disk label setup. */
-                if (!pu_emmc_utils_set_enh_area(self->device->path,
-                                                self->mmc_controls->enh_area,
-                                                error))
-                    g_clear_error(error);
-
-                g_message("eMMC enhanced area set. Must reboot now for changes "
-                          "to take effect! Skipping partitioning.");
-                return TRUE;
-            }
         }
 
         boot_partitions = self->mmc_controls->boot_partitions;
@@ -1117,8 +1122,6 @@ pu_emmc_new(const gchar *device_path,
                     "Failed getting device '%s'", device_path);
         return NULL;
     }
-
-    pu_emmc_utils_get_enh_completed(device_path, &self->enh_completed, error);
 
     ped_unit_set_default(PED_UNIT_SECTOR);
 
