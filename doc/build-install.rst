@@ -34,7 +34,7 @@ Ubuntu and Debian
 ::
 
    apt-get install libglib2.0-dev libyaml-dev libparted-dev util-linux udev \
-                   squashfs-tools dosfstools e2fsprogs meson python3 \
+                   squashfs-tools dosfstools e2fsprogs mtd-utils meson python3 \
                    python3-virtualenv
 
 Arch Linux
@@ -43,7 +43,7 @@ Arch Linux
 ::
 
    pacman -S glib2 libyaml parted util-linux squashfs-tools dosfstools \
-             e2fsprogs meson python python-virtualenv
+             e2fsprogs mtd-utils meson python python-virtualenv
 
 Building partup
 ---------------
