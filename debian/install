@@ -1,0 +1,4 @@
+# (not required because we use meson install to debian/tmp)
+# If you want to explicitly install files instead of using meson install,
+# add lines like:
+# path/to/built/partup usr/bin

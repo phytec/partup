@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+# debhelper dh sequencer rules using Meson for configure/build/install.
+# Make sure this file is executable: chmod +x debian/rules
+
+export DH_VERBOSE=1
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# Configure Meson build directory with prefix=/usr
+	# remove any stale build dir to ensure clean configure
+	if [ -d build ]; then
+		rm -rf build;
+	fi
+	meson setup build --prefix=/usr --buildtype=release
+
+override_dh_auto_build:
+	# Compile using Meson/Ninja
+	meson compile -C build
+
+override_dh_auto_install:
+	# Install into debian/tmp using Meson's --destdir
+	meson install -C build --destdir=$(pwd)/debian/tmp
+
+override_dh_strip:
+	# Let dh_strip handle stripping; for C tools this is fine.
+	dh_strip
+
+# end of file
