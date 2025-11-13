@@ -130,6 +130,10 @@ cmd_install(PuCommandContext *context,
         return error_out(mount_path);
     }
 
+    if (!pu_flash_configure_device(flash, error)) {
+        g_prefix_error(error, "Failed configuring device: ");
+        return error_out(mount_path);
+    }
     if (!pu_flash_init_device(flash, error)) {
         g_prefix_error(error, "Failed initializing device: ");
         return error_out(mount_path);
