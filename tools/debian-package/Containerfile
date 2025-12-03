@@ -1,0 +1,17 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install --yes \
+        debhelper \
+        git \
+        meson \
+        libglib2.0-dev \
+        libyaml-dev \
+        libparted-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --branch $PARTUP_BRANCH $PARTUP_REPO && \
+    cd partup && \
+    tar -czf ../partup_$(git describe --tags --abbrev=0 | cut -c 2-).orig.tar.gz . && \
+    dpkg-buildpackage -us -uc
