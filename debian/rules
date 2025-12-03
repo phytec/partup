@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	rm -rf build
+	meson setup build --prefix=/usr --buildtype=release
+
+override_dh_auto_build:
+	meson compile -C build
+
+override_dh_auto_install:
+	meson install -C build --destdir=$(shell pwd)/debian/partup
+
+override_dh_strip:
+	dh_strip

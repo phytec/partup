@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0
+Upstream-Name: partup
+Upstream-Contact: https://github.com/phytec/partup
+Source: https://github.com/phytec/partup
+
+Files: *
+Copyright: Copyright 2025 PHYTEC Messtechnik GmbH
+License: GPL-3+
