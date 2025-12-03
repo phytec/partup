@@ -1,0 +1,31 @@
+Source: partup
+Section: utils
+Priority: optional
+Maintainer: Martin Schwan <m.schwan@phytec.de>
+Build-Depends:
+    debhelper-compat (=13),
+    libglib2.0-dev,
+    libyaml-dev,
+    libparted-dev,
+    util-linux,
+    meson
+Standards-Version: 4.7.2
+Homepage: https://github.com/phytec/partup
+Vcs-Git: https://github.com/phytec/partup.git
+Vcs-Browser: https://github.com/phytec/partup
+
+Package: partup
+Architecture: any
+Depends:
+    libglib2.0-0t64,
+    libyaml-0-2,
+    libparted,
+    util-linux,
+    udev,
+    squashfs-tools,
+    dosfstools,
+    e2fsprogs,
+    mtd-utils
+Description: partup -- System initialization program
+    partup is a program used for initializing flash memory on a target device
+    using a predefined layout.
