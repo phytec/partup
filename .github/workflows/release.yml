@@ -84,6 +84,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install qemu-user-static
+      - name: Get version number
+        run: |
+          VERSION_NUMBER=$(echo "${{ github.ref_name }}" | cut -c 2-)
+          echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
       - name: Get architecture
         run: |
           ARCH=$(echo "${{ matrix.platform }}" | cut -d / -f 2- | tr -d /)
@@ -101,7 +105,7 @@ jobs:
           podman exec -i partupci uname -a
       - name: Build
         run: |
-          podman exec -i partupci sh -c 'tar -czf ../partup_$(git describe --tags --abbrev=0 | cut -c 2-).orig.tar.gz .'
+          podman exec -i partupci tar -czf ../partup_${{ env.VERSION_NUMBER }}.orig.tar.gz .
           podman exec -i partupci dpkg-buildpackage -us -uc
           DEB_FILE=$(podman exec partupci sh -c "ls /*.deb" | head -n 1)
           podman cp partupci:$DEB_FILE .
