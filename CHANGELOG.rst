@@ -1,3 +1,21 @@
+.. _release-3.0.1:
+
+3.0.1
+=====
+
+*Release date: 2026-01-14*
+
+.. rubric:: Changes
+
+-  Add mtd-utils to the build dependencies and their resulting commands on
+   Ubuntu and Arch Linux in the README.
+-  Add tooling for manually and automatically building Debian packages of
+   partup.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
+
 .. _release-3.0.0:
 
 3.0.0
