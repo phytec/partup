@@ -1,5 +1,5 @@
-partup (3.0.0-1) unstable; urgency=medium
+partup (3.0.1-1) unstable; urgency=medium
 
   * Initial packaging
 
- -- Martin Schwan <m.schwan@phytec.de>  Wed, 29 Oct 2025 14:07:15 +0100
+ -- Martin Schwan <m.schwan@phytec.de>  Thu, 15 Jan 2026 08:59:07 +0100
