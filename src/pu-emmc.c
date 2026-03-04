@@ -18,6 +18,8 @@
 #define PARTITION_TABLE_SIZE_MSDOS 1
 #define PARTITION_TABLE_SIZE_GPT   34
 
+#define DEFAULT_GRAIN_SIZE         PED_MEBIBYTE_SIZE
+
 typedef struct _PuEmmcInput {
     gchar *filename;
     gchar *md5sum;
@@ -70,6 +72,8 @@ struct _PuEmmc {
     PedDisk *disk;
 
     PedDiskType *disktype;
+    PedAlignment *alignment;
+    PedConstraint *device_constraint;
     GList *partitions;
     GList *clean;
     GList *raw;
@@ -80,80 +84,102 @@ G_DEFINE_TYPE(PuEmmc, pu_emmc, PU_TYPE_FLASH)
 
 static gboolean
 emmc_create_partition(PuEmmc *self,
-                      PuEmmcPartition *partition,
+                      PuEmmcPartition *part,
                       PedSector start,
                       GError **error)
 {
-    /* TODO: Rename to more distinct name to not collision with PuEmmcPartition */
-    PedPartition *part;
+    PedPartition *newpart;
     PedFileSystemType *fstype = NULL;
-    PedConstraint *constraint;
-    PedSector length = partition->size - 1;
+    PedSector length;
+    PedSector end;
+    g_autofree PedAlignment *alignment = NULL;
+    g_autofree PedConstraint *user_constr = NULL;
+    g_autofree PedConstraint *final_constr = NULL;
+    g_autofree PedGeometry *range_start = NULL;
+    g_autofree PedGeometry *range_end = NULL;
 
+    g_return_val_if_fail(self != NULL, FALSE);
+    g_return_val_if_fail(part != NULL, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    if (g_strcmp0(partition->filesystem, "") > 0) {
-        fstype = ped_file_system_type_get(partition->filesystem);
+    alignment = ped_alignment_duplicate(self->alignment);
+    length = part->size;
+
+    if (g_strcmp0(part->filesystem, "") > 0) {
+        fstype = ped_file_system_type_get(part->filesystem);
         if (fstype == NULL) {
             g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                         "Failed to recognize filesystem type '%s'",
-                        partition->filesystem);
+                        part->filesystem);
             return FALSE;
         }
     }
 
-    if (partition->type == PED_PARTITION_LOGICAL) {
-        if (!ped_disk_type_check_feature(self->disk->type, PED_DISK_TYPE_EXTENDED)) {
-            g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                        "Logical partitions are not supported on this disk");
-            return FALSE;
-        }
-        if (ped_disk_extended_partition(self->disk) == NULL) {
-            g_debug("Creating extended partition at %lld", start);
-            PedPartition *extpart;
-            gint ret;
-
-            extpart = ped_partition_new(self->disk, PED_PARTITION_EXTENDED,
-                                        NULL, start, self->device->length - 1);
-            constraint = ped_constraint_exact(&extpart->geom);
-            ret = ped_disk_add_partition(self->disk, extpart, constraint);
-            ped_constraint_destroy(constraint);
-
-            if (!ret) {
-                g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                            "Failed adding extended partition");
-                return FALSE;
+    if (part->block_size) {
+        if (part->block_size % alignment->grain_size) {
+            if (alignment->grain_size % part->block_size) {
+                g_warning("Block size of partition '%s' at %llds is not a multiple "
+                          "of the device's alignment grain size %llds! Ignoring "
+                          "specified block size!", part->label, start,
+                          alignment->grain_size);
+            } else {
+                g_debug("Block size of partition '%s' at %llds is smaller and a "
+                        "common divisor of the device's alignment grain size %llds. "
+                        "Ignoring specified block size.", part->label, start,
+                        alignment->grain_size);
             }
+        } else {
+            ped_alignment_destroy(alignment);
+            alignment = ped_alignment_new(0, part->block_size);
         }
-        /* EBR needs at least 2 sectors in front of a logical partition */
-        start += 2;
-        length -= 2;
+    }
+
+    /* EBR needs at least 1 sector in front of a logical partition. */
+    if (part->type == PED_PARTITION_LOGICAL) {
+        start += alignment->grain_size;
+        length -= alignment->grain_size;
         g_debug("logical partition: start=%lld, length=%lld", start, length);
     }
 
-    part = ped_partition_new(self->disk, partition->type, fstype,
-                             start, start + length);
-    if (part == NULL) {
+    end = start + length;
+    range_start = ped_geometry_new(self->device, start, alignment->grain_size);
+    range_end = ped_geometry_new(self->device, end - alignment->grain_size,
+                                 alignment->grain_size);
+
+    newpart = ped_partition_new(self->disk, part->type, fstype, start, end);
+    if (newpart == NULL) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                     "Failed creating partition");
         return FALSE;
     }
 
-    constraint = ped_constraint_exact(&part->geom);
-    if (constraint == NULL) {
+    user_constr = ped_constraint_new(ped_alignment_any, ped_alignment_any,
+                                     range_start, range_end, 1, self->device->length);
+    if (!user_constr) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
-                    "Failed retrieving constraint from partition geometry");
+                    "Failed creating user constraint");
         return FALSE;
     }
 
+    final_constr = ped_constraint_intersect(user_constr, self->device_constraint);
+    if (!final_constr) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                    "Failed calculating final constraint");
+        return FALSE;
+    }
+    g_debug("constraint: (%lld,%lld) - (%lld,%lld) min_size=%lld max_size=%lld",
+            final_constr->start_range->start, final_constr->start_range->end,
+            final_constr->end_range->start, final_constr->end_range->end,
+            final_constr->min_size, final_constr->max_size);
+
     /* Set PARTLABEL on GPT disks */
-    if (ped_disk_type_check_feature(part->disk->type, PED_DISK_TYPE_PARTITION_NAME) &&
-        partition->label) {
-        ped_partition_set_name(part, partition->label);
+    if (ped_disk_type_check_feature(self->disk->type, PED_DISK_TYPE_PARTITION_NAME) &&
+                                    part->label) {
+        ped_partition_set_name(newpart, part->label);
     }
 
-    for (GList *f = partition->flags; f != NULL; f = f->next) {
-        if (!ped_partition_set_flag(part, GPOINTER_TO_INT(f->data), 1)) {
+    for (GList *f = part->flags; f != NULL; f = f->next) {
+        if (!ped_partition_set_flag(newpart, GPOINTER_TO_INT(f->data), 1)) {
             g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                         "Failed setting partition flag '%s'",
                         ped_partition_flag_get_name(GPOINTER_TO_INT(f->data)));
@@ -161,13 +187,11 @@ emmc_create_partition(PuEmmc *self,
         }
     }
 
-    if (!ped_disk_add_partition(self->disk, part, constraint)) {
+    if (ped_disk_add_partition(self->disk, newpart, final_constr) != 1) {
         g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
                     "Failed adding partition to disk");
         return FALSE;
     }
-
-    ped_constraint_destroy(constraint);
 
     return TRUE;
 }
@@ -229,20 +253,26 @@ pu_emmc_setup_layout(PuFlash *flash,
             part->size = self->expanded_part_size;
         }
 
-        if (part->block_size > 0) {
-            part->size -= part->size % part->block_size;
-        }
-
-        /* Increase size of logical partitions by 2 sectors for EBR.
-         * The 2 sectors are removed during partition creation. */
-        if (part->type == PED_PARTITION_LOGICAL) {
-            part->size += 2;
-        }
-
         g_debug("Creating partition: type=%d filesystem=%s start=%lld size=%lld "
                 "offset=%lld block-size=%lld expand=%s",
                 part->type, part->filesystem, part_start, part->size,
                 part->offset, part->block_size, part->expand ? "true" : "false");
+
+        if (part->type == PED_PARTITION_LOGICAL && !ped_disk_extended_partition(self->disk)) {
+            PuEmmcPartition extpart = {0};
+            if (!ped_disk_type_check_feature(self->disk->type, PED_DISK_TYPE_EXTENDED)) {
+                g_set_error(error, PU_ERROR, PU_ERROR_FLASH_LAYOUT,
+                            "Logical partitions are not supported on this disk");
+                return FALSE;
+            }
+            extpart.type = PED_PARTITION_EXTENDED;
+            extpart.size = self->device->length - part_start;
+            g_debug("Creating extended partition: type=%d start=%lld size=%lld",
+                    part->type, part_start, part->size);
+            if (!emmc_create_partition(self, &extpart, part_start, error)) {
+                return FALSE;
+            }
+        }
 
         if (!emmc_create_partition(self, part, part_start + part->offset, error)) {
             return FALSE;
@@ -608,6 +638,10 @@ pu_emmc_class_finalize(GObject *object)
         ped_disk_destroy(emmc->disk);
     if (emmc->device)
         ped_device_destroy(emmc->device);
+    if (emmc->alignment)
+        ped_alignment_destroy(emmc->alignment);
+    if (emmc->device_constraint)
+        ped_constraint_destroy(emmc->device_constraint);
 
     G_OBJECT_CLASS(pu_emmc_parent_class)->finalize(object);
 }
@@ -857,6 +891,54 @@ pu_emmc_parse_raw(PuEmmc *emmc,
 }
 
 static gboolean
+pu_emmc_parse_alignment(PuEmmc *emmc,
+                        GHashTable *root,
+                        GError **error)
+{
+    g_autofree gchar *alignment = NULL;
+
+    g_return_val_if_fail(emmc != NULL, FALSE);
+    g_return_val_if_fail(root != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    alignment = pu_hash_table_lookup_string(root, "alignment", "optimal");
+
+    if (g_str_equal(alignment, "optimum") || g_str_equal(alignment, "optimal")) {
+        emmc->alignment = ped_device_get_optimum_alignment(emmc->device);
+        if (!emmc->alignment) {
+            g_warning("Could not get optimal alignment of device, using %lld bytes",
+                      DEFAULT_GRAIN_SIZE);
+            emmc->alignment = ped_alignment_new(0, DEFAULT_GRAIN_SIZE / emmc->device->sector_size);
+        }
+        emmc->device_constraint = ped_device_get_optimal_aligned_constraint(emmc->device);
+        if (!emmc->device_constraint) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Failed getting optimal aligned constraint");
+            return FALSE;
+        }
+    } else if (g_str_equal(alignment, "minimum") || g_str_equal(alignment, "minimal")) {
+        emmc->alignment = ped_device_get_minimum_alignment(emmc->device);
+        if (!emmc->alignment) {
+            g_warning("Could not get minimal alignment of device, using %lld bytes",
+                      DEFAULT_GRAIN_SIZE);
+            emmc->alignment = ped_alignment_new(0, DEFAULT_GRAIN_SIZE / emmc->device->sector_size);
+        }
+        emmc->device_constraint = ped_device_get_minimal_aligned_constraint(emmc->device);
+        if (!emmc->device_constraint) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Failed getting minimal aligned constraint");
+            return FALSE;
+        }
+    } else {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Partition alignment type '%s' is not supported", alignment);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
 pu_emmc_parse_partitions(PuEmmc *emmc,
                          GHashTable *root,
                          GError **error)
@@ -899,7 +981,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         part->mkfs_extra_args = pu_hash_table_lookup_string(v->data.mapping, "mkfs-extra-args", NULL);
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
         part->offset = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "offset", 0);
-        part->block_size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "block-size", 2);
+        part->block_size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "block-size", 0);
         part->expand = pu_hash_table_lookup_boolean(v->data.mapping, "expand", FALSE);
 
         g_autofree gchar *type_str = pu_hash_table_lookup_string(v->data.mapping, "type", "primary");
@@ -985,6 +1067,12 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                         "Partition with invalid fixed size zero specified");
             return FALSE;
         }
+        if (!part->expand && part->size < emmc->alignment->grain_size) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "Partition '%s' is too small for chosen alignment",
+                        part->label);
+            return FALSE;
+        }
 
         emmc->partitions = g_list_prepend(emmc->partitions, part);
 
@@ -1000,10 +1088,16 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
     emmc->partitions = g_list_reverse(emmc->partitions);
 
     if (emmc->num_expanded_parts > 0) {
+        if (emmc->device->length - fixed_parts_size
+                < emmc->alignment->grain_size * emmc->num_logical_parts) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "No space left for expanding partitions");
+            return FALSE;
+        }
         emmc->expanded_part_size = emmc->device->length - fixed_parts_size
-                                   - 2 * emmc->num_logical_parts;
+                                   - emmc->alignment->grain_size * emmc->num_logical_parts;
 
-        /* Reserve blocks for secondary GPT */
+        /* Reserve sectors for secondary GPT */
         if (g_str_equal(emmc->disktype->name, "gpt")) {
             emmc->expanded_part_size -= PARTITION_TABLE_SIZE_GPT;
         }
@@ -1113,6 +1207,8 @@ pu_emmc_new(const gchar *device_path,
     if (!pu_emmc_parse_mmc_controls(self, root, error))
         return NULL;
     if (!pu_emmc_parse_raw(self, root, error))
+        return NULL;
+    if (disklabel && !pu_emmc_parse_alignment(self, root, error))
         return NULL;
     if (disklabel && !pu_emmc_parse_partitions(self, root, error))
         return NULL;

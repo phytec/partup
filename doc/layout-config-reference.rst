@@ -58,6 +58,23 @@ Disk Options
    particular, this can be used to flash devices with raw disk images that
    already contain a partition table and associated partitions.
 
+.. _alignment:
+
+``alignment`` (string)
+   Alignment type of all partitions to be written to the device. This specifies
+   how the partitions' start and end sector are placed.
+
+   The following alignment types are currently supported:
+
+   -  ``minimal``/``minimum``: Align partitions to the minimum hardware
+      requirements.
+   -  ``optimal``/``optimum``: Align partitions on the device for optimal
+      performance.
+
+   The default alignment type is ``optimal``.
+
+   Available since: :ref:`release-4.0.0`
+
 Clean Data
 ..........
 
@@ -148,7 +165,8 @@ options:
 
 ``block-size`` (integer/string)
    Set the partition size to a multiple of the specified value. The default is
-   2 sectors, which is almost always equal to 1KiB.
+   the device's alignment grain size. This depends on the selected alignment
+   type. See :ref:`alignment` for more information.
 
 ``flags`` (sequence)
    Set flags for this partition. Flags to be enabled should be provided as a
