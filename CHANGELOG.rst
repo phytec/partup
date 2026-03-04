@@ -1,3 +1,16 @@
+.. _release-4.0.0:
+
+4.0.0
+=====
+
+*Release date: TBD*
+
+.. rubric:: Changes
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
+
 .. _release-3.0.1:
 
 3.0.1
