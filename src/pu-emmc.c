@@ -124,12 +124,14 @@ emmc_create_partition(PuEmmc *self,
                             "Failed adding extended partition");
                 return FALSE;
             }
+            start += 6;
+            length -= 6;
         }
         /* EBR needs at least 2 sectors in front of a logical partition. Use 8
          * sectors to align with 4 kiB blocks (where 1 sector usually equals 512
          * bytes). */
-        start += 8;
-        length -= 8;
+        start += 2;
+        length -= 2;
         g_debug("logical partition: start=%lld, length=%lld", start, length);
     }
 
