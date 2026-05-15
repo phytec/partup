@@ -7,6 +7,7 @@ subdir('data')
 if sphinx.found()
   doc_sources = [
     'conf.py',
+    'faq.rst',
     'layout-config.rst',
     'layout-config-reference.rst',
     'layout-config-examples.rst',
