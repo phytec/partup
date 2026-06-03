@@ -293,7 +293,7 @@ pu_emmc_write_data(PuFlash *flash,
                    GError **error)
 {
     PuEmmc *self = PU_EMMC(flash);
-    guint i = 0;
+    guint idx = 0;
     gboolean first_logical_part = FALSE;
     gboolean skip_checksums = FALSE;
     g_autofree gchar *part_path = NULL;
@@ -314,21 +314,21 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcPartition *part = p->data;
         if (part->type == PED_PARTITION_LOGICAL && first_logical_part == FALSE) {
             first_logical_part = TRUE;
-            i = 5;
+            idx = 5;
         } else {
-            i++;
+            idx++;
         }
 
         if (g_strcmp0(part->partuuid, "") > 0) {
             if (g_str_equal(self->disktype->name, "gpt")) {
-                if (!pu_partition_set_partuuid(self->device->path, i, part->partuuid, error))
+                if (!pu_partition_set_partuuid(self->device->path, idx, part->partuuid, error))
                     return FALSE;
             } else {
                 g_warning("Setting PARTUUID is only supported on GPT partitioned devices");
             }
         }
 
-        part_path = pu_device_get_partition_path(self->device->path, i, error);
+        part_path = pu_device_get_partition_path(self->device->path, idx, error);
         if (part_path == NULL)
             return FALSE;
 
@@ -345,7 +345,7 @@ pu_emmc_write_data(PuFlash *flash,
 
         g_debug("Writing to partition '%s'", part_path);
 
-        part_mount = pu_create_mount_point(g_strdup_printf("p%u", i), error);
+        part_mount = pu_create_mount_point(g_strdup_printf("p%u", idx), error);
         if (part_mount == NULL)
             return FALSE;
 
