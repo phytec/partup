@@ -88,6 +88,11 @@ following options:
 ``size`` (integer/string)
    Size of the cleaned space.
 
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
+
 Raw Data
 ........
 
@@ -154,6 +159,11 @@ options:
 
 ``size`` (integer/string)
    The size of the partition.
+
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
 
 ``expand`` (boolean)
    Expands the partition to fill the rest of the flash device. If multiple
@@ -264,6 +274,11 @@ contained partitions of an MTD. Each entry may contain the following options:
    The size of the partition. This scalar is mandatory and must be greater than
    zero. The size must also be a multiple of the underlying device's erase block
    size, if not using an expanding partition.
+
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
 
    Available since: :ref:`release-3.0.0`
 
