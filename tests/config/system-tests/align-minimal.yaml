@@ -1,0 +1,37 @@
+api-version: 4
+disklabel: msdos
+alignment: minimal
+
+partitions:
+  - label: ODDOFFSET
+    filesystem: fat32
+    size: 16MiB
+    offset: 12345B
+    flags:
+      - boot
+    input:
+      - filename: lorem.txt
+  - label: TAR
+    filesystem: ext4
+    expand: true
+    input:
+      - filename: lorem.tar
+  - label: EXT4
+    type: logical
+    filesystem: null
+    block-size: 4kiB
+    expand: true
+    input:
+      - filename: root.ext4
+  - label: EVEN
+    type: logical
+    filesystem: ext4
+    size: 10MiB
+  - label: ODD
+    type: logical
+    filesystem: ext4
+    size: 12356789B
+  - label: PRIME
+    type: logical
+    filesystem: fat32
+    size: 11206177B
