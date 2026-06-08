@@ -1,6 +1,6 @@
 project(
   'partup', 'c',
-  version : '3.0.1',
+  version : '4.0.0',
   license : 'GPL-3.0-or-later',
   default_options : [
     'c_std=c99',
