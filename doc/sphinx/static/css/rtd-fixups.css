@@ -1,8 +1,5 @@
 :root {
     --readthedocs-font-family: inherit;
-}
-
-.wy-nav-side {
     --readthedocs-flyout-background-color: color-mix(in srgb, var(--dark), var(--black));
     --readthedocs-flyout-current-version-color: var(--teal3);
     --readthedocs-flyout-section-heading-color: var(--gray3);
@@ -10,21 +7,4 @@
     --readthedocs-flyout-color: var(--gray3);
     --readthedocs-flyout-divider-color: var(--gray-dark);
     --readthedocs-flyout-link-color: var(--teal3);
-}
-
-header > span.version {
-    font-weight: bold;
-}
-
-header > span svg.icon {
-    color: var(--gray1);
-}
-
-#flyout-seach-form > input {
-    border-radius: 50px;
-    width: 100%;
-    padding: 6px 12px;
-    border: none;
-    box-shadow: inset 0 1px 3px #ddd;
-    font-family: inherit;
 }
