@@ -12,3 +12,7 @@ html_logo = 'data/partup-logo-2x-white.svg'
 html_theme_options = {
     'style_external_links': True
 }
+html_static_path = ['sphinx/static']
+html_css_files = [ 'css/phytec-theme.css' ]
+
+pygments_style = 'bw'
