@@ -13,7 +13,7 @@ html_theme_options = {
     'style_external_links': True
 }
 html_static_path = ['sphinx/static']
-html_css_files = [ 'css/phytec-theme.css' ]
+html_css_files = [ 'css/phytec-theme.css', 'css/rtd-fixups.css' ]
 html_favicon = 'sphinx/static/favicon.ico'
 
 pygments_style = 'bw'
