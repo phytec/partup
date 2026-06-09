@@ -14,5 +14,6 @@ html_theme_options = {
 }
 html_static_path = ['sphinx/static']
 html_css_files = [ 'css/phytec-theme.css' ]
+html_favicon = 'sphinx/static/favicon.ico'
 
 pygments_style = 'bw'
