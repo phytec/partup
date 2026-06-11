@@ -58,6 +58,23 @@ Disk Options
    particular, this can be used to flash devices with raw disk images that
    already contain a partition table and associated partitions.
 
+.. _alignment:
+
+``alignment`` (string)
+   Alignment type of all partitions to be written to the device. This specifies
+   how the partitions' start and end sector are placed.
+
+   The following alignment types are currently supported:
+
+   -  ``minimal``/``minimum``: Align partitions to the minimum hardware
+      requirements.
+   -  ``optimal``/``optimum``: Align partitions on the device for optimal
+      performance.
+
+   The default alignment type is ``optimal``.
+
+   Available since: :ref:`release-4.0.0`
+
 Clean Data
 ..........
 
@@ -70,6 +87,11 @@ following options:
 
 ``size`` (integer/string)
    Size of the cleaned space.
+
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
 
 Raw Data
 ........
@@ -138,6 +160,11 @@ options:
 ``size`` (integer/string)
    The size of the partition.
 
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
+
 ``expand`` (boolean)
    Expands the partition to fill the rest of the flash device. If multiple
    partitions are specified to be expanding, then the space is equally divided
@@ -148,7 +175,8 @@ options:
 
 ``block-size`` (integer/string)
    Set the partition size to a multiple of the specified value. The default is
-   2 sectors, which is almost always equal to 1KiB.
+   the device's alignment grain size. This depends on the selected alignment
+   type. See :ref:`alignment` for more information.
 
 ``flags`` (sequence)
    Set flags for this partition. Flags to be enabled should be provided as a
@@ -246,6 +274,11 @@ contained partitions of an MTD. Each entry may contain the following options:
    The size of the partition. This scalar is mandatory and must be greater than
    zero. The size must also be a multiple of the underlying device's erase block
    size, if not using an expanding partition.
+
+   It is possible set a string with a unit after the size number, e.g. ``12kiB``
+   or ``34MB``. Possible units are the same as specified by `GNU parted's unit
+   command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
+   no unit is specified, the default is sectors.
 
    Available since: :ref:`release-3.0.0`
 
