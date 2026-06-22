@@ -73,6 +73,9 @@ Disk Options
 
    The default alignment type is ``optimal``.
 
+   If no alignment information can be retrieved from the device, a block size of
+   1 MiB is used.
+
    Available since: :ref:`release-4.0.0`
 
 Clean Data
