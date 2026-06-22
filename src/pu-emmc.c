@@ -1089,7 +1089,7 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
 
     if (emmc->num_expanded_parts > 0) {
         if (emmc->device->length - fixed_parts_size
-                < emmc->alignment->grain_size * emmc->num_logical_parts) {
+                < emmc->alignment->grain_size * emmc->num_expanded_parts) {
             g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
                         "No space left for expanding partitions");
             return FALSE;
