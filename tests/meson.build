@@ -10,6 +10,7 @@ tests = [
 ]
 
 tests_root = [
+  'emmc-root',
   'mount-root',
   'package-root',
   'utils-root'
