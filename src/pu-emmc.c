@@ -1220,3 +1220,9 @@ pu_emmc_new(const gchar *device_path,
 
     return g_steal_pointer(&self);
 }
+
+PedAlignment *
+pu_emmc_get_alignment(PuEmmc *emmc)
+{
+    return emmc->alignment;
+}
