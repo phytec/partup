@@ -18,5 +18,6 @@ PuEmmc * pu_emmc_new(const gchar *device_path,
                      const gchar *prefix,
                      gboolean skip_checksums,
                      GError **error);
+PedAlignment * pu_emmc_get_alignment(PuEmmc *emmc);
 
 #endif /* PARTUP_EMMC_H */
