@@ -47,6 +47,7 @@ gboolean pu_partition_set_partuuid(const gchar *device,
                                    const gchar *partuuid,
                                    GError **error);
 gboolean pu_is_drive(const gchar *device);
+gboolean pu_is_ext234_image(const gchar *path);
 gboolean pu_wait_for_partitions(GError **error);
 gboolean pu_set_hwreset(const gchar *device,
                         const gchar *hwreset,
