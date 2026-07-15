@@ -1,0 +1,25 @@
+api-version: 1
+disklabel: gpt
+
+partitions:
+  - label: DEFAULT
+    offset: 1MiB
+    expand: true
+  - label: "NULL"
+    filesystem: null
+    expand: true
+  - label: FAT16
+    filesystem: fat16
+    expand: true
+  - label: FAT32
+    filesystem: fat32
+    expand: true
+  - label: EXT2
+    filesystem: ext2
+    expand: true
+  - label: EXT3
+    filesystem: ext3
+    expand: true
+  - label: EXT4
+    filesystem: ext4
+    expand: true
