@@ -379,7 +379,8 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_umount(part_mount, error))
                     return FALSE;
-            } else if (g_regex_match_simple(".ext[234]$", path, 0, 0)) {
+            } else if (g_regex_match_simple(".ext[234]$", path, 0, 0) ||
+                       pu_is_ext234_image(path)) {
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, 0, error))
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
