@@ -409,6 +409,33 @@ pu_is_drive(const gchar *device)
 }
 
 gboolean
+pu_is_ext234_image(const gchar *path)
+{
+    blkid_probe pr;
+    const gchar *type = NULL;
+    gboolean ret = FALSE;
+
+    g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
+
+    pr = blkid_new_probe_from_filename(path);
+    if (!pr) {
+        return ret;
+    }
+
+    blkid_probe_enable_superblocks(pr, 1);
+    blkid_probe_set_superblocks_flags(pr, BLKID_SUBLKS_TYPE);
+
+    if (blkid_do_safeprobe(pr) == 0) {
+        if (blkid_probe_lookup_value(pr, "TYPE", &type, NULL) == 0) {
+            ret = (type && g_regex_match_simple("^ext[234]$", type, 0, 0));
+        }
+    }
+
+    blkid_free_probe(pr);
+    return ret;
+}
+
+gboolean
 pu_wait_for_partitions(GError **error)
 {
     g_autofree gchar *udevadm_cmd = NULL;
