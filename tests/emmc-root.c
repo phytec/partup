@@ -12,8 +12,9 @@
 #include "pu-error.h"
 #include "pu-utils.h"
 
-static gboolean check_partition_alignment(PedDevice *dev,
-                                          PedAlignment *alignment)
+static gboolean
+check_partition_alignment(PedDevice *dev,
+                          PedAlignment *alignment)
 {
     PedDisk *disk;
     PedPartition *part;
