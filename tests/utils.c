@@ -194,6 +194,17 @@ test_device_get_partition_pattern(void)
     g_assert_false(g_regex_match_simple(pattern, "/dev/sdb1", 0, 0));
 }
 
+static void
+test_is_ext234_image(void)
+{
+    g_assert_true(pu_is_ext234_image("data/root.ext4"));
+    g_assert_false(pu_is_ext234_image("data/random.bin"));
+    g_assert_false(pu_is_ext234_image("data/file-zero.txt"));
+    g_assert_false(pu_is_ext234_image("data/file-integer.txt"));
+    g_assert_false(pu_is_ext234_image("data/lorem.tar"));
+    g_assert_false(pu_is_ext234_image("data/lorem.txt"));
+}
+
 int
 main(int argc,
      char *argv[])
@@ -223,6 +234,7 @@ main(int argc,
                     test_device_get_partition_path_fail);
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
+    g_test_add_func("/utils/is_ext234_image", test_is_ext234_image);
 
     return g_test_run();
 }
