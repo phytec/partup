@@ -144,8 +144,20 @@ options:
 ``filesystem`` (string)
    The filesystem type to use during formatting of the partition.
 
+   It is possible to set ``filesystem`` to ``null``. This is useful for writing
+   raw images -- already containing a filesystem -- directly to a partition. For
+   additional information see :ref:`supported-file-types`.
+
+   When no filesystem is specified, the default is ``null``.
+
+   .. note::
+
+      Versions prior to partup :ref:`release-4.0.0` used ``fat32`` as the
+      default filesystem.
+
    The following filesystems are currently supported:
 
+   - ``null`` (default)
    - ``ext2``
    - ``ext3``
    - ``ext4``
@@ -335,6 +347,8 @@ at least a ``filename``. For verifying the checksum of the given input file by
    The SHA256 sum of the given file specified by ``filename``. This sum is
    checked against the provided file before writing to the target partition or
    volume.
+
+.. _supported-file-types:
 
 Supported File Types
 ....................
