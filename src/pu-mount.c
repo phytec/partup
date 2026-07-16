@@ -92,6 +92,7 @@ pu_mount(const gchar *source,
          GError **error)
 {
     gint ret;
+    gint status;
     struct libmnt_context *ctx;
 
     g_return_val_if_fail(g_strcmp0(source, "") > 0, FALSE);
@@ -116,9 +117,11 @@ pu_mount(const gchar *source,
         mnt_context_append_options(ctx, options);
 
     ret = mnt_context_mount(ctx);
-    if (ret || mnt_context_get_status(ctx) != 1) {
+    status = mnt_context_get_status(ctx);
+    if (ret || status != 1) {
         g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
-                    "Failed mounting '%s' to '%s'", source, mount_point);
+                    "Failed mounting '%s' to '%s': ret %d, status %d",
+                    source, mount_point, ret, status);
         mnt_free_context(ctx);
         return FALSE;
     }
@@ -132,6 +135,7 @@ pu_umount(const gchar *mount_point,
           GError **error)
 {
     gint ret;
+    gint status;
     struct libmnt_context *ctx;
 
     g_return_val_if_fail(g_strcmp0(mount_point, "") > 0, FALSE);
@@ -148,9 +152,11 @@ pu_umount(const gchar *mount_point,
     }
     mnt_context_set_target(ctx, mount_point);
     ret = mnt_context_umount(ctx);
-    if (ret || mnt_context_get_status(ctx) != 1) {
+    status = mnt_context_get_status(ctx);
+    if (ret || status != 1) {
         g_set_error(error, PU_ERROR, PU_ERROR_MOUNT,
-                    "Failed unmounting '%s'", mount_point);
+                    "Failed unmounting '%s': ret %d, status %d",
+                    mount_point, ret, status);
         mnt_free_context(ctx);
         return FALSE;
     }
