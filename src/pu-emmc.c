@@ -377,7 +377,7 @@ pu_emmc_write_data(PuFlash *flash,
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;
-                if (!pu_archive_extract(path, part_mount, error))
+                if (!pu_archive_extract(path, part_mount, input->exclude, input->only, error))
                     return FALSE;
                 if (!pu_umount(part_mount, error))
                     return FALSE;
@@ -1062,7 +1062,18 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                 input->filename = pu_hash_table_lookup_string(iv->data.mapping, "filename", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
-                input->exclude = pu_hash_table_lookup_list(iv->data.mapping, "exclude", NULL);
+                GList *exclude_list = pu_hash_table_lookup_list(iv->data.mapping, "exclude", NULL);
+                if (exclude_list) {
+                    for (GList *e = exclude_list; e; e = e->next) {
+                        PuConfigValue *ev = e->data;
+                        if (ev->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                        "'exclude' does not contain a sequence of strings");
+                            return FALSE;
+                        }
+                        input->exclude = g_list_prepend(input->exclude, ev->data.string);
+                    }
+                }
                 input->only = pu_hash_table_lookup_string(iv->data.mapping, "only", "");
                 part->input = g_list_prepend(part->input, input);
 

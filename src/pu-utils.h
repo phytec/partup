@@ -13,6 +13,8 @@ gboolean pu_spawn_command_line_sync(const gchar *command_line,
                                     GError **error);
 gboolean pu_archive_extract(const gchar *filename,
                             const gchar *dest,
+                            GList *exclude,
+                            GList *only,
                             GError **error);
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,

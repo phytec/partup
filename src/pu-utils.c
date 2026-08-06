@@ -60,6 +60,7 @@ gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
                    GList *exclude,
+                   GList *only,
                    GError **error)
 {
     g_autoptr(GString) cmd = NULL;
@@ -70,14 +71,18 @@ pu_archive_extract(const gchar *filename,
 
     g_debug("Extracting '%s' to '%s'", filename, dest);
 
-    cmd = g_string_new("tar ");
+    cmd = g_string_new("tar");
 
+    /* TODO: trailing slashes may cause problems here? */
     for (GList *e = exclude; e; e = e->next) {
-        g_string_append_printf(cmd, "--exclude=%s ", e->data);
+        g_string_append_printf(cmd, " --exclude=%s", e->data);
     }
 
-    //cmd = g_strdup_printf("tar %s -xf %s -C %s", extra_args, filename, dest);
-    g_string_append_printf(cmd, "-xf %s -C %s", filename, dest);
+    g_string_append_printf(cmd, " -C %s -xf %s", dest, filename);
+
+    for (GList *o = only; o; o = o->next) {
+        g_string_append_printf(cmd, " %s", o->data);
+    }
 
     if (!pu_spawn_command_line_sync(cmd->str, error)) {
         g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
