@@ -59,9 +59,10 @@ pu_spawn_command_line_sync(const gchar *command_line,
 gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
+                   GList *exclude,
                    GError **error)
 {
-    g_autofree gchar *cmd = NULL;
+    g_autoptr(GString) cmd = NULL;
 
     g_return_val_if_fail(filename != NULL, FALSE);
     g_return_val_if_fail(dest != NULL, FALSE);
@@ -69,9 +70,16 @@ pu_archive_extract(const gchar *filename,
 
     g_debug("Extracting '%s' to '%s'", filename, dest);
 
-    cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
+    cmd = g_string_new("tar ");
 
-    if (!pu_spawn_command_line_sync(cmd, error)) {
+    for (GList *e = exclude; e; e = e->next) {
+        g_string_append_printf(cmd, "--exclude=%s ", e->data);
+    }
+
+    //cmd = g_strdup_printf("tar %s -xf %s -C %s", extra_args, filename, dest);
+    g_string_append_printf(cmd, "-xf %s -C %s", filename, dest);
+
+    if (!pu_spawn_command_line_sync(cmd->str, error)) {
         g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
         return FALSE;
     }

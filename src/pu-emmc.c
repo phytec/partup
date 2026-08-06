@@ -24,6 +24,8 @@ typedef struct _PuEmmcInput {
     gchar *filename;
     gchar *md5sum;
     gchar *sha256sum;
+    GList *exclude;
+    gchar *only;
 
     /* Internal members */
     gsize _size;
@@ -601,6 +603,8 @@ pu_emmc_class_finalize(GObject *object)
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
+            g_list_free(g_steal_pointer(&in->exclude));
+            g_free(in->only);
             g_free(in);
         }
         g_list_free(g_steal_pointer(&part->input));
@@ -1058,6 +1062,8 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                 input->filename = pu_hash_table_lookup_string(iv->data.mapping, "filename", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
+                input->exclude = pu_hash_table_lookup_list(iv->data.mapping, "exclude", NULL);
+                input->only = pu_hash_table_lookup_string(iv->data.mapping, "only", "");
                 part->input = g_list_prepend(part->input, input);
 
                 g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
