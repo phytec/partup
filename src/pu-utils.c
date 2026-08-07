@@ -75,13 +75,15 @@ pu_archive_extract(const gchar *filename,
 
     /* TODO: trailing slashes may cause problems here? */
     for (GList *e = exclude; e; e = e->next) {
-        g_string_append_printf(cmd, " --exclude=%s", e->data);
+        gchar *es = e->data;
+        g_string_append_printf(cmd, " --exclude=%s", es);
     }
 
     g_string_append_printf(cmd, " -C %s -xf %s", dest, filename);
 
     for (GList *o = only; o; o = o->next) {
-        g_string_append_printf(cmd, " %s", o->data);
+        gchar *os = o->data;
+        g_string_append_printf(cmd, " %s", os);
     }
 
     if (!pu_spawn_command_line_sync(cmd->str, error)) {

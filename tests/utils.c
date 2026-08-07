@@ -24,7 +24,7 @@ test_archive_extract(void)
 
     out_file = g_build_filename(dest, "lorem.txt", NULL);
 
-    g_assert_true(pu_archive_extract(source, dest, &error));
+    g_assert_true(pu_archive_extract(source, dest, NULL, NULL, &error));
     g_assert_no_error(error);
     g_assert_true(g_file_test(out_file, G_FILE_TEST_IS_REGULAR));
 

@@ -25,7 +25,7 @@ typedef struct _PuEmmcInput {
     gchar *md5sum;
     gchar *sha256sum;
     GList *exclude;
-    gchar *only;
+    GList *only;
 
     /* Internal members */
     gsize _size;
@@ -604,7 +604,7 @@ pu_emmc_class_finalize(GObject *object)
             g_free(in->md5sum);
             g_free(in->sha256sum);
             g_list_free(g_steal_pointer(&in->exclude));
-            g_free(in->only);
+            g_list_free(g_steal_pointer(&in->only));
             g_free(in);
         }
         g_list_free(g_steal_pointer(&part->input));
@@ -1074,7 +1074,18 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                         input->exclude = g_list_prepend(input->exclude, ev->data.string);
                     }
                 }
-                input->only = pu_hash_table_lookup_string(iv->data.mapping, "only", "");
+                GList *only_list = pu_hash_table_lookup_list(iv->data.mapping, "only", NULL);
+                if (only_list) {
+                    for (GList *o = only_list; o; o = o->next) {
+                        PuConfigValue *ov = o->data;
+                        if (ov->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                        "'only' does not contain a sequence of strings");
+                            return FALSE;
+                        }
+                        input->only = g_list_prepend(input->only, ov->data.string);
+                    }
+                }
                 part->input = g_list_prepend(part->input, input);
 
                 g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
