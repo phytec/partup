@@ -9,6 +9,7 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <glob.h>
 #include <stdio.h>
 #include <blkid.h>
 #include <sys/stat.h>
@@ -602,4 +603,78 @@ pu_str_pre_remove(gchar *string,
     memmove(string, start, strlen((gchar *) start) + 1);
 
     return string;
+}
+
+GList *
+pu_list_intersect(GList *list_a,
+                  GList *list_b)
+{
+    GList *intersect = NULL;
+
+    if (!list_a || !list_b) {
+        return NULL;
+    }
+
+    for (GList *a = list_a; a; a = a->next) {
+        for (GList *b = list_b; b; b = b->next) {
+            gchar *as = a->data;
+            gchar *bs = b->data;
+
+            /* TODO: faster way to get intersect list? Consider using GHashTable */
+            if (g_strcmp0(as, bs) == 0) {
+                intersect = g_list_prepend(intersect, bs);
+                g_debug("Prending to intersect list: %s", bs);
+            }
+        }
+    }
+
+    return intersect;
+}
+
+gboolean
+pu_remove_recursive_intersect(const gchar *path,
+                              GList *exclude,
+                              GList *only,
+                              GError **error)
+{
+    GHashTable *keep = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    glob_t gl;
+    gboolean first = TRUE;
+
+    g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    /* TODO: support wildcard paths, like "*foo.txt", which should match any
+     * directory containing foo.txt. */
+    for (GList *o = only; o; o = o->next) {
+        const gchar *os = o->data;
+        gint flags = GLOB_NOSORT | GLOB_BRACE | (first ? 0 : GLOB_APPEND);
+        gint ret = glob(os, flags, NULL, &gl);
+
+        if (ret == 0) {
+            first = FALSE;
+        } else if (ret == GLOB_NOMATCH) {
+            continue;
+        } else {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "glob() failed on '%s': %d", os, ret);
+            return FALSE;
+        }
+    }
+
+    if (!first) {
+        for (gsize_t i = 0; i < gl.gl_pathc; i++) {
+            gchar *canon = g_canonicalize_filename(gl.gl_pathv[i], NULL);
+            g_hash_table_replace(keep, canon, GINT_TO_POINTER(1));
+        }
+        globfree(&gl);
+    }
+
+    /* Create a list of directories and files that match "exclude" */
+
+    /* Create a list of directories and files that match "only" */
+
+    /* Create intersection of real "exclude" and "only" file/dir list above */
+
+    return TRUE;
 }

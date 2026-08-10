@@ -294,6 +294,50 @@ test_is_ext234_image(void)
     g_assert_false(pu_is_ext234_image("data/lorem.txt"));
 }
 
+static void
+test_list_intersect(void)
+{
+    GList *a = NULL;
+    GList *b = NULL;
+    GList *intersect = NULL;
+
+    a = g_list_prepend(a, "foo");
+    a = g_list_prepend(a, "bar");
+    a = g_list_prepend(a, "baz");
+
+    b = g_list_prepend(b, "baz");
+    b = g_list_prepend(b, "buzzer");
+
+    g_assert_null(pu_list_intersect(NULL, NULL));
+    g_assert_null(pu_list_intersect(a, NULL));
+    g_assert_null(pu_list_intersect(NULL, b));
+
+    intersect = pu_list_intersect(a, b);
+    g_assert_nonnull(intersect);
+    g_assert_nonnull(g_list_find(intersect, "baz"));
+}
+
+static void
+test_remove_recursive_intersect(void)
+{
+    g_autofree gchar *dest = NULL;
+
+    dest = g_dir_make_tmp("partup-XXXXXX", &error);
+    g_assert_no_error(error);
+
+    toplevel_file = g_build_filename(dest, "toplevel.txt", NULL);
+    empty_dir = g_build_filename(dest, "empty", NULL);
+    nested_dir = g_build_filename(dest, "nested", "one", "two", "three", NULL);
+    nested_file = g_build_filename(dest, "nested", "one", "two", "three", "four.txt", NULL);
+    foobarbuz_dir = g_build_filename(dest, "foo", "bar", "buz", NULL);
+    foo_file = g_build_filename(dest, "foo", "test.c", NULL);
+    foobar_file = g_build_filename(dest, "foo", "bar", "settings.cfg", NULL);
+    foobarbuz1_file = g_build_filename(dest, "foo", "bar", "buz", "buzzer.yaml", NULL);
+    foobarbuz2_file = g_build_filename(dest, "foo", "bar", "buz", "dozzer.yaml", NULL);
+
+
+}
+
 int
 main(int argc,
      char *argv[])
@@ -324,6 +368,7 @@ main(int argc,
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
     g_test_add_func("/utils/is_ext234_image", test_is_ext234_image);
+    g_test_add_func("/utils/list_intersect", test_list_intersect);
 
     return g_test_run();
 }
