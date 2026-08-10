@@ -377,7 +377,8 @@ pu_emmc_write_data(PuFlash *flash,
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;
-                if (!pu_archive_extract(path, part_mount, input->exclude, input->only, error))
+                if (!pu_archive_extract(path, part_mount, input->exclude,
+                                        input->only, error))
                     return FALSE;
                 if (!pu_umount(part_mount, error))
                     return FALSE;

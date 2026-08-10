@@ -76,14 +76,18 @@ pu_archive_extract(const gchar *filename,
     /* TODO: trailing slashes may cause problems here? */
     for (GList *e = exclude; e; e = e->next) {
         gchar *es = e->data;
-        g_string_append_printf(cmd, " --exclude=%s", es);
+        g_string_append_printf(cmd, " --exclude %s", es);
     }
 
     g_string_append_printf(cmd, " -C %s -xf %s", dest, filename);
 
     for (GList *o = only; o; o = o->next) {
         gchar *os = o->data;
-        g_string_append_printf(cmd, " %s", os);
+        if (g_regex_match_simple("[!^*?\\[\\]]", os, 0, 0)) {
+            g_string_append_printf(cmd, " --wildcards %s", os);
+        } else {
+            g_string_append_printf(cmd, " --no-wildcards %s", os);
+        }
     }
 
     if (!pu_spawn_command_line_sync(cmd->str, error)) {

@@ -16,19 +16,108 @@ test_archive_extract(void)
 {
     g_autoptr(GError) error = NULL;
     g_autofree gchar *dest = NULL;
-    g_autofree gchar *out_file = NULL;
-    const gchar *source = "data/lorem.tar";
+    g_autofree gchar *lorem_file = NULL;
+    g_autofree gchar *ipsum_file = NULL;
+    g_autofree gchar *dolor_file = NULL;
+    g_autofree gchar *foo_dir = NULL;
+    g_autofree gchar *foo_file = NULL;
+    g_autofree gchar *bar_dir = NULL;
+    g_autofree gchar *bar_file = NULL;
+    g_autofree gchar *baz_dir = NULL;
+    g_autofree gchar *baz_file = NULL;
+    g_autoptr(GList) exclude = NULL;
+    g_autoptr(GList) list_ba = NULL;
+    g_autoptr(GList) list_notfound = NULL;
+    g_autoptr(GList) only = NULL;
 
     dest = g_dir_make_tmp("partup-XXXXXX", &error);
     g_assert_no_error(error);
 
-    out_file = g_build_filename(dest, "lorem.txt", NULL);
+    lorem_file = g_build_filename(dest, "lorem.txt", NULL);
+    ipsum_file = g_build_filename(dest, "ipsum.txt", NULL);
+    dolor_file = g_build_filename(dest, "dolor.txt", NULL);
 
-    g_assert_true(pu_archive_extract(source, dest, NULL, NULL, &error));
+    exclude = g_list_prepend(exclude, "lorem.txt");
+    exclude = g_list_prepend(exclude, "ipsum.txt");
+
+    only = g_list_prepend(only, "ipsum.txt");
+    only = g_list_prepend(only, "dolor.txt");
+
+    list_ba = g_list_prepend(list_ba, "ba*");
+    list_notfound = g_list_prepend(list_notfound, "notfound*");
+
+    foo_dir = g_build_filename(dest, "foo", NULL);
+    foo_file = g_build_filename(dest, "foo/foo.txt", NULL);
+    bar_dir = g_build_filename(dest, "bar", NULL);
+    bar_file = g_build_filename(dest, "bar/bar.cfg", NULL);
+    baz_dir = g_build_filename(dest, "baz", NULL);
+    baz_file = g_build_filename(dest, "baz/baz.yaml", NULL);
+
+    /* Extract all */
+    g_assert_true(pu_archive_extract("data/lorem.tar", dest, NULL, NULL, &error));
     g_assert_no_error(error);
-    g_assert_true(g_file_test(out_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(lorem_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(ipsum_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(dolor_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(lorem_file), ==, 0);
+    g_assert_cmpint(g_remove(ipsum_file), ==, 0);
+    g_assert_cmpint(g_remove(dolor_file), ==, 0);
 
-    g_assert_cmpint(g_remove(out_file), ==, 0);
+    /* Extract all excluding two */
+    g_assert_true(pu_archive_extract("data/lorem.tar", dest, exclude, NULL, &error));
+    g_assert_no_error(error);
+    g_assert_false(g_file_test(lorem_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(ipsum_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(dolor_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(dolor_file), ==, 0);
+
+    /* Extract only two */
+    g_assert_true(pu_archive_extract("data/lorem.tar", dest, NULL, only, &error));
+    g_assert_no_error(error);
+    g_assert_false(g_file_test(lorem_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(ipsum_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(dolor_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(ipsum_file), ==, 0);
+    g_assert_cmpint(g_remove(dolor_file), ==, 0);
+
+    /* Extract only two excluding two */
+    g_assert_true(pu_archive_extract("data/lorem.tar", dest, exclude, only, &error));
+    g_assert_no_error(error);
+    g_assert_false(g_file_test(lorem_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(ipsum_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(dolor_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(dolor_file), ==, 0);
+
+    /* Extract all excluding "ba*" */
+    g_assert_true(pu_archive_extract("data/foobar.tar", dest, list_ba, NULL, &error));
+    g_assert_no_error(error);
+    g_assert_true(g_file_test(foo_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(bar_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(bar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(baz_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(baz_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(foo_file), ==, 0);
+    g_assert_cmpint(g_rmdir(foo_dir), ==, 0);
+
+    /* Extract only "ba*" (includes wildcards) */
+    g_assert_true(pu_archive_extract("data/foobar.tar", dest, NULL, list_ba, &error));
+    g_assert_no_error(error);
+    g_assert_false(g_file_test(foo_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(bar_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(bar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(baz_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(baz_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_cmpint(g_remove(bar_file), ==, 0);
+    g_assert_cmpint(g_rmdir(bar_dir), ==, 0);
+    g_assert_cmpint(g_remove(baz_file), ==, 0);
+    g_assert_cmpint(g_rmdir(baz_dir), ==, 0);
+
+    /* Member not found in archive */
+    g_assert_false(pu_archive_extract("data/foobar.tar", dest, NULL, list_notfound, &error));
+    g_assert_error(error, G_SPAWN_EXIT_ERROR, 2);
+
     g_assert_cmpint(g_rmdir(dest), ==, 0);
 }
 
