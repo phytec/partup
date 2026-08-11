@@ -295,47 +295,119 @@ test_is_ext234_image(void)
 }
 
 static void
-test_list_intersect(void)
+test_hash_table_intersect(void)
 {
-    GList *a = NULL;
-    GList *b = NULL;
-    GList *intersect = NULL;
+    g_autoptr(GHashTable) a = NULL;
+    g_autoptr(GHashTable) b = NULL;
+    g_autoptr(GHashTable) intersect = NULL;
 
-    a = g_list_prepend(a, "foo");
-    a = g_list_prepend(a, "bar");
-    a = g_list_prepend(a, "baz");
+    a = g_hash_table_new(g_str_hash, g_str_equal);
+    b = g_hash_table_new(g_str_hash, g_str_equal);
 
-    b = g_list_prepend(b, "baz");
-    b = g_list_prepend(b, "buzzer");
+    g_hash_table_add(a, "foo");
+    g_hash_table_add(a, "bar");
+    g_hash_table_add(a, "baz");
+    g_hash_table_add(b, "baz");
+    g_hash_table_add(b, "buzzer");
 
-    g_assert_null(pu_list_intersect(NULL, NULL));
-    g_assert_null(pu_list_intersect(a, NULL));
-    g_assert_null(pu_list_intersect(NULL, b));
-
-    intersect = pu_list_intersect(a, b);
+    /* NULL inputs return an empty (non-NULL) set. */
+    intersect = pu_hash_table_intersect(NULL, NULL);
     g_assert_nonnull(intersect);
-    g_assert_nonnull(g_list_find(intersect, "baz"));
+    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
+    g_hash_table_destroy(intersect);
+
+    intersect = pu_hash_table_intersect(a, NULL);
+    g_assert_nonnull(intersect);
+    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
+    g_hash_table_destroy(intersect);
+
+    intersect = pu_hash_table_intersect(NULL, b);
+    g_assert_nonnull(intersect);
+    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
+    g_hash_table_destroy(intersect);
+
+    /* Real intersection: only "baz" is common. */
+    intersect = pu_hash_table_intersect(a, b);
+    g_assert_nonnull(intersect);
+    g_assert_cmpuint(g_hash_table_size(intersect), ==, 1);
+    g_assert_true(g_hash_table_contains(intersect, "baz"));
+    g_assert_false(g_hash_table_contains(intersect, "foo"));
+    g_assert_false(g_hash_table_contains(intersect, "buzzer"));
 }
 
 static void
 test_remove_recursive_intersect(void)
 {
+    g_autoptr(GError) error = NULL;
+    g_autofree GList *exclude = NULL;
+    g_autofree GList *only = NULL;
     g_autofree gchar *dest = NULL;
+    g_autofree gchar *all_dir = NULL;
+    g_autofree gchar *empty_dir = NULL;
+    g_autofree gchar *nested_dir = NULL;
+    g_autofree gchar *nested_file = NULL;
+    g_autofree gchar *foo_file = NULL;
+    g_autofree gchar *foobar_file = NULL;
+    g_autofree gchar *foobarbuz1_file = NULL;
+    g_autofree gchar *foobarbuz2_file = NULL;
 
     dest = g_dir_make_tmp("partup-XXXXXX", &error);
     g_assert_no_error(error);
 
-    toplevel_file = g_build_filename(dest, "toplevel.txt", NULL);
+    all_dir = g_build_filename(dest, "*", NULL);
     empty_dir = g_build_filename(dest, "empty", NULL);
     nested_dir = g_build_filename(dest, "nested", "one", "two", "three", NULL);
     nested_file = g_build_filename(dest, "nested", "one", "two", "three", "four.txt", NULL);
-    foobarbuz_dir = g_build_filename(dest, "foo", "bar", "buz", NULL);
     foo_file = g_build_filename(dest, "foo", "test.c", NULL);
     foobar_file = g_build_filename(dest, "foo", "bar", "settings.cfg", NULL);
     foobarbuz1_file = g_build_filename(dest, "foo", "bar", "buz", "buzzer.yaml", NULL);
     foobarbuz2_file = g_build_filename(dest, "foo", "bar", "buz", "dozzer.yaml", NULL);
 
+    /* NULL checks */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
 
+    exclude = g_list_prepend(exclude, all_dir);
+    g_assert_true(pu_remove_recursive_intersect(dest, NULL, NULL, &error));
+    g_assert_false(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Exclude all */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
+
+    exclude = g_list_prepend(exclude, all_dir);
+    g_assert_true(pu_remove_recursive_intersect(dest, exclude, only, &error));
+    g_assert_false(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Preserve all */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
+
+    g_list_free(exclude);
+    exclude = NULL;
+    g_list_free(only);
+    only = NULL;
+    only = g_list_prepend(only, all_dir);
+    g_assert_true(pu_remove_recursive_intersect(dest, exclude, only, &error));
+    g_assert_true(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
 }
 
 int
@@ -368,7 +440,8 @@ main(int argc,
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
     g_test_add_func("/utils/is_ext234_image", test_is_ext234_image);
-    g_test_add_func("/utils/list_intersect", test_list_intersect);
+    g_test_add_func("/utils/hash_table_intersect", test_hash_table_intersect);
+    g_test_add_func("/utils/remove_recursive_intersect", test_remove_recursive_intersect);
 
     return g_test_run();
 }

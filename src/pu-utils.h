@@ -67,8 +67,8 @@ gchar * pu_device_get_partition_pattern(const gchar *device,
                                         GError **error);
 gchar * pu_str_pre_remove(gchar *string,
                           guint n);
-GList * pu_list_intersect(GList *list_a,
-                          GList *list_b);
+GHashTable * pu_hash_table_intersect(GHashTable *set_a,
+                                     GHashTable *set_b);
 gboolean pu_remove_recursive_intersect(const gchar *path,
                                        GList *exclude,
                                        GList *only,

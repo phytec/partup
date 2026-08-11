@@ -388,7 +388,7 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_resize_filesystem(part_path, error))
                     return FALSE;
-                if (part->label && !pu_set_ext_label(part_path, part->label, error))
+                if (!pu_set_ext_label(part_path, part->label, error))
                     return FALSE;
                 if (input->exclude || input->only) {
                     if (!pu_mount(part_path, part_mount, NULL, NULL, error))
@@ -607,14 +607,14 @@ pu_emmc_class_finalize(GObject *object)
         g_free(part->partuuid);
         g_free(part->filesystem);
         g_free(part->mkfs_extra_args);
-        g_list_free(g_steal_pointer(&part->flags));
+        g_list_free_full(g_steal_pointer(&part->flags), g_free);
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *in = i->data;
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
-            g_list_free(g_steal_pointer(&in->exclude));
-            g_list_free(g_steal_pointer(&in->only));
+            g_list_free_full(g_steal_pointer(&in->exclude), g_free);
+            g_list_free_full(g_steal_pointer(&in->only), g_free);
             g_free(in);
         }
         g_list_free(g_steal_pointer(&part->input));

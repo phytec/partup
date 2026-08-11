@@ -605,26 +605,30 @@ pu_str_pre_remove(gchar *string,
     return string;
 }
 
-GList *
-pu_list_intersect(GList *list_a,
-                  GList *list_b)
+GHashTable *
+pu_hash_table_intersect(GHashTable *set_a,
+                        GHashTable *set_b)
 {
-    GList *intersect = NULL;
+    GHashTable *intersect = g_hash_table_new(g_str_hash, g_str_equal);
 
-    if (!list_a || !list_b) {
-        return NULL;
+    if (!set_a || !set_b) {
+        return intersect;
     }
 
-    for (GList *a = list_a; a; a = a->next) {
-        for (GList *b = list_b; b; b = b->next) {
-            gchar *as = a->data;
-            gchar *bs = b->data;
+    if (g_hash_table_size(set_b) < g_hash_table_size(set_a)) {
+        GHashTable *tmp = set_a;
+        set_a = set_b;
+        set_b = tmp;
+    }
 
-            /* TODO: faster way to get intersect list? Consider using GHashTable */
-            if (g_strcmp0(as, bs) == 0) {
-                intersect = g_list_prepend(intersect, bs);
-                g_debug("Prending to intersect list: %s", bs);
-            }
+    GHashTableIter iter;
+    gpointer key;
+
+    g_hash_table_iter_init(&iter, set_a);
+    while (g_hash_table_iter_next(&iter, &key, NULL)) {
+        if (g_hash_table_contains(set_b, key)) {
+            g_hash_table_add(intersect, key);
+            g_debug("Adding to intersect set: %s", (gchar *) key);
         }
     }
 
@@ -632,49 +636,134 @@ pu_list_intersect(GList *list_a,
 }
 
 gboolean
+pu_file_remove_recursive(GFile *file,
+                         GError **error)
+{
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    dir_enum = g_file_enumerate_children(file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                         G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                         NULL, NULL);
+    if (dir_enum) {
+        g_autoptr(GFileInfo) info = NULL;
+        while ((info = g_file_enumerator_next_file(dir_enum, NULL, NULL)) != NULL) {
+            g_autoptr(GFile) child = NULL;
+            child = g_file_enumerator_get_child(dir_enum, info);
+            if (!pu_file_remove_recursive(child, error)) {
+                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                            "Failed recursive file removal");
+                return FALSE;
+            }
+        }
+    }
+
+    g_debug("removing %s", g_file_get_path(file));
+    return g_file_delete(file, NULL, error);
+}
+
+static GHashTable *
+canonicalize_path_list(GList *paths,
+                       GError **error)
+{
+    g_autoptr(GHashTable) table = NULL;
+    glob_t gl;
+    gboolean first = TRUE;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!paths) {
+        return NULL;
+    }
+
+    table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    /* TODO: support wildcard paths, like "*foo.txt", which should match any
+     * directory containing foo.txt. */
+    for (GList *p = paths; p; p = p->next) {
+        const gchar *ps = p->data;
+        gint flags = GLOB_NOSORT | (first ? 0 : GLOB_APPEND);
+        gint ret = glob(ps, flags, NULL, &gl);
+        g_debug("ps: %s", ps);
+
+        if (ret == 0) {
+            first = FALSE;
+        } else if (ret == GLOB_NOMATCH) {
+            g_debug("glob did not match anything, continue");
+            continue;
+        } else {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "glob() failed on '%s': %d", ps, ret);
+            return NULL;
+        }
+    }
+    g_debug("gl_pathc: %ld", gl.gl_pathc);
+
+    if (!first) {
+        for (gsize i = 0; i < gl.gl_pathc; i++) {
+            gchar *canon = g_canonicalize_filename(gl.gl_pathv[i], NULL);
+            g_debug("canon: %s", canon);
+            g_hash_table_replace(table, canon, NULL);
+        }
+        globfree(&gl);
+    }
+
+    return g_steal_pointer(&table);
+}
+
+/* TODO: Reconsider function name: Should be remove recursive exclusion set */
+gboolean
 pu_remove_recursive_intersect(const gchar *path,
                               GList *exclude,
                               GList *only,
                               GError **error)
 {
-    GHashTable *keep = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-    glob_t gl;
-    gboolean first = TRUE;
+    g_autoptr(GHashTable) exclude_table = NULL;
+    g_autoptr(GHashTable) only_table = NULL;
+    g_autoptr(GHashTable) intersect = NULL;
+    g_autofree gchar *only_default = NULL;
 
     g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    /* TODO: support wildcard paths, like "*foo.txt", which should match any
-     * directory containing foo.txt. */
-    for (GList *o = only; o; o = o->next) {
-        const gchar *os = o->data;
-        gint flags = GLOB_NOSORT | GLOB_BRACE | (first ? 0 : GLOB_APPEND);
-        gint ret = glob(os, flags, NULL, &gl);
-
-        if (ret == 0) {
-            first = FALSE;
-        } else if (ret == GLOB_NOMATCH) {
-            continue;
-        } else {
-            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                        "glob() failed on '%s': %d", os, ret);
+    /* Create a list of directories and files that match "exclude" */
+    g_debug("EXCLUDE");
+    if (exclude) {
+        g_debug("EXCLUDE: true");
+        exclude_table = canonicalize_path_list(exclude, error);
+        if (!exclude_table) {
+            g_prefix_error(error, "Failed parsing 'exclude' paths: ");
             return FALSE;
         }
     }
 
-    if (!first) {
-        for (gsize_t i = 0; i < gl.gl_pathc; i++) {
-            gchar *canon = g_canonicalize_filename(gl.gl_pathv[i], NULL);
-            g_hash_table_replace(keep, canon, GINT_TO_POINTER(1));
-        }
-        globfree(&gl);
+    /* Create a list of directories and files that match "only" */
+    g_debug("ONLY");
+    if (!only) {
+        only_default = g_build_filename(path, "*", NULL);
+        only = g_list_prepend(only, only_default);
+    }
+    only_table = canonicalize_path_list(only, error);
+    if (!only_table) {
+        g_prefix_error(error, "Failed parsing 'only' paths: ");
+        return FALSE;
     }
 
-    /* Create a list of directories and files that match "exclude" */
-
-    /* Create a list of directories and files that match "only" */
-
     /* Create intersection of real "exclude" and "only" file/dir list above */
+    intersect = pu_hash_table_intersect(exclude_table, only_table);
+
+    GHashTableIter iter;
+    gpointer key;
+
+    g_hash_table_iter_init(&iter, intersect);
+    while (g_hash_table_iter_next(&iter, &key, NULL)) {
+        g_autoptr(GFile) file = NULL;
+        file = g_file_new_for_path(key);
+        if (!pu_file_remove_recursive(file, error)) {
+            return FALSE;
+        }
+    }
 
     return TRUE;
 }
