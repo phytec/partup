@@ -360,6 +360,8 @@ at least a ``filename``. For verifying the checksum of the given input file by
    For other input file types, the specified paths are deleted on the partition
    after writing the input files.
 
+   ``exclude`` takes precedence over ``only``.
+
 ``only`` (sequence)
    A list of paths to only extract/keep on the corresponding partition. This
    only works on partitions with a valid filesystem.

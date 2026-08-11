@@ -605,20 +605,19 @@ pu_str_pre_remove(gchar *string,
     return string;
 }
 
+#if 0
 GHashTable *
-pu_hash_table_intersect(GHashTable *set_a,
+pu_hash_table_substract(GHashTable *set_a,
                         GHashTable *set_b)
 {
-    GHashTable *intersect = g_hash_table_new(g_str_hash, g_str_equal);
+    GHashTable *substraction = g_hash_table_new(g_str_hash, g_str_equal);
 
-    if (!set_a || !set_b) {
-        return intersect;
+    if (!set_a) {
+        return set_b;
     }
 
-    if (g_hash_table_size(set_b) < g_hash_table_size(set_a)) {
-        GHashTable *tmp = set_a;
-        set_a = set_b;
-        set_b = tmp;
+    if (!set_b) {
+        return set_a;
     }
 
     GHashTableIter iter;
@@ -626,22 +625,41 @@ pu_hash_table_intersect(GHashTable *set_a,
 
     g_hash_table_iter_init(&iter, set_a);
     while (g_hash_table_iter_next(&iter, &key, NULL)) {
-        if (g_hash_table_contains(set_b, key)) {
-            g_hash_table_add(intersect, key);
-            g_debug("Adding to intersect set: %s", (gchar *) key);
+        if (!g_hash_table_contains(set_b, key)) {
+            g_hash_table_add(substraction, key);
+            g_debug("Adding to substraction set: %s", (gchar *) key);
         }
     }
 
-    return intersect;
+    return substraction;
 }
+#endif
 
-gboolean
+static gboolean
 pu_file_remove_recursive(GFile *file,
+                         GHashTable *skip,
                          GError **error)
 {
     g_autoptr(GFileEnumerator) dir_enum = NULL;
+    g_autofree gchar *file_path = NULL;
 
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (skip) {
+        GHashTableIter iter;
+        gpointer key;
+
+        file_path = g_file_get_path(file);
+
+        g_hash_table_iter_init(&iter, skip);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            if (g_str_has_prefix(file_path, key)) {
+                g_debug("Skipping deletion of '%s', because '%s' gets retained",
+                        file_path, (gchar *) key);
+                return FALSE;
+            }
+        }
+    }
 
     dir_enum = g_file_enumerate_children(file, G_FILE_ATTRIBUTE_STANDARD_NAME,
                                          G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
@@ -651,7 +669,7 @@ pu_file_remove_recursive(GFile *file,
         while ((info = g_file_enumerator_next_file(dir_enum, NULL, NULL)) != NULL) {
             g_autoptr(GFile) child = NULL;
             child = g_file_enumerator_get_child(dir_enum, info);
-            if (!pu_file_remove_recursive(child, error)) {
+            if (!pu_file_remove_recursive(child, skip, error)) {
                 g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
                             "Failed recursive file removal");
                 return FALSE;
@@ -721,47 +739,64 @@ pu_remove_recursive_intersect(const gchar *path,
 {
     g_autoptr(GHashTable) exclude_table = NULL;
     g_autoptr(GHashTable) only_table = NULL;
-    g_autoptr(GHashTable) intersect = NULL;
-    g_autofree gchar *only_default = NULL;
+    g_autoptr(GHashTable) all_table = NULL;
+    g_autofree GList *all = NULL;
 
     g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    /* Create a list of directories and files that match "exclude" */
-    g_debug("EXCLUDE");
     if (exclude) {
-        g_debug("EXCLUDE: true");
+        /* Create a list of directories and files that match "exclude" */
+        g_debug("EXCLUDE");
         exclude_table = canonicalize_path_list(exclude, error);
         if (!exclude_table) {
             g_prefix_error(error, "Failed parsing 'exclude' paths: ");
             return FALSE;
         }
+
+        /* Delete all entries in "exclude" */
+        GHashTableIter iter;
+        gpointer key;
+
+        g_hash_table_iter_init(&iter, exclude_table);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            g_autoptr(GFile) file = NULL;
+            file = g_file_new_for_path(key);
+            if (!pu_file_remove_recursive(file, NULL, error)) {
+                return FALSE;
+            }
+        }
     }
 
-    /* Create a list of directories and files that match "only" */
-    g_debug("ONLY");
-    if (!only) {
-        only_default = g_build_filename(path, "*", NULL);
-        only = g_list_prepend(only, only_default);
-    }
-    only_table = canonicalize_path_list(only, error);
-    if (!only_table) {
-        g_prefix_error(error, "Failed parsing 'only' paths: ");
-        return FALSE;
-    }
-
-    /* Create intersection of real "exclude" and "only" file/dir list above */
-    intersect = pu_hash_table_intersect(exclude_table, only_table);
-
-    GHashTableIter iter;
-    gpointer key;
-
-    g_hash_table_iter_init(&iter, intersect);
-    while (g_hash_table_iter_next(&iter, &key, NULL)) {
-        g_autoptr(GFile) file = NULL;
-        file = g_file_new_for_path(key);
-        if (!pu_file_remove_recursive(file, error)) {
+    if (only) {
+        /* Create a list of directories and files that match "only" */
+        g_debug("ONLY");
+        only_table = canonicalize_path_list(only, error);
+        if (!only_table) {
+            g_prefix_error(error, "Failed parsing 'only' paths: ");
             return FALSE;
+        }
+
+        /* Create a list of directories and files that matches everything */
+        g_debug("ALL");
+        all = g_list_prepend(all, g_build_filename(path, "*", NULL));
+        all_table = canonicalize_path_list(all, error);
+        if (!all_table) {
+            g_prefix_error(error, "Failed parsing 'all' paths: ");
+            return FALSE;
+        }
+
+        /* Delete everything, except entries in "only" */
+        GHashTableIter iter;
+        gpointer key;
+
+        g_hash_table_iter_init(&iter, all_table);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            g_autoptr(GFile) file = NULL;
+            file = g_file_new_for_path(key);
+            if (!pu_file_remove_recursive(file, only_table, error)) {
+                return FALSE;
+            }
         }
     }
 
