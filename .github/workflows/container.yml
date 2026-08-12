@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install qemu-user-static
       - name: Build container images
         id: build-images
-        uses: redhat-actions/buildah-build@v2
+        uses: redhat-actions/buildah-build@v3
         with:
           image: partup-ci
           tags: latest
@@ -38,7 +38,7 @@ jobs:
           buildah manifest inspect ${{ steps.build-images.outputs.image-with-tag }}
       - name: Push images
         id: push-ghcr
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: ${{ steps.build-images.outputs.image }}
           tags: ${{ steps.build-images.outputs.tags }}
