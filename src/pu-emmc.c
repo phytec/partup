@@ -607,14 +607,14 @@ pu_emmc_class_finalize(GObject *object)
         g_free(part->partuuid);
         g_free(part->filesystem);
         g_free(part->mkfs_extra_args);
-        g_list_free_full(g_steal_pointer(&part->flags), g_free);
+        g_list_free(g_steal_pointer(&part->flags));
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *in = i->data;
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
-            g_list_free_full(g_steal_pointer(&in->exclude), g_free);
-            g_list_free_full(g_steal_pointer(&in->only), g_free);
+            g_list_free(g_steal_pointer(&in->exclude));
+            g_list_free(g_steal_pointer(&in->only));
             g_free(in);
         }
         g_list_free(g_steal_pointer(&part->input));
