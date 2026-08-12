@@ -407,6 +407,11 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_file_copy(path, part_mount, error))
                     return FALSE;
+                if (input->exclude || input->only) {
+                    if (!pu_path_remove_exclude_only(part_mount, input->exclude,
+                                                     input->only, error))
+                        return FALSE;
+                }
                 if (!pu_umount(part_mount, error))
                     return FALSE;
             }
