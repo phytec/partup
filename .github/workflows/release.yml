@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Get version number
         run: |
           VERSION_NUMBER=$(echo "${{ github.ref_name }}" | cut -c 2-)
@@ -18,7 +18,7 @@ jobs:
         run: |
           tar -czf partup-${{ env.VERSION_NUMBER }}.tar.gz --transform "s,^,partup-${{ env.VERSION_NUMBER }}/," --exclude-vcs --exclude-vcs-ignores .* *
       - name: Upload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: partup-sources-${{ github.ref_name }}
           path: partup-${{ env.VERSION_NUMBER }}.tar.gz
@@ -35,7 +35,7 @@ jobs:
           - 'linux/arm64/v8'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -45,7 +45,7 @@ jobs:
           ARCH=$(echo "${{ matrix.platform }}" | cut -d / -f 2- | tr -d /)
           echo "ARCH=$ARCH" >> $GITHUB_ENV
       - name: Log in to ghcr.io
-        uses: redhat-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v2
         with:
           username: ${{ github.actor }}
           password: ${{ github.token }}
@@ -63,7 +63,7 @@ jobs:
           podman cp partupci:/partup/build/partup partup
           mv partup partup-${{ github.ref_name }}-${{ env.ARCH }}
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: partup-static-build-${{ github.ref_name }}-${{ env.ARCH }}
           path: partup-${{ github.ref_name }}-${{ env.ARCH }}
@@ -79,7 +79,7 @@ jobs:
           - 'linux/arm64/v8'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -93,7 +93,7 @@ jobs:
           ARCH=$(echo "${{ matrix.platform }}" | cut -d / -f 2- | tr -d /)
           echo "ARCH=$ARCH" >> $GITHUB_ENV
       - name: Log in to ghcr.io
-        uses: redhat-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v2
         with:
           username: ${{ github.actor }}
           password: ${{ github.token }}
@@ -111,7 +111,7 @@ jobs:
           podman cp partupci:$DEB_FILE .
           echo "DEB_FILE=$(basename $DEB_FILE)" >> $GITHUB_ENV
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: partup-debian-package-${{ github.ref_name }}-${{ env.ARCH }}
           path: ${{ env.DEB_FILE }}
@@ -125,7 +125,7 @@ jobs:
       - debian-package
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -134,7 +134,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install pandoc
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
       - name: Get version number
         run: |
           VERSION_NUMBER=$(echo "${{ github.ref_name }}" | cut -c 2-)
@@ -155,7 +155,7 @@ jobs:
           grep --color=never -Pzo "(?s)(?<=# $CURRENT_TAG\n\n).+(?=\n# +$PREVIOUS_TAG)" CHANGELOG.md > changelog-${{ github.ref_name }}.md
           sed -i -e "s/\x0//g" -e "1,2d" changelog-${{ github.ref_name }}.md
       - name: Deploy artifacts
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
