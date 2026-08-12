@@ -294,49 +294,6 @@ test_is_ext234_image(void)
     g_assert_false(pu_is_ext234_image("data/lorem.txt"));
 }
 
-#if 0
-static void
-test_hash_table_intersect(void)
-{
-    g_autoptr(GHashTable) a = NULL;
-    g_autoptr(GHashTable) b = NULL;
-    g_autoptr(GHashTable) intersect = NULL;
-
-    a = g_hash_table_new(g_str_hash, g_str_equal);
-    b = g_hash_table_new(g_str_hash, g_str_equal);
-
-    g_hash_table_add(a, "foo");
-    g_hash_table_add(a, "bar");
-    g_hash_table_add(a, "baz");
-    g_hash_table_add(b, "baz");
-    g_hash_table_add(b, "buzzer");
-
-    /* NULL inputs return an empty (non-NULL) set. */
-    intersect = pu_hash_table_intersect(NULL, NULL);
-    g_assert_nonnull(intersect);
-    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
-    g_hash_table_destroy(intersect);
-
-    intersect = pu_hash_table_intersect(a, NULL);
-    g_assert_nonnull(intersect);
-    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
-    g_hash_table_destroy(intersect);
-
-    intersect = pu_hash_table_intersect(NULL, b);
-    g_assert_nonnull(intersect);
-    g_assert_cmpuint(g_hash_table_size(intersect), ==, 0);
-    g_hash_table_destroy(intersect);
-
-    /* Real intersection: only "baz" is common. */
-    intersect = pu_hash_table_intersect(a, b);
-    g_assert_nonnull(intersect);
-    g_assert_cmpuint(g_hash_table_size(intersect), ==, 1);
-    g_assert_true(g_hash_table_contains(intersect, "baz"));
-    g_assert_false(g_hash_table_contains(intersect, "foo"));
-    g_assert_false(g_hash_table_contains(intersect, "buzzer"));
-}
-#endif
-
 static void
 test_remove_recursive_intersect(void)
 {
@@ -507,7 +464,6 @@ main(int argc,
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
     g_test_add_func("/utils/is_ext234_image", test_is_ext234_image);
-    //g_test_add_func("/utils/hash_table_intersect", test_hash_table_intersect);
     g_test_add_func("/utils/remove_recursive_intersect", test_remove_recursive_intersect);
 
     return g_test_run();

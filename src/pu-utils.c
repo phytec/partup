@@ -605,36 +605,6 @@ pu_str_pre_remove(gchar *string,
     return string;
 }
 
-#if 0
-GHashTable *
-pu_hash_table_substract(GHashTable *set_a,
-                        GHashTable *set_b)
-{
-    GHashTable *substraction = g_hash_table_new(g_str_hash, g_str_equal);
-
-    if (!set_a) {
-        return set_b;
-    }
-
-    if (!set_b) {
-        return set_a;
-    }
-
-    GHashTableIter iter;
-    gpointer key;
-
-    g_hash_table_iter_init(&iter, set_a);
-    while (g_hash_table_iter_next(&iter, &key, NULL)) {
-        if (!g_hash_table_contains(set_b, key)) {
-            g_hash_table_add(substraction, key);
-            g_debug("Adding to substraction set: %s", (gchar *) key);
-        }
-    }
-
-    return substraction;
-}
-#endif
-
 gboolean
 pu_file_remove_recursive(GFile *file,
                          GHashTable *skip,
