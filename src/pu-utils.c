@@ -635,28 +635,35 @@ pu_hash_table_substract(GHashTable *set_a,
 }
 #endif
 
-static gboolean
+gboolean
 pu_file_remove_recursive(GFile *file,
                          GHashTable *skip,
                          GError **error)
 {
     g_autoptr(GFileEnumerator) dir_enum = NULL;
-    g_autofree gchar *file_path = NULL;
+    g_autoptr(GFileInfo) info = NULL;
+    gboolean skip_delete = FALSE;
 
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
     if (skip) {
+        g_autofree gchar *file_path = NULL;
         GHashTableIter iter;
         gpointer key;
 
         file_path = g_file_get_path(file);
-
         g_hash_table_iter_init(&iter, skip);
         while (g_hash_table_iter_next(&iter, &key, NULL)) {
-            if (g_str_has_prefix(file_path, key)) {
-                g_debug("Skipping deletion of '%s', because '%s' gets retained",
-                        file_path, (gchar *) key);
-                return FALSE;
+            if (g_str_equal(key, file_path)) {
+                /* Skip deletion of 'file_path' (and possible children), because
+                 * it gets retained */
+                return TRUE;
+            }
+            if (g_str_has_prefix(key, file_path)) {
+                /* Skip deletion of 'file_path', because prefix 'key' gets
+                 * retained, but still evaluate possible children */
+                skip_delete = TRUE;
+                break;
             }
         }
     }
@@ -665,19 +672,25 @@ pu_file_remove_recursive(GFile *file,
                                          G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                          NULL, NULL);
     if (dir_enum) {
-        g_autoptr(GFileInfo) info = NULL;
         while ((info = g_file_enumerator_next_file(dir_enum, NULL, NULL)) != NULL) {
             g_autoptr(GFile) child = NULL;
             child = g_file_enumerator_get_child(dir_enum, info);
             if (!pu_file_remove_recursive(child, skip, error)) {
-                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
-                            "Failed recursive file removal");
+                if (error) {
+                    g_prefix_error(error, "Failed recursive file removal");
+                } else {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                                "Failed recursive file removal");
+                }
                 return FALSE;
             }
         }
     }
 
-    g_debug("removing %s", g_file_get_path(file));
+    if (skip_delete) {
+        return TRUE;
+    }
+
     return g_file_delete(file, NULL, error);
 }
 
@@ -732,10 +745,10 @@ canonicalize_path_list(GList *paths,
 
 /* TODO: Reconsider function name: Should be remove recursive exclusion set */
 gboolean
-pu_remove_recursive_intersect(const gchar *path,
-                              GList *exclude,
-                              GList *only,
-                              GError **error)
+pu_path_remove_exclude_only(const gchar *path,
+                            GList *exclude,
+                            GList *only,
+                            GError **error)
 {
     g_autoptr(GHashTable) exclude_table = NULL;
     g_autoptr(GHashTable) only_table = NULL;
@@ -787,6 +800,7 @@ pu_remove_recursive_intersect(const gchar *path,
         }
 
         /* Delete everything, except entries in "only" */
+        g_debug("REMOVE");
         GHashTableIter iter;
         gpointer key;
 

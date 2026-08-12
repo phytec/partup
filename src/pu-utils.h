@@ -7,6 +7,7 @@
 #define PARTUP_UTILS_H
 
 #include <glib.h>
+#include <gio/gio.h>
 #include <parted/parted.h>
 
 gboolean pu_spawn_command_line_sync(const gchar *command_line,
@@ -69,9 +70,12 @@ gchar * pu_str_pre_remove(gchar *string,
                           guint n);
 /*GHashTable * pu_hash_table_intersect(GHashTable *set_a,
                                      GHashTable *set_b);*/
-gboolean pu_remove_recursive_intersect(const gchar *path,
-                                       GList *exclude,
-                                       GList *only,
-                                       GError **error);
+gboolean pu_file_remove_recursive(GFile *file,
+                                  GHashTable *skip,
+                                  GError **error);
+gboolean pu_path_remove_exclude_only(const gchar *path,
+                                     GList *exclude,
+                                     GList *only,
+                                     GError **error);
 
 #endif /* PARTUP_UTILS_H */

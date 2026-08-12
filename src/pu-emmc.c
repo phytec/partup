@@ -393,8 +393,8 @@ pu_emmc_write_data(PuFlash *flash,
                 if (input->exclude || input->only) {
                     if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                         return FALSE;
-                    if (!pu_remove_recursive_intersect(part_mount, input->exclude,
-                                                       input->only, error))
+                    if (!pu_path_remove_exclude_only(part_mount, input->exclude,
+                                                     input->only, error))
                         return FALSE;
                     if (!pu_umount(part_mount, error))
                         return FALSE;

@@ -341,6 +341,7 @@ static void
 test_remove_recursive_intersect(void)
 {
     g_autoptr(GError) error = NULL;
+    g_autoptr(GFile) dest_file = NULL;
     g_autofree GList *exclude = NULL;
     g_autofree GList *only = NULL;
     g_autofree gchar *dest = NULL;
@@ -352,6 +353,7 @@ test_remove_recursive_intersect(void)
     g_autofree gchar *foobar_file = NULL;
     g_autofree gchar *foobarbuz1_file = NULL;
     g_autofree gchar *foobarbuz2_file = NULL;
+    g_autofree gchar *yaml_file = NULL;
 
     dest = g_dir_make_tmp("partup-XXXXXX", &error);
     g_assert_no_error(error);
@@ -364,12 +366,13 @@ test_remove_recursive_intersect(void)
     foobar_file = g_build_filename(dest, "foo", "bar", "settings.cfg", NULL);
     foobarbuz1_file = g_build_filename(dest, "foo", "bar", "buz", "buzzer.yaml", NULL);
     foobarbuz2_file = g_build_filename(dest, "foo", "bar", "buz", "dozzer.yaml", NULL);
+    yaml_file = g_build_filename(dest, "foo", "bar", "buz", "*.yaml", NULL);
 
     /* NULL checks */
     g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
     g_assert_no_error(error);
 
-    g_assert_true(pu_remove_recursive_intersect(dest, NULL, NULL, &error));
+    g_assert_true(pu_path_remove_exclude_only(dest, NULL, NULL, &error));
     g_assert_true(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
     g_assert_true(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
     g_assert_true(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
@@ -387,7 +390,7 @@ test_remove_recursive_intersect(void)
     exclude = g_list_prepend(exclude, all_dir);
     g_list_free(only);
     only = NULL;
-    g_assert_true(pu_remove_recursive_intersect(dest, exclude, only, &error));
+    g_assert_true(pu_path_remove_exclude_only(dest, exclude, only, &error));
     g_assert_false(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
     g_assert_false(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
     g_assert_false(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
@@ -405,7 +408,7 @@ test_remove_recursive_intersect(void)
     g_list_free(only);
     only = NULL;
     only = g_list_prepend(only, all_dir);
-    g_assert_true(pu_remove_recursive_intersect(dest, exclude, only, &error));
+    g_assert_true(pu_path_remove_exclude_only(dest, exclude, only, &error));
     g_assert_true(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
     g_assert_true(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
     g_assert_true(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
@@ -413,6 +416,65 @@ test_remove_recursive_intersect(void)
     g_assert_true(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
     g_assert_true(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
     g_assert_true(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Preserve only nested file */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
+
+    g_list_free(exclude);
+    exclude = NULL;
+    g_list_free(only);
+    only = NULL;
+    only = g_list_prepend(only, foo_file);
+    only = g_list_prepend(only, foobarbuz1_file);
+    g_assert_true(pu_path_remove_exclude_only(dest, exclude, only, &error));
+    g_assert_false(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Preserve only *.yaml file */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
+
+    g_list_free(exclude);
+    exclude = NULL;
+    g_list_free(only);
+    only = NULL;
+    only = g_list_prepend(only, yaml_file);
+    g_assert_true(pu_path_remove_exclude_only(dest, exclude, only, &error));
+    g_assert_false(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_false(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Exclude *.yaml file */
+    g_assert_true(pu_archive_extract("data/dir-struct.tar", dest, NULL, NULL, &error));
+    g_assert_no_error(error);
+
+    g_list_free(exclude);
+    exclude = NULL;
+    exclude = g_list_prepend(exclude, yaml_file);
+    g_list_free(only);
+    only = NULL;
+    g_assert_true(pu_path_remove_exclude_only(dest, exclude, only, &error));
+    g_assert_true(g_file_test(empty_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(nested_dir, G_FILE_TEST_IS_DIR));
+    g_assert_true(g_file_test(nested_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foo_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_true(g_file_test(foobar_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz1_file, G_FILE_TEST_IS_REGULAR));
+    g_assert_false(g_file_test(foobarbuz2_file, G_FILE_TEST_IS_REGULAR));
+
+    /* Clean up */
+    dest_file = g_file_new_for_path(dest);
+    g_assert_true(pu_file_remove_recursive(dest_file, NULL, &error));
 }
 
 int
