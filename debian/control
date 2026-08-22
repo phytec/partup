@@ -8,7 +8,8 @@ Build-Depends:
     libyaml-dev,
     libparted-dev,
     util-linux,
-    meson
+    meson,
+    bash-completion
 Standards-Version: 4.7.2
 Homepage: https://github.com/phytec/partup
 Vcs-Git: https://github.com/phytec/partup.git
