@@ -3,9 +3,32 @@
 4.0.0
 =====
 
-*Release date: TBD*
+*Release date: 2026-09-01*
 
 .. rubric:: Changes
+
+-  Various changes to the documentation, including a PHYTEC branded theme.
+-  Add a new option that allows specifying minimal or optimal alignment of
+   partitions. This helps improving in read/write speed performance in most
+   cases. As a sane default, 1 MiB is used as the default block alignment size
+   and partitions always start at a multiple of this block size.
+-  The default filesystem for partitions is now null, instead of fat32. This is
+   now in line with the documentation, which has been using null, too.
+-  Detect ext4 images not only based on their filename, but also based on
+   whether they contain an actual ext4 filesystem. This is especially needed, as
+   sometimes ext4 images do not have a reliable filename suffix to search for.
+   The only reliable way is to check for the superblock magic.
+-  Allow writing arbitrary binaries to partitions with filesystem specified as
+   null and where the input is not an ext4 image.
+-  When mounting or unmounting fails, print the return and status codes for
+   better debugging of the error.
+-  Add more internal unit tests for e.MMC and partitioning related functions.
+
+.. rubric:: Bug Fixes
+
+-  Fix expanding partition size check: When checking for enough space of the
+   expanding partitions, use the actually corresponding number, not the number
+   of logical partitions.
 
 .. rubric:: Contributors
 
