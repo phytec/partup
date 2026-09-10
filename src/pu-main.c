@@ -67,7 +67,13 @@ cmd_install(PuCommandContext *context,
 
     args = pu_command_context_get_args(context);
     package_path = g_strdup(args[0]);
-    device_path = g_strdup(args[1]);
+    device_path = realpath(args[1], NULL);
+    if (!device_path) {
+        g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                    "Failed resolving device path '%s': %s",
+                    args[1], g_strerror(errno));
+        return FALSE;
+    }
 
     if (args[2]) {
         g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
