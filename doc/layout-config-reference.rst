@@ -350,7 +350,7 @@ at least a ``filename``. For verifying the checksum of the given input file by
 
 ``exclude`` (sequence)
    Paths to exclude for this partition. Paths to be excluded should be
-   provided as a sequence of strings. This only works on partitions with a valid
+   provided as a sequence of strings. This requires a partition with a valid
    filesystem.
 
    If the input is a ``.tar`` archive, the specified paths are excluded from
@@ -364,7 +364,7 @@ at least a ``filename``. For verifying the checksum of the given input file by
 
 ``only`` (sequence)
    A list of paths to only extract/keep on the corresponding partition. This
-   only works on partitions with a valid filesystem.
+   requires a partition with a valid filesystem.
 
    If the input is a ``.tar`` archive, only the specified members are extracted:
    https://manpages.debian.org/unstable/tar/tar.1.en.html
