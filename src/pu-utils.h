@@ -7,12 +7,15 @@
 #define PARTUP_UTILS_H
 
 #include <glib.h>
+#include <gio/gio.h>
 #include <parted/parted.h>
 
 gboolean pu_spawn_command_line_sync(const gchar *command_line,
                                     GError **error);
 gboolean pu_archive_extract(const gchar *filename,
                             const gchar *dest,
+                            GList *exclude,
+                            GList *only,
                             GError **error);
 gboolean pu_make_filesystem(const gchar *part,
                             const gchar *type,
@@ -65,5 +68,14 @@ gchar * pu_device_get_partition_pattern(const gchar *device,
                                         GError **error);
 gchar * pu_str_pre_remove(gchar *string,
                           guint n);
+/*GHashTable * pu_hash_table_intersect(GHashTable *set_a,
+                                     GHashTable *set_b);*/
+gboolean pu_file_remove_recursive(GFile *file,
+                                  GHashTable *skip,
+                                  GError **error);
+gboolean pu_path_remove_exclude_only(const gchar *path,
+                                     GList *exclude,
+                                     GList *only,
+                                     GError **error);
 
 #endif /* PARTUP_UTILS_H */

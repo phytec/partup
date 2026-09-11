@@ -348,6 +348,30 @@ at least a ``filename``. For verifying the checksum of the given input file by
    checked against the provided file before writing to the target partition or
    volume.
 
+``exclude`` (sequence)
+   Paths to exclude for this partition. Paths to be excluded should be
+   provided as a sequence of strings. This requires a partition with a valid
+   filesystem.
+
+   If the input is a ``.tar`` archive, the specified paths are excluded from
+   extraction using tar's ``--exclude`` option:
+   https://manpages.debian.org/unstable/tar/tar.1.en.html#exclude
+
+   For other input file types, the specified paths are deleted on the partition
+   after writing the input files.
+
+   ``exclude`` takes precedence over ``only``.
+
+``only`` (sequence)
+   A list of paths to only extract/keep on the corresponding partition. This
+   requires a partition with a valid filesystem.
+
+   If the input is a ``.tar`` archive, only the specified members are extracted:
+   https://manpages.debian.org/unstable/tar/tar.1.en.html
+
+   For other input file types, any other paths are deleted on the partition
+   after writing the input files, except the ones specified.
+
 .. _supported-file-types:
 
 Supported File Types
