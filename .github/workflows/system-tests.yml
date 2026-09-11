@@ -20,10 +20,13 @@ jobs:
         run: |
           meson setup build --buildtype=release
           meson install -C build
-      - name: Setup loopdev
+      - name: Setup loopdev and symlink
         run: |
           dd if=/dev/zero of=loop-file bs=1M count=100
-          echo "loop_dev=$(sudo losetup -f --show -P loop-file)" >> $GITHUB_ENV
+          loop_dev=$(sudo losetup -f --show -P loop-file)
+          sudo ln -s $loop_dev /dev/symlink_dev
+          echo "loop_dev=$loop_dev" >> $GITHUB_ENV
+          echo "symlink_dev=/dev/symlink_dev" >> $GITHUB_ENV
       - name: Run system tests with loop device
         timeout-minutes: 2
         run: |
@@ -38,6 +41,8 @@ jobs:
             sudo G_DEBUG=fatal-warnings partup -s show pkg.partup
             echo "Install package to loop device"
             sudo G_DEBUG=fatal-warnings partup -d install pkg.partup ${{ env.loop_dev }}
+            echo "Install package to symlink device"
+            sudo G_DEBUG=fatal-warnings partup -d install pkg.partup ${{ env.symlink_dev }}
             echo "Show loop device info"
             sudo fdisk -l ${{ env.loop_dev }}
             sudo blkid ${{ env.loop_dev }}
