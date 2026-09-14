@@ -151,6 +151,24 @@ test_partition_filesystem(EmptyDeviceFixture *fixture,
     g_assert_true(check_partition_fstype(dev, 7, "ext4"));
 }
 
+static void
+test_expanding_partitions(EmptyDeviceFixture *fixture,
+                          G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+    PedDevice *dev = NULL;
+
+    /* TODO: Test expanding partitions, primary and logical ones, two, three or
+     * more. */
+    config = pu_config_new_from_file("config/expand-two.yaml",
+                                     &fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(fixture->loop_dev, config, "data", FALSE, &fixture->error);
+    g_assert_nonnull(emmc);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -171,6 +189,9 @@ main(int argc,
                test_emmc_align_optimal, empty_device_tear_down);
     g_test_add("/emmc/partition_filesystem", EmptyDeviceFixture, NULL,
                empty_device_set_up, test_partition_filesystem,
+               empty_device_tear_down);
+    g_test_add("/emmc/expand_two", EmptyDeviceFixture, NULL,
+               empty_device_set_up, test_expanding_partitions,
                empty_device_tear_down);
 
     return g_test_run();

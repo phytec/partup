@@ -1,0 +1,9 @@
+api-version: 1
+disklabel: gpt
+
+partitions:
+  - label: ONE
+    offset: 1MiB
+    expand: true
+  - label: TWO
+    expand: true
