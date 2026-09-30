@@ -1,0 +1,45 @@
+.badge {
+    border-bottom: 0px;
+    border-radius: 1em;
+    color: var(--white);
+    display: inline-block;
+    font-size: 81%;
+    font-weight: bold;
+    line-height: 1;
+    margin-bottom: -1px;
+    margin: 0 0.2em;
+    padding: 4px 8px;
+    text-align: inherit;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.badge-type {
+    color: var(--gray1);
+    background-color: var(--gray-dark);
+}
+.badge-since,
+.badge-link {
+    color: var(--dark);
+    background-color: var(--gray2);
+}
+a.badge-link,
+a.badge-link:hover,
+a.badge-link:visited {
+    color: var(--dark);
+}
+.badge-default {
+    background-color: var(--secondary);
+}
+.badge-state-required {
+    background-image: linear-gradient(to right, var(--success) 0%, var(--yellow) 200%);
+}
+.badge-state-optional {
+    background-image: linear-gradient(to right, var(--teal2) 0%, var(--success) 400%);
+}
+.badge-state-deprecated {
+    background-image: linear-gradient(to right, var(--orange) 0%, var(--yellow) 150%);
+}
+.badge-state-experimental {
+    background-image: linear-gradient(to right, var(--red) 0%, var(--orange) 300%);
+}

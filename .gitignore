@@ -1,3 +1,4 @@
 /build/
 env/
 tags
+__pycache__/
