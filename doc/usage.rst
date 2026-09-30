@@ -37,7 +37,11 @@ Commands
 install [OPTION…] *PACKAGE* *DEVICE*
    Install a partup PACKAGE to DEVICE
 
-   -s, --skip-checksums    Skip checksum verification for all input files
+   -s, --skip-checksums    Skip all checksum verification. This disables both
+                           the optional verification of input files (``md5sum``
+                           and ``sha256sum``) *before* writing and the automatic
+                           SHA1 read-back verification of written raw data
+                           *after* writing. See :ref:`checksum-verification`.
 
 package [OPTION…] *PACKAGE* *FILES…*
    Create a partup PACKAGE with the contents FILES
@@ -136,3 +140,64 @@ to a device. The ``install`` command then only needs the desired flash device to
 be specified::
 
    partup install mypackage.partup /dev/mmcblk0
+
+.. _checksum-verification:
+
+Checksum Verification
+---------------------
+
+During ``partup install`` two independent checksum mechanisms are used to protect
+the integrity of the data. Both can be disabled at once by passing the
+``-s``/``--skip-checksums`` runtime argument to the ``install`` command.
+
+Input Verification (before writing)
+...................................
+
+Before any data is written to the target device, partup can verify that the input
+files bundled in the package are intact. This verification is *optional* and only
+happens for the checksums that are provided in the :doc:`layout configuration
+<layout-config-reference>`:
+
+-  ``md5sum`` -- the MD5 sum of the input file (see :ref:`input-files`).
+-  ``sha256sum`` -- the SHA256 sum of the input file (see :ref:`input-files`).
+
+For every input file that specifies one or both of these options, partup computes
+the corresponding checksum over the whole file and compares it against the value
+from the layout configuration. If a checksum does not match, the installation is
+aborted before anything is written. Input files that do not specify a checksum
+are not verified at this stage.
+
+This verification applies to all input files, regardless of how they are written,
+i.e. files copied into a filesystem, archives extracted into a filesystem, raw
+filesystem images, raw binaries and eMMC boot partition binaries.
+
+The input verification is skipped entirely when ``--skip-checksums`` is given.
+
+Output Verification (read-back after writing)
+.............................................
+
+In addition to the optional input verification, partup *automatically* verifies
+that raw data has been written correctly by reading it back from the device.
+This mechanism does not require any configuration and works as follows:
+
+1. A SHA1 sum is computed from the input file (honoring any given
+   ``input-offset``).
+2. After the data has been written, the same range is read back from the target
+   device (honoring any given ``output-offset``).
+3. The SHA1 sum of the data read back from the device is compared against the
+   SHA1 sum computed from the input file.
+
+This read-back verification is independent from the ``md5sum`` and ``sha256sum``
+options and always uses SHA1. It is applied only to writes that go directly to
+the raw device, namely:
+
+-  the ``raw`` section of MMC and HD devices (since :ref:`release-2.1.0`),
+-  eMMC boot partition ``binaries`` -- verified on both boot partitions
+   (``boot0`` and ``boot1``) (since :ref:`release-3.0.0`), and
+-  MTD ``partitions`` (since :ref:`release-3.0.0`).
+
+Read-back verification is *not* performed for data that is written through a
+mounted filesystem, i.e. files copied into a partition, archives extracted into a
+partition, or raw ext[234] filesystem images written to a partition.
+
+The output verification is skipped when ``--skip-checksums`` is given.
