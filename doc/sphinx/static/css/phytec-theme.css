@@ -386,3 +386,13 @@ legend {
     padding: 1px 6px;
     margin: auto 0;
 }
+
+.rst-content dl dt {
+    display: inline-flex;
+    align-items: baseline;
+    width: 100%;
+}
+
+.rst-content dl dt > .badge:nth-child(2) {
+    margin-left: auto;
+}

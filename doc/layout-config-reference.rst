@@ -4,7 +4,7 @@ Layout Configuration Reference
 API Version
 -----------
 
-``api-version`` (integer)
+``api-version`` :badge-type:`integer` :badge-state:`required` :badge-since:`1.0.0`
    The API version used in this configuration file. The API version must reflect
    the options being used in the layout configuration file. E.g. when using the
    option ``bootbus`` from the ``mmc`` section, the API version must be at least
@@ -31,7 +31,7 @@ API Version
 Supported Device Types
 ----------------------
 
-``supported-device-types`` (sequence)
+``supported-device-types`` :badge-type:`sequence` :badge-state:`optional` :badge-since:`3.0.0`
    A sequence of supported device type strings. Possible options are:
 
    -  ``mmc``: MultiMediaCard (MMC) devices, such as SD cards and eMMC.
@@ -41,15 +41,13 @@ Supported Device Types
 
    The default value is ``[mmc, hd]``.
 
-   Available since: :ref:`release-3.0.0`
-
 MMC and HD Options
 ------------------
 
 Disk Options
 ............
 
-``disklabel`` (string)
+``disklabel`` :badge-type:`string` :badge-state:`optional`
    Partition table for the device. Currently supported options are ``msdos``
    (default) and ``gpt``.
 
@@ -60,7 +58,7 @@ Disk Options
 
 .. _alignment:
 
-``alignment`` (string)
+``alignment`` :badge-type:`string` :badge-state:`optional` :badge-since:`4.0.0`
    Alignment type of all partitions to be written to the device. This specifies
    how the partitions' start and end sector are placed.
 
@@ -76,19 +74,17 @@ Disk Options
    If no alignment information can be retrieved from the device, a block size of
    1 MiB is used.
 
-   Available since: :ref:`release-4.0.0`
-
 Clean Data
 ..........
 
 The section ``clean`` contains a sequence of mappings describing where the mmc
-device is cleaned outside of partitions. Each entry should contain the
+device is cleaned outside of partitions. Each entry must contain the
 following options:
 
-``offset`` (integer/string)
+``offset`` :badge-type:`integer` :badge-type:`string` :badge-state:`required` :badge-since:`0.3.0`
    Offset of the cleaned space.
 
-``size`` (integer/string)
+``size`` :badge-type:`integer` :badge-type:`string` :badge-state:`required` :badge-since:`0.3.0`
    Size of the cleaned space.
 
    It is possible set a string with a unit after the size number, e.g. ``12kiB``
@@ -109,13 +105,13 @@ Note, that this checksum is independent from the input's ``sha256sum`` option.
 
 Each raw entry may contain the following options:
 
-``input-offset`` (integer/string)
+``input-offset`` :badge-type:`integer` :badge-type:`string`
    Offset of the input data to be written.
 
-``output-offset`` (integer/string)
+``output-offset`` :badge-type:`integer` :badge-type:`string`
    Offset of the written output data.
 
-``input`` (mapping)
+``input`` :badge-type:`mapping`
    An input mapping. See :ref:`input-files`.
 
 Partitions
@@ -125,23 +121,23 @@ The section ``partitions`` contains a sequence of mappings describing the
 contained partitions of an MMC device. Each entry may contain the following
 options:
 
-``label`` (string)
+``label`` :badge-type:`string`
    A partition label. The label is set in the filesystem of the partition and in
    the partition table if GPT is used. For raw ext[234] images, providing a
    label overwrites the label included in the filesystem image.
    The default value is ``null``.
 
-``partuuid`` (string)
+``partuuid`` :badge-type:`string`
    The PARTUUID of the partition. Only supported on GPT partitioned devices. A
    random UUID is used by default.
 
-``type`` (string)
+``type`` :badge-type:`string`
    The partition type. May be one of ``primary`` or ``logical``. Note, that with
    the first occurrence of a logical partition the following ones must be
    logical, too. Logical partitions are only supported with the ``msdos``
    partition table.
 
-``filesystem`` (string)
+``filesystem`` :badge-type:`string`
    The filesystem type to use during formatting of the partition.
 
    It is possible to set ``filesystem`` to ``null``. This is useful for writing
@@ -164,15 +160,13 @@ options:
    - ``fat16`` (Available since: :ref:`release-2.0.0`)
    - ``fat32``
 
-``mkfs-extra-args`` (string)
+``mkfs-extra-args`` :badge-type:`string` :badge-since:`2.0.0`
    Extra arguments to be passed to mkfs. Note, that the allowed arguments may be
    different, depending on the used filesystem type. See the man page of mkfs
    with the particular filesystem to read up allowed arguments, e.g. ``man
    mkfs.fat``.
 
-   Available since: :ref:`release-2.0.0`
-
-``size`` (integer/string)
+``size`` :badge-type:`integer` :badge-type:`string`
    The size of the partition.
 
    It is possible set a string with a unit after the size number, e.g. ``12kiB``
@@ -180,25 +174,25 @@ options:
    command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
    no unit is specified, the default is sectors.
 
-``expand`` (boolean)
+``expand`` :badge-type:`boolean`
    Expands the partition to fill the rest of the flash device. If multiple
    partitions are specified to be expanding, then the space is equally divided
    between them. By default, partitions do not expand.
 
-``offset`` (integer/string)
+``offset`` :badge-type:`integer` :badge-type:`string`
    The offset of a partition.
 
-``block-size`` (integer/string)
+``block-size`` :badge-type:`integer` :badge-type:`string`
    Set the partition size to a multiple of the specified value. The default is
    the device's alignment grain size. This depends on the selected alignment
    type. See :ref:`alignment` for more information.
 
-``flags`` (sequence)
+``flags`` :badge-type:`sequence`
    Set flags for this partition. Flags to be enabled should be provided as a
    sequence of strings. Possible flags are the same as specified by
    `GNU parted's set command <https://www.gnu.org/software/parted/manual/parted.html#set>`_.
 
-``input`` (sequence)
+``input`` :badge-type:`sequence`
    A sequence of input mappings. See :ref:`input-files`.
 
 MMC-specific Controls
@@ -207,23 +201,19 @@ MMC-specific Controls
 MMC specific controls can be specified using the keyword ``mmc`` containing a
 mapping of the following options:
 
-``hwreset`` (string)
+``hwreset`` :badge-type:`string` :badge-since:`2.0.0`
    Enable or disable the eMMC H/W reset feature with ``enable`` or ``disable``.
    By default, H/W reset is not changed.
 
    .. warning::
       This is a one-time programmable, irreversible change.
 
-   Available since: :ref:`release-2.0.0`
-
-``bootbus`` (string)
+``bootbus`` :badge-type:`string` :badge-since:`2.0.0`
    Set the boot bus conditions. See the `mmc-utils manpage
    <https://manpages.debian.org/unstable/mmc-utils/mmc.1.en.html#bootbus>`_ for
    a description of possible values.
 
-   Available since: :ref:`release-2.0.0`
-
-``boot-partitions`` (mapping)
+``boot-partitions`` :badge-type:`mapping`
    An eMMC boot partitions mapping. See :ref:`boot-partitions`.
 
 .. _boot-partitions:
@@ -234,16 +224,14 @@ eMMC Boot Partitions
 eMMC's special boot partitions can be specified using the keyword
 ``boot-partitions`` containing a mapping of the following options:
 
-``enable`` (integer)
+``enable`` :badge-type:`integer`
    Enable and select the boot partition. 0 to disable boot partitions.
 
-``boot-ack`` (boolean)
+``boot-ack`` :badge-type:`boolean` :badge-since:`2.0.0`
    Set the boot acknowledge property of the eMMC. The default value is
    ``false``.
 
-   Available since: :ref:`release-2.0.0`
-
-``binaries`` (sequence)
+``binaries`` :badge-type:`sequence`
    A sequence of binaries to copy to the boot partitions. See :ref:`binaries`.
    This keyword is optional.
 
@@ -259,13 +247,13 @@ checking against the input's SHA1 sum, including any given offsets. The checksum
 is not being verified when ``--skip-checksum`` is given as a runtime argument.
 Note, that this checksum is independent from the input's ``sha256sum`` option.
 
-``input-offset`` (integer/string)
+``input-offset`` :badge-type:`integer` :badge-type:`string`
    Offset of the input data to be written. This keyword is optional.
 
-``output-offset`` (integer/string)
+``output-offset`` :badge-type:`integer` :badge-type:`string`
    Offset of the written output data. This keyword is optional.
 
-``input`` (mapping)
+``input`` :badge-type:`mapping`
    An input mapping. See :ref:`input-files`.
 
 MTD Options
@@ -279,13 +267,11 @@ MTD Partitions
 The section ``partitions`` contains a sequence of mappings describing the
 contained partitions of an MTD. Each entry may contain the following options:
 
-``name`` (string)
+``name`` :badge-type:`string` :badge-since:`3.0.0`
    The partition name. The name is used to identify the partition. However,
    multiple partitions may have the same name. The default value is ``null``.
 
-   Available since: :ref:`release-3.0.0`
-
-``size`` (integer/string)
+``size`` :badge-type:`integer` :badge-type:`string` :badge-since:`3.0.0`
    The size of the partition. This scalar is mandatory and must be greater than
    zero. The size must also be a multiple of the underlying device's erase block
    size, if not using an expanding partition.
@@ -295,35 +281,25 @@ contained partitions of an MTD. Each entry may contain the following options:
    command <https://www.gnu.org/software/parted/manual/parted.html#unit>`_. When
    no unit is specified, the default is sectors.
 
-   Available since: :ref:`release-3.0.0`
-
-``offset`` (integer/string)
+``offset`` :badge-type:`integer` :badge-type:`string` :badge-since:`3.0.0`
    The offset of a partition, relative to the previous partition (or the
    beginning of the device for the first partition). The default value is ``0``.
 
-   Available since: :ref:`release-3.0.0`
-
-``erase`` (boolean)
+``erase`` :badge-type:`boolean` :badge-since:`3.0.0`
    Erases the partition after creation and before writing any data. The default
    value is ``true``.
 
-   Available since: :ref:`release-3.0.0`
-
-``expand`` (boolean)
+``expand`` :badge-type:`boolean` :badge-since:`3.0.0`
    Expand a partition to the rest of the device. Only the last partition can be
    expanded. The default is ``false`` for all partitions.
 
-   Available since: :ref:`release-3.0.0`
-
-``input`` (mapping)
+``input`` :badge-type:`mapping` :badge-since:`3.0.0`
    An input mapping. See :ref:`input-files`.
 
    The written output is always being verified by checking against the input's
    SHA1 sum, including any given offsets. The checksum is not being verified
    when ``--skip-checksum`` is given as a runtime argument. Note, that this
    checksum is independent from the input's ``sha256sum`` option.
-
-   Available since: :ref:`release-3.0.0`
 
 .. _input-files:
 
@@ -335,15 +311,15 @@ at least a ``filename``. For verifying the checksum of the given input file by
 ``filename``, an optional checksum can be provided with ``md5sum`` and/or
 ``sha256sum``.
 
-``filename`` (string)
+``filename`` :badge-type:`string`
    A valid relativ path pointing to a file that should be written to the parent
    partition or volume.
 
-``md5sum`` (string)
+``md5sum`` :badge-type:`string`
    The MD5 sum of the given file specified by ``filename``. This sum is checked
    against the provided file before writing to the target partition or volume.
 
-``sha256sum`` (string)
+``sha256sum`` :badge-type:`string`
    The SHA256 sum of the given file specified by ``filename``. This sum is
    checked against the provided file before writing to the target partition or
    volume.
