@@ -22,6 +22,7 @@ additional dependencies are needed:
 
 -  `Meson Build <https://mesonbuild.com/>`_
 -  `Sphinx <https://www.sphinx-doc.org/>`_
+-  `sphinx-phytec-theme <https://github.com/phytec/sphinx-phytec-theme>`_
 
 Installing Dependencies
 -----------------------

@@ -1,2 +1,2 @@
 sphinx==8.2.3
-sphinx-rtd-theme==3.0.2
+sphinx-phytec-theme @ git+https://github.com/phytec/sphinx-phytec-theme.git@0.4.0
