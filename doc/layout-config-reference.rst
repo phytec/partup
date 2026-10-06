@@ -348,6 +348,57 @@ at least a ``filename``. For verifying the checksum of the given input file by
    checked against the provided file before writing to the target partition or
    volume.
 
+``exclude`` (sequence)
+   Paths to exclude for this input. Paths to be excluded should be provided as a
+   sequence of strings. This requires a partition with a valid filesystem.
+
+   Relative paths are interpreted relative to the root of the partition and
+   may contain wildcards (e.g. ``foo/*.c``). Paths that do not match anything
+   are ignored.
+
+   If the input is a ``.tar`` archive, the specified paths are excluded from
+   extraction using tar's ``--exclude`` option:
+   https://manpages.debian.org/unstable/tar/tar.1.en.html#exclude
+
+   For other input file types, the specified paths are deleted on the partition
+   after writing the input files.
+
+   ``exclude`` takes precedence over ``only``.
+
+   Available since: :ref:`release-4.1.0`
+
+``only`` (sequence)
+   A list of paths to only extract/keep on the corresponding partition. This
+   requires a partition with a valid filesystem.
+
+   If the input is a ``.tar`` archive, only the specified members are extracted
+   (names are matched as given to tar, wildcards are supported):
+   https://manpages.debian.org/unstable/tar/tar.1.en.html
+
+   For other input file types, any other paths are deleted on the partition
+   after writing the input files, except the ones specified. Relative paths are
+   interpreted relative to the root of the partition and may contain wildcards.
+
+   Available since: :ref:`release-4.1.0`
+
+Example:
+
+.. code-block:: yaml
+
+   partitions:
+     - label: root
+       filesystem: ext4
+       expand: true
+       input:
+         - filename: rootfs.tar
+           exclude:
+             - var/cache
+             - usr/share/doc
+           only:
+             - etc
+             - usr
+             - var
+
 .. _supported-file-types:
 
 Supported File Types
