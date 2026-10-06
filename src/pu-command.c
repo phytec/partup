@@ -268,7 +268,9 @@ pu_command_context_parse(PuCommandContext *context,
 
     if (!context->command &&
         !(g_strv_contains((const gchar * const *) *argv, "-h") ||
-          g_strv_contains((const gchar * const *) *argv, "--help"))) {
+          g_strv_contains((const gchar * const *) *argv, "--help") ||
+          g_strv_contains((const gchar * const *) *argv, "-V") ||
+          g_strv_contains((const gchar * const *) *argv, "--version"))) {
         g_set_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_UNKNOWN_COMMAND,
                     "Invalid command '%s'", (*argv)[1]);
         return FALSE;
@@ -304,6 +306,13 @@ pu_command_context_parse(PuCommandContext *context,
     if (!g_option_context_parse(context->option_context, argc, argv, error)) {
         g_prefix_error(error, "Failed parsing options: ");
         return FALSE;
+    }
+
+    /* Without a command (e.g. only global options like --version), there is
+     * nothing more to parse */
+    if (!context->command) {
+        context->parsed = TRUE;
+        return TRUE;
     }
 
     /* Retrieve remaining arguments */
