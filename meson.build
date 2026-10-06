@@ -7,6 +7,7 @@ project(
     'warning_level=3'
   ]
 )
+add_project_arguments('-D_DEFAULT_SOURCE', language : 'c')
 
 version_array = meson.project_version().split('.')
 version_data = configuration_data({
