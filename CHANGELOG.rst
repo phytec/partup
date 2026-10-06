@@ -1,3 +1,17 @@
+.. _release-4.1.0:
+
+4.1.0
+=====
+
+*Release date: unreleased*
+
+.. rubric:: Changes
+
+-  Add the input options ``exclude`` and ``only``, which allow excluding paths
+   from, or restricting an input to, specific paths. For ``.tar`` archives they
+   are passed to tar during extraction, for other inputs the paths are removed
+   from the partition after writing. See :ref:`input-files`.
+
 .. _release-4.0.0:
 
 4.0.0
