@@ -1,3 +1,16 @@
+.. _release-5.0.0:
+
+5.0.0
+=====
+
+*Release date: unreleased*
+
+.. rubric:: Changes
+
+-  Add the global ``-V, --version`` option for printing the program version. The
+   ``version`` command is deprecated in favor of this option and prints a
+   warning when used.
+
 .. _release-4.0.0:
 
 4.0.0
