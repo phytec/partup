@@ -55,6 +55,22 @@ exec = executable(
   install : true
 )
 
+bash_completion_dep = dependency('bash-completion', required : false)
+if bash_completion_dep.found()
+  bash_completion_dir = bash_completion_dep.get_variable(
+    'completionsdir',
+    pkgconfig_define : ['datadir', get_option('prefix') / get_option('datadir')]
+  )
+else
+  bash_completion_dir = get_option('prefix') / get_option('datadir') / 'bash-completion' / 'completions'
+endif
+
+install_data(
+  'partup-completion.bash',
+  install_dir : bash_completion_dir,
+  rename : 'partup'
+)
+
 partup_dep = declare_dependency(
   dependencies : deps,
   include_directories : ['src'],
