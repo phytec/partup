@@ -53,6 +53,19 @@ show [OPTION…] *PACKAGE*
 version
    Print the program version
 
+Shell Completion
+----------------
+
+partup ships a completion script for Bash. It completes commands, options and
+their arguments, e.g. directories for ``--directory``, ``*.partup`` files for
+the *PACKAGE* argument and device paths for the *DEVICE* argument.
+
+The script is installed together with partup to the ``bash-completion``
+directory of the installation prefix. To use it without installing partup,
+source the script ``partup-completion.bash`` from the source tree::
+
+   source partup-completion.bash
+
 Supported Output Devices
 ------------------------
 
