@@ -10,6 +10,13 @@
 -  Add the global ``-V, --version`` option for printing the program version. The
    ``version`` command is deprecated in favor of this option and prints a
    warning when used.
+-  Add a Bash completion script, which completes commands, options and their
+   arguments. It is installed together with partup.
+
+.. rubric:: Contributors
+
+`Steffen Hemer <s.hemer@phytec.de>`__,
+`Martin Schwan <https://github.com/mschwan-phytec>`__
 
 .. _release-4.0.0:
 
