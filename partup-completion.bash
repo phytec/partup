@@ -1,122 +1,167 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Bash completion for partup
 
-partup_commands="install package show version"
-help_options="-h --help"
-app_options="-q --quiet -d --debug -D --debug-domains"
-install_options="-s --skip-checksums"
-package_options="-f --force -C, --directory"
-show_options="-s --size"
+_partup_commands="install package show version"
+_partup_help_options="-h --help"
+_partup_app_options="-q --quiet -d --debug -D --debug-domains"
+_partup_install_options="-s --skip-checksums"
+_partup_package_options="-f --force -C --directory"
+_partup_show_options="-s --size"
 
-function exists_in_list()
+_partup_in_list()
 {
-	LIST=$1
-	DELIMITER=$2
-	VALUE=$3
-	[[ "$LIST" =~ ($DELIMITER|^)$VALUE($DELIMITER|$) ]]
+    local list=$1
+    local value=$2
+
+    [[ " ${list} " == *" ${value} "* ]]
 }
 
-function add_command_help()
+_partup_complete_files()
 {
-	if [[ ${previous} == ${command} ]] ; then
-		# only add help if we are first after command
-		COMPREPLY+=( $(compgen -W "${help_options}" -- ${current}) )
-	fi
-	if exists_in_list "${help_options}" " " "${previous}" ; then
-		# if we have choosen help option, nothing should follow
-		return 0
-	fi
-}
+    local pattern=$1
+    local current=$2
 
+    if [[ -n ${pattern} ]]; then
+        mapfile -t -O "${#COMPREPLY[@]}" COMPREPLY < <(compgen -f -X "!${pattern}" -- "${current}")
+        mapfile -t -O "${#COMPREPLY[@]}" COMPREPLY < <(compgen -d -- "${current}")
+    else
+        mapfile -t -O "${#COMPREPLY[@]}" COMPREPLY < <(compgen -f -- "${current}")
+    fi
+}
 
 _partup_completions()
 {
-	local current=""
-	local previous=""
-	local command=""
+    local current="${COMP_WORDS[COMP_CWORD]}"
+    local previous=""
+    local command=""
+    local -a positionals=()
+    local i word skip=0
 
-	if [[ ${COMP_CWORD} > 0 ]] ; then
-		current="${COMP_WORDS[COMP_CWORD]}"
+    COMPREPLY=()
 
-		if [[ ${COMP_CWORD} > 1 ]] ; then
-			# iterate over all COMP_WORDS
-			for s in "${COMP_WORDS[@]:1}"; do
-				if exists_in_list "${partup_commands}" " " "${s}" ; then
-					command="${s}"
-				fi
-				((i++))
-			done
-			previous="${COMP_WORDS[COMP_CWORD - 1]}"
-		fi
-	fi
+    if (( COMP_CWORD > 0 )); then
+        previous="${COMP_WORDS[COMP_CWORD - 1]}"
+    fi
 
-	if [[ -z ${command} ]] ; then
-		COMPREPLY=( $(compgen -W "${help_options} ${partup_commands} ${app_options}"  -- ${current}) )
-		return 0
-	fi
+    # Find the command and the positional arguments in front of the cursor.
+    # Arguments of options that take a value are skipped.
+    for (( i = 1; i < COMP_CWORD; i++ )); do
+        word="${COMP_WORDS[i]}"
 
-	# we may have things like "partup --debug install ..."
+        if (( skip )); then
+            skip=0
+            continue
+        fi
 
-	if [[ ${command} == install ]] ; then
-		add_command_help ${command} ${current} ${previous}
+        case "${word}" in
+            -D|--debug-domains|-C|--directory)
+                skip=1
+                continue
+                ;;
+            -*)
+                continue
+                ;;
+        esac
 
-		COMPREPLY+=( $(compgen -W "${install_options} ${app_options}" -- ${current}) )
+        if [[ -z ${command} ]] && _partup_in_list "${_partup_commands}" "${word}"; then
+            command="${word}"
+        else
+            positionals+=( "${word}" )
+        fi
+    done
 
-		# PACKAGE
-		COMPREPLY+=( $(compgen -f -o plusdirs -X '!*.partup' -- ${current}) )
+    # Complete the argument of an option that takes a value.
+    case "${previous}" in
+        -D|--debug-domains)
+            return 0
+            ;;
+        -C|--directory)
+            if [[ ${command} == package ]]; then
+                mapfile -t COMPREPLY < <(compgen -d -- "${current}")
+                return 0
+            fi
+            ;;
+    esac
 
-		# DEVICE -> if previous ends with partup, complete only from /dev
-		if [[ ${previous} == *.partup ]] ; then
-			if [[ -z ${current} ]] ; then
-				COMPREPLY=( '/dev' )
-				return 0
-			else
-				COMPREPLY+=( $(compgen -f -o plusdirs -- ${current} ) )
-			fi
-		fi
+    case "${current}" in
+        --debug-domains=*)
+            return 0
+            ;;
+        --directory=*)
+            if [[ ${command} == package ]]; then
+                mapfile -t COMPREPLY < <(compgen -d -P "--directory=" -- "${current#--directory=}")
+                return 0
+            fi
+            ;;
+    esac
 
-		# don't allow options after dev
-		if [[ ${previous} == /dev/* ]] ; then
-			COMPREPLY=()
-		fi
+    if [[ -z ${command} ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "${_partup_help_options} ${_partup_commands} ${_partup_app_options}" -- "${current}")
+        return 0
+    fi
 
-		return 0
-	fi
+    local options="${_partup_app_options}"
 
-	if [[ ${command} == package ]] ; then
-		add_command_help ${command} ${current} ${previous}
+    # Only offer help directly after the command
+    if (( ${#positionals[@]} == 0 )) && [[ ${previous} == "${command}" ]]; then
+        options+=" ${_partup_help_options}"
+    fi
 
-		COMPREPLY+=( $(compgen -W "${package_options} ${app_options}" -- ${current}) )
+    case "${command}" in
+        install)
+            options+=" ${_partup_install_options}"
+            ;;
+        package)
+            options+=" ${_partup_package_options}"
+            ;;
+        show)
+            options+=" ${_partup_show_options}"
+            ;;
+        version)
+            options="${_partup_help_options}"
+            ;;
+    esac
 
-		# -C, --directory=DIR
-		# PACKAGE FILES…
+    if [[ ${current} == -* ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "${options}" -- "${current}")
+        return 0
+    fi
 
-		if exists_in_list "${package_options}" " " ${previous} ; then
-			#if output is previous, a file must follow
-			COMPREPLY=( $(compgen -f -- ${current}) )
-		fi
+    case "${command}" in
+        install)
+            # install PACKAGE DEVICE
+            case ${#positionals[@]} in
+                0)
+                    _partup_complete_files "*.partup" "${current}"
+                    ;;
+                1)
+                    mapfile -t COMPREPLY < <(compgen -f -- "${current:-/dev/}")
+                    ;;
+            esac
+            ;;
+        package)
+            # package PACKAGE FILES...
+            if (( ${#positionals[@]} == 0 )); then
+                _partup_complete_files "*.partup" "${current}"
+            else
+                _partup_complete_files "" "${current}"
+            fi
+            ;;
+        show)
+            # show PACKAGE
+            if (( ${#positionals[@]} == 0 )); then
+                _partup_complete_files "*.partup" "${current}"
+            fi
+            ;;
+    esac
 
-		return 0
-	fi
+    if [[ -z ${current} ]] && (( ${#COMPREPLY[@]} == 0 )) && [[ ${command} != version ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "${options}" -- "${current}")
+    fi
 
-	if [[ ${command} == show ]] ; then
-		add_command_help ${command} ${current} ${previous}
-
-		COMPREPLY+=( $(compgen -W "${show_options} ${app_options}" -- ${current}) )
-
-		# PACKAGE - if we do not already have one, complete available partup files
-		if [[ ${previous} != *.partup ]] ; then			
-			COMPREPLY+=( $(compgen -f -o plusdirs -X '!*.partup' -- ${current}) )
-		fi
-
-		return 0
-	fi
-
-	if [[ ${command} == version ]] ; then
-		COMPREPLY=()
-		return 0
-	fi
-
-	return 1
+    return 0
 }
 
 complete -o filenames -F _partup_completions partup
