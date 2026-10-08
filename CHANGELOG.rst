@@ -13,6 +13,13 @@
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
+-  Add a Bash completion script, which completes commands, options and their
+   arguments. It is installed together with partup.
+
+.. rubric:: Contributors
+
+`Steffen Hemer <s.hemer@phytec.de>`__,
+`Martin Schwan <https://github.com/mschwan-phytec>`__
 
 .. _release-4.0.0:
 
