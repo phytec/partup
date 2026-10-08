@@ -1,3 +1,19 @@
+.. _release-4.1.0:
+
+4.1.0
+=====
+
+*Release date: TBD*
+
+.. rubric:: Changes
+
+-  Add a Bash completion script, which completes commands, options and their
+   arguments. It is installed together with partup.
+
+.. rubric:: Contributors
+
+`Martin Schwan <https://github.com/mschwan-phytec>`__
+
 .. _release-4.0.0:
 
 4.0.0
