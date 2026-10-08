@@ -30,6 +30,7 @@ any command:
 -D, --debug-domains=DEBUG_DOMAINS   Comma separated list of modules to enable
                                     debug output for
 -q, --quiet                         Only print error messages
+-V, --version                       Print the program version
 
 Commands
 --------
@@ -52,6 +53,9 @@ show [OPTION…] *PACKAGE*
 
 version
    Print the program version
+
+   .. deprecated:: 5.0.0
+      Use the global ``-V, --version`` option instead.
 
 Supported Output Devices
 ------------------------

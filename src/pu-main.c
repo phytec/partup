@@ -25,6 +25,7 @@
 static gboolean arg_debug = FALSE;
 static gchar *arg_debug_domains = NULL;
 static gboolean arg_quiet = FALSE;
+static gboolean arg_version = FALSE;
 static gboolean arg_install_skip_checksums = FALSE;
 static gchar *arg_package_directory = NULL;
 static gboolean arg_package_force = FALSE;
@@ -196,6 +197,7 @@ static gboolean
 cmd_version(G_GNUC_UNUSED PuCommandContext *context,
             G_GNUC_UNUSED GError **error)
 {
+    g_warning("The 'version' command is deprecated, use the '-V, --version' option instead");
     g_message("%s %s", g_get_prgname(), PARTUP_VERSION_STRING);
 
     return TRUE;
@@ -209,6 +211,8 @@ static GOptionEntry option_entries_main[] = {
         "DEBUG_DOMAINS" },
     { "quiet", 'q', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
         &arg_quiet, "Only print error messages", NULL },
+    { "version", 'V', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+        &arg_version, "Print the program version", NULL },
     { NULL }
 };
 
@@ -252,7 +256,7 @@ static PuCommandEntry command_entries[] = {
     { "show", PU_COMMAND_ARG_FILENAME, cmd_show,
         "List the contents of a package", option_entries_show },
     { "version", PU_COMMAND_ARG_NONE, cmd_version,
-        "Print the program version", option_entries_version },
+        "Print the program version (deprecated, use --version)", option_entries_version },
     PU_COMMAND_ENTRY_NULL
 };
 
@@ -275,6 +279,11 @@ main(G_GNUC_UNUSED int argc,
     if (!pu_command_context_parse_strv(context_cmd, &args, &arg_remaining, &error)) {
         g_critical("%s", error->message);
         return 1;
+    }
+
+    if (arg_version) {
+        g_print("%s %s\n", g_get_prgname(), PARTUP_VERSION_STRING);
+        return 0;
     }
 
     pu_log_set_debug_domains(arg_quiet, arg_debug, arg_debug_domains);

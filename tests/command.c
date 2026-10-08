@@ -197,6 +197,46 @@ command_arg(void)
     }
 }
 
+static void
+command_version_option(void)
+{
+    const gchar *args_success[] = { "--version", "-V" };
+    gboolean arg_version;
+    GOptionEntry option_entries[] = {
+        { "version", 'V', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
+            &arg_version, "Print the program version", NULL },
+        { NULL }
+    };
+    PuCommandEntry entries[] =
+        { { "test", PU_COMMAND_ARG_NONE, cmd_empty,
+            "Test command description", NULL },
+          PU_COMMAND_ENTRY_NULL };
+
+    for (gsize i = 0; i < G_N_ELEMENTS(args_success); i++) {
+        g_autoptr(PuCommandContext) context = NULL;
+        g_autoptr(GError) error = NULL;
+        gchar **args = gen_argv(args_success[i]);
+        gchar **arg_remaining = NULL;
+
+        arg_version = FALSE;
+        context = pu_command_context_new();
+        g_assert_nonnull(context);
+        pu_command_context_add_entries(context, entries, option_entries);
+
+        /* Global options must be accepted without any command */
+        g_assert_true(pu_command_context_parse_strv(context, &args, &arg_remaining, &error));
+        g_assert_no_error(error);
+        g_assert_true(arg_version);
+
+        /* No command was parsed, so there is nothing to invoke */
+        g_assert_false(pu_command_context_invoke(context, &error));
+        g_assert_error(error, PU_COMMAND_ERROR, PU_COMMAND_ERROR_UNKNOWN_COMMAND);
+
+        g_clear_pointer(&arg_remaining, g_strfreev);
+        g_clear_pointer(&args, g_strfreev);
+    }
+}
+
 int
 main(int argc,
      char *argv[])
@@ -210,6 +250,7 @@ main(int argc,
     g_test_add_func("/command/basic", command_basic);
     g_test_add_func("/command/help", command_help);
     g_test_add_func("/command/arg", command_arg);
+    g_test_add_func("/command/version-option", command_version_option);
 
     return g_test_run();
 }
