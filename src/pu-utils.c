@@ -9,6 +9,7 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <glob.h>
 #include <stdio.h>
 #include <blkid.h>
 #include <sys/stat.h>
@@ -59,9 +60,11 @@ pu_spawn_command_line_sync(const gchar *command_line,
 gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
+                   GList *exclude,
+                   GList *only,
                    GError **error)
 {
-    g_autofree gchar *cmd = NULL;
+    g_autoptr(GString) cmd = NULL;
 
     g_return_val_if_fail(filename != NULL, FALSE);
     g_return_val_if_fail(dest != NULL, FALSE);
@@ -69,9 +72,26 @@ pu_archive_extract(const gchar *filename,
 
     g_debug("Extracting '%s' to '%s'", filename, dest);
 
-    cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
+    cmd = g_string_new("tar");
 
-    if (!pu_spawn_command_line_sync(cmd, error)) {
+    /* TODO: trailing slashes may cause problems here? */
+    for (GList *e = exclude; e; e = e->next) {
+        gchar *es = e->data;
+        g_string_append_printf(cmd, " --exclude %s", es);
+    }
+
+    g_string_append_printf(cmd, " -C %s -xf %s", dest, filename);
+
+    for (GList *o = only; o; o = o->next) {
+        gchar *os = o->data;
+        if (g_regex_match_simple("[!^*?\\[\\]]", os, 0, 0)) {
+            g_string_append_printf(cmd, " --wildcards %s", os);
+        } else {
+            g_string_append_printf(cmd, " --no-wildcards %s", os);
+        }
+    }
+
+    if (!pu_spawn_command_line_sync(cmd->str, error)) {
         g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
         return FALSE;
     }
@@ -583,4 +603,186 @@ pu_str_pre_remove(gchar *string,
     memmove(string, start, strlen((gchar *) start) + 1);
 
     return string;
+}
+
+gboolean
+pu_file_remove_recursive(GFile *file,
+                         GHashTable *skip,
+                         GError **error)
+{
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
+    g_autoptr(GFileInfo) info = NULL;
+    gboolean skip_delete = FALSE;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (skip) {
+        g_autofree gchar *file_path = NULL;
+        GHashTableIter iter;
+        gpointer key;
+
+        file_path = g_file_get_path(file);
+        g_hash_table_iter_init(&iter, skip);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            if (g_str_equal(key, file_path)) {
+                /* Skip deletion of 'file_path' (and possible children), because
+                 * it gets retained */
+                return TRUE;
+            }
+            if (g_str_has_prefix(key, file_path)) {
+                /* Skip deletion of 'file_path', because prefix 'key' gets
+                 * retained, but still evaluate possible children */
+                skip_delete = TRUE;
+                break;
+            }
+        }
+    }
+
+    dir_enum = g_file_enumerate_children(file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                         G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                         NULL, NULL);
+    if (dir_enum) {
+        while ((info = g_file_enumerator_next_file(dir_enum, NULL, NULL)) != NULL) {
+            g_autoptr(GFile) child = NULL;
+            child = g_file_enumerator_get_child(dir_enum, info);
+            if (!pu_file_remove_recursive(child, skip, error)) {
+                if (error) {
+                    g_prefix_error(error, "Failed recursive file removal");
+                } else {
+                    g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                                "Failed recursive file removal");
+                }
+                return FALSE;
+            }
+        }
+    }
+
+    if (skip_delete) {
+        return TRUE;
+    }
+
+    return g_file_delete(file, NULL, error);
+}
+
+static GHashTable *
+canonicalize_path_list(GList *paths,
+                       GError **error)
+{
+    g_autoptr(GHashTable) table = NULL;
+    glob_t gl;
+    gboolean first = TRUE;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (!paths) {
+        return NULL;
+    }
+
+    table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    /* TODO: support wildcard paths, like "*foo.txt", which should match any
+     * directory containing foo.txt. */
+    for (GList *p = paths; p; p = p->next) {
+        const gchar *ps = p->data;
+        gint flags = GLOB_NOSORT | (first ? 0 : GLOB_APPEND);
+        gint ret = glob(ps, flags, NULL, &gl);
+        g_debug("ps: %s", ps);
+
+        if (ret == 0) {
+            first = FALSE;
+        } else if (ret == GLOB_NOMATCH) {
+            g_debug("glob did not match anything, continue");
+            continue;
+        } else {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "glob() failed on '%s': %d", ps, ret);
+            return NULL;
+        }
+    }
+    g_debug("gl_pathc: %ld", gl.gl_pathc);
+
+    if (!first) {
+        for (gsize i = 0; i < gl.gl_pathc; i++) {
+            gchar *canon = g_canonicalize_filename(gl.gl_pathv[i], NULL);
+            g_debug("canon: %s", canon);
+            g_hash_table_replace(table, canon, NULL);
+        }
+        globfree(&gl);
+    }
+
+    return g_steal_pointer(&table);
+}
+
+/* TODO: Reconsider function name: Should be remove recursive exclusion set */
+gboolean
+pu_path_remove_exclude_only(const gchar *path,
+                            GList *exclude,
+                            GList *only,
+                            GError **error)
+{
+    g_autoptr(GHashTable) exclude_table = NULL;
+    g_autoptr(GHashTable) only_table = NULL;
+    g_autoptr(GHashTable) all_table = NULL;
+    g_autofree GList *all = NULL;
+
+    g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (exclude) {
+        /* Create a list of directories and files that match "exclude" */
+        g_debug("EXCLUDE");
+        exclude_table = canonicalize_path_list(exclude, error);
+        if (!exclude_table) {
+            g_prefix_error(error, "Failed parsing 'exclude' paths: ");
+            return FALSE;
+        }
+
+        /* Delete all entries in "exclude" */
+        GHashTableIter iter;
+        gpointer key;
+
+        g_hash_table_iter_init(&iter, exclude_table);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            g_autoptr(GFile) file = NULL;
+            file = g_file_new_for_path(key);
+            if (!pu_file_remove_recursive(file, NULL, error)) {
+                return FALSE;
+            }
+        }
+    }
+
+    if (only) {
+        /* Create a list of directories and files that match "only" */
+        g_debug("ONLY");
+        only_table = canonicalize_path_list(only, error);
+        if (!only_table) {
+            g_prefix_error(error, "Failed parsing 'only' paths: ");
+            return FALSE;
+        }
+
+        /* Create a list of directories and files that matches everything */
+        g_debug("ALL");
+        all = g_list_prepend(all, g_build_filename(path, "*", NULL));
+        all_table = canonicalize_path_list(all, error);
+        if (!all_table) {
+            g_prefix_error(error, "Failed parsing 'all' paths: ");
+            return FALSE;
+        }
+
+        /* Delete everything, except entries in "only" */
+        g_debug("REMOVE");
+        GHashTableIter iter;
+        gpointer key;
+
+        g_hash_table_iter_init(&iter, all_table);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            g_autoptr(GFile) file = NULL;
+            file = g_file_new_for_path(key);
+            if (!pu_file_remove_recursive(file, only_table, error)) {
+                return FALSE;
+            }
+        }
+    }
+
+    return TRUE;
 }

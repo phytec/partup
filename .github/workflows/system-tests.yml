@@ -36,7 +36,7 @@ jobs:
             echo "Create package"
             cp $f tests/data/layout.yaml
             G_DEBUG=fatal-warnings partup -d -C tests/data package pkg.partup \
-              layout.yaml random.bin lorem.txt lorem.tar root.ext4
+              layout.yaml random.bin lorem.txt lorem.tar dir-struct.tar root.ext4
             echo "Show package content"
             sudo G_DEBUG=fatal-warnings partup -s show pkg.partup
             echo "Install package to loop device"
