@@ -103,9 +103,11 @@ The section ``raw`` contains a sequence of mappings describing data that is
 written outside of partitions.
 
 Since :ref:`release-2.1.0`, the written output is always being verified by
-checking against the input's SHA1 sum, including any given offsets. The checksum
-is not being verified when ``--skip-checksum`` is given as a runtime argument.
-Note, that this checksum is independent from the input's ``sha256sum`` option.
+reading it back from the device and checking it against the input's SHA1 sum,
+including any given offsets. The checksum is not being verified when
+``--skip-checksums`` is given as a runtime argument. Note, that this checksum is
+independent from the input's ``sha256sum`` option. See
+:ref:`checksum-verification` for details.
 
 Each raw entry may contain the following options:
 
@@ -255,9 +257,12 @@ Binary files are specified by a scalar named ``binaries`` containing a sequence
 of mappings with at least an ``input``.
 
 Since :ref:`release-3.0.0`, the written output is always being verified by
-checking against the input's SHA1 sum, including any given offsets. The checksum
-is not being verified when ``--skip-checksum`` is given as a runtime argument.
+reading it back from the device and checking it against the input's SHA1 sum,
+including any given offsets. For eMMC boot partitions the read-back verification
+is performed on both boot partitions (``boot0`` and ``boot1``). The checksum is
+not being verified when ``--skip-checksums`` is given as a runtime argument.
 Note, that this checksum is independent from the input's ``sha256sum`` option.
+See :ref:`checksum-verification` for details.
 
 ``input-offset`` (integer/string)
    Offset of the input data to be written. This keyword is optional.
@@ -318,10 +323,11 @@ contained partitions of an MTD. Each entry may contain the following options:
 ``input`` (mapping)
    An input mapping. See :ref:`input-files`.
 
-   The written output is always being verified by checking against the input's
-   SHA1 sum, including any given offsets. The checksum is not being verified
-   when ``--skip-checksum`` is given as a runtime argument. Note, that this
-   checksum is independent from the input's ``sha256sum`` option.
+   The written output is always being verified by reading it back from the
+   device and checking it against the input's SHA1 sum, including any given
+   offsets. The checksum is not being verified when ``--skip-checksums`` is
+   given as a runtime argument. Note, that this checksum is independent from the
+   input's ``sha256sum`` option. See :ref:`checksum-verification` for details.
 
    Available since: :ref:`release-3.0.0`
 
@@ -333,20 +339,29 @@ Input Files
 Input files are specified by a scalar named ``input`` containing a mapping with
 at least a ``filename``. For verifying the checksum of the given input file by
 ``filename``, an optional checksum can be provided with ``md5sum`` and/or
-``sha256sum``.
+``sha256sum``. These sums are verified before writing. Note that the automatic
+SHA1 read-back verification of the written data is only performed for raw and
+binary writes, not for input files copied into a filesystem, archives extracted
+into a filesystem, or raw ext[234] filesystem images. See
+:ref:`checksum-verification` for a complete description of both mechanisms.
 
 ``filename`` (string)
    A valid relativ path pointing to a file that should be written to the parent
    partition or volume.
 
 ``md5sum`` (string)
-   The MD5 sum of the given file specified by ``filename``. This sum is checked
-   against the provided file before writing to the target partition or volume.
+   The MD5 sum of the given file specified by ``filename``. This sum is computed
+   over the input file and checked against the provided value before writing to
+   the target partition or volume. This check is skipped when
+   ``--skip-checksums`` is given as a runtime argument. See
+   :ref:`checksum-verification` for details.
 
 ``sha256sum`` (string)
    The SHA256 sum of the given file specified by ``filename``. This sum is
-   checked against the provided file before writing to the target partition or
-   volume.
+   computed over the input file and checked against the provided value before
+   writing to the target partition or volume. This check is skipped when
+   ``--skip-checksums`` is given as a runtime argument. See
+   :ref:`checksum-verification` for details.
 
 .. _supported-file-types:
 
