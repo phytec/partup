@@ -218,7 +218,7 @@ static GOptionEntry option_entries_main[] = {
 
 static GOptionEntry option_entries_install[] = {
     { "skip-checksums", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
-        &arg_install_skip_checksums, "Skip checksum verification for all input files", NULL },
+        &arg_install_skip_checksums, "Skip all checksum verification", NULL },
     { G_OPTION_REMAINING, 0, G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING_ARRAY,
         &arg_remaining, NULL, "install PACKAGE DEVICE" },
     { NULL }
