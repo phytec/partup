@@ -24,6 +24,8 @@ typedef struct _PuEmmcInput {
     gchar *filename;
     gchar *md5sum;
     gchar *sha256sum;
+    GList *exclude;
+    GList *only;
 
     /* Internal members */
     gsize _size;
@@ -375,7 +377,8 @@ pu_emmc_write_data(PuFlash *flash,
             if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
                 if (!pu_mount(part_path, part_mount, NULL, NULL, error))
                     return FALSE;
-                if (!pu_archive_extract(path, part_mount, error))
+                if (!pu_archive_extract(path, part_mount, input->exclude,
+                                        input->only, error))
                     return FALSE;
                 if (!pu_umount(part_mount, error))
                     return FALSE;
@@ -387,6 +390,15 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_set_ext_label(part_path, part->label, error))
                     return FALSE;
+                if (input->exclude || input->only) {
+                    if (!pu_mount(part_path, part_mount, NULL, NULL, error))
+                        return FALSE;
+                    if (!pu_path_remove_exclude_only(part_mount, input->exclude,
+                                                     input->only, error))
+                        return FALSE;
+                    if (!pu_umount(part_mount, error))
+                        return FALSE;
+                }
             } else if (!part->filesystem) {
                 if (!pu_write_raw(path, part_path, self->device, 0, 0, 0, error))
                     return FALSE;
@@ -395,6 +407,11 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
                 if (!pu_file_copy(path, part_mount, error))
                     return FALSE;
+                if (input->exclude || input->only) {
+                    if (!pu_path_remove_exclude_only(part_mount, input->exclude,
+                                                     input->only, error))
+                        return FALSE;
+                }
                 if (!pu_umount(part_mount, error))
                     return FALSE;
             }
@@ -601,6 +618,8 @@ pu_emmc_class_finalize(GObject *object)
             g_free(in->filename);
             g_free(in->md5sum);
             g_free(in->sha256sum);
+            g_list_free(g_steal_pointer(&in->exclude));
+            g_list_free(g_steal_pointer(&in->only));
             g_free(in);
         }
         g_list_free(g_steal_pointer(&part->input));
@@ -1058,6 +1077,30 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
                 input->filename = pu_hash_table_lookup_string(iv->data.mapping, "filename", "");
                 input->md5sum = pu_hash_table_lookup_string(iv->data.mapping, "md5sum", "");
                 input->sha256sum = pu_hash_table_lookup_string(iv->data.mapping, "sha256sum", "");
+                GList *exclude_list = pu_hash_table_lookup_list(iv->data.mapping, "exclude", NULL);
+                if (exclude_list) {
+                    for (GList *e = exclude_list; e; e = e->next) {
+                        PuConfigValue *ev = e->data;
+                        if (ev->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                        "'exclude' does not contain a sequence of strings");
+                            return FALSE;
+                        }
+                        input->exclude = g_list_prepend(input->exclude, ev->data.string);
+                    }
+                }
+                GList *only_list = pu_hash_table_lookup_list(iv->data.mapping, "only", NULL);
+                if (only_list) {
+                    for (GList *o = only_list; o; o = o->next) {
+                        PuConfigValue *ov = o->data;
+                        if (ov->type != PU_CONFIG_VALUE_TYPE_STRING) {
+                            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                                        "'only' does not contain a sequence of strings");
+                            return FALSE;
+                        }
+                        input->only = g_list_prepend(input->only, ov->data.string);
+                    }
+                }
                 part->input = g_list_prepend(part->input, input);
 
                 g_debug("Parsed partition input: filename=%s md5sum=%s sha256sum=%s",
