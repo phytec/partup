@@ -2,3 +2,4 @@
 env/
 tags
 plan.md
+__pycache__/
