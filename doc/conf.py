@@ -13,9 +13,6 @@ extensions = [
 html_theme = 'sphinx_phytec_theme'
 html_logo = 'data/partup-logo-2x-white.svg'
 html_static_path = ['sphinx/static']
-html_css_files = [
-    'css/rtd-fixups.css',
-]
 html_favicon = 'sphinx/static/favicon.ico'
 
 pygments_style = 'bw'
