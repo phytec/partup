@@ -10,6 +10,9 @@
 -  Add the global ``-V, --version`` option for printing the program version. The
    ``version`` command is deprecated in favor of this option and prints a
    warning when used.
+-  Add a FAQ section to the documentation explaining the ``Filesystem has
+   unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
+   ``orphan_file`` feature and old e2fsprogs versions.
 
 .. _release-4.0.0:
 
