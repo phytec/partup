@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-partup_commands="install package show version"
-help_options="-h --help"
+partup_commands="install package show"
+help_options="-h --help -V --version"
 app_options="-q --quiet -d --debug -D --debug-domains"
 install_options="-s --skip-checksums"
 package_options="-f --force -C --directory"
@@ -110,11 +110,6 @@ _partup_completions()
 			COMPREPLY+=( $(compgen -f -o plusdirs -X '!*.partup' -- ${current}) )
 		fi
 
-		return 0
-	fi
-
-	if [[ ${command} == version ]] ; then
-		COMPREPLY=()
 		return 0
 	fi
 
