@@ -28,5 +28,6 @@ Main Features
    build-install
    usage
    layout-config
+   faq
    contributing
    changelog
