@@ -10,6 +10,10 @@
 -  Add the global ``-V, --version`` option for printing the program version. The
    ``version`` command is deprecated in favor of this option and prints a
    warning when used.
+-  Add the input options ``exclude`` and ``only``, which allow excluding paths
+   from, or restricting an input to, specific paths. For ``.tar`` archives they
+   are passed to tar during extraction, for other inputs the paths are removed
+   from the partition after writing. See :ref:`input-files`.
 
 .. _release-4.0.0:
 
