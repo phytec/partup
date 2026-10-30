@@ -133,6 +133,22 @@ options:
    The PARTUUID of the partition. Only supported on GPT partitioned devices. A
    random UUID is used by default.
 
+   The value must be a UUID in the format
+   ``xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx``. A malformed value on a GPT
+   partitioned device results in an error when the layout configuration is
+   parsed. On other disklabels, the option is ignored with a warning.
+
+``type-guid`` :badge-type:`string` :badge-since:`5.0.0`
+   The GPT partition type GUID of the partition, e.g.
+   ``b921b045-1df0-41c3-af44-4c6f280d3fae``. Only supported on GPT partitioned
+   devices. The value must be a UUID in the format
+   ``xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx``. A malformed value results in an
+   error when the layout configuration is parsed. On other disklabels, the
+   option is ignored with a warning.
+
+   The type GUID is set after the partition ``flags`` have been applied and
+   thus overrides any type implied by them.
+
 ``type`` :badge-type:`string`
    The partition type. May be one of ``primary`` or ``logical``. Note, that with
    the first occurrence of a logical partition the following ones must be
