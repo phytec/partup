@@ -1,0 +1,9 @@
+api-version: 1
+disklabel: msdos
+
+partitions:
+  - label: BOOT
+    partuuid: "not-a-uuid"
+    type-guid: "not-a-guid"
+    size: 32MiB
+    offset: 1MiB
