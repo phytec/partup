@@ -13,6 +13,7 @@
 #include "pu-error.h"
 
 #define PARTUUID "428957a5-839d-45ae-adaf-4108c98a087b"
+#define TYPE_GUID "b921b045-1df0-41c3-af44-4c6f280d3fae"
 
 static void
 test_is_drive(EmptyDeviceFixture *fixture,
@@ -59,6 +60,36 @@ test_partition_set_partuuid(EmptyDeviceFixture *fixture,
     g_assert_cmpstr(partuuid, ==, PARTUUID);
 }
 
+static void
+test_partition_set_type_guid(EmptyDeviceFixture *fixture,
+                             G_GNUC_UNUSED gconstpointer user_data)
+{
+    blkid_probe pr;
+    blkid_partlist ls;
+    blkid_partition par;
+    const gchar *type;
+    gint wait_status;
+    g_autofree gchar *cmd = g_strdup_printf("sh scripts/create-partition %s",
+                                            fixture->loop_dev);
+    g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL,
+                                            &wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_true(g_spawn_check_wait_status(wait_status, &fixture->error));
+    g_assert_no_error(fixture->error);
+    g_assert_true(pu_partition_set_type_guid(fixture->loop_dev, 1,
+                                             TYPE_GUID, &fixture->error));
+    g_assert_no_error(fixture->error);
+
+    pr = blkid_new_probe_from_filename(fixture->loop_dev);
+    g_assert_nonnull(pr);
+    ls = blkid_probe_get_partitions(pr);
+    g_assert_nonnull(ls);
+    par = blkid_partlist_get_partition(ls, 0);
+    g_assert_nonnull(par);
+    type = blkid_partition_get_type_string(par);
+    g_assert_cmpstr(type, ==, TYPE_GUID);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -78,6 +109,8 @@ main(int argc,
     g_test_add_func("/utils/wait_for_partitions", test_wait_for_partitions);
     g_test_add("/utils/part_set_partuuid", EmptyDeviceFixture, NULL, empty_device_set_up,
                test_partition_set_partuuid, empty_device_tear_down);
+    g_test_add("/utils/part_set_type_guid", EmptyDeviceFixture, NULL, empty_device_set_up,
+               test_partition_set_type_guid, empty_device_tear_down);
 
     return g_test_run();
 }
