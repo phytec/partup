@@ -393,6 +393,49 @@ pu_partition_set_partuuid(const gchar *device,
 }
 
 gboolean
+pu_partition_set_type_guid(const gchar *device,
+                           guint index,
+                           const gchar *type_guid,
+                           GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(g_strcmp0(device, "") > 0, FALSE);
+    g_return_val_if_fail(index > 0, FALSE);
+    g_return_val_if_fail(pu_is_valid_uuid(type_guid), FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    cmd = g_strdup_printf("sfdisk --part-type %s %d %s",
+                          device, index, type_guid);
+
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed setting type GUID on %s partition %d: ",
+                       device, index);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
+pu_is_valid_uuid(const gchar *uuid)
+{
+    if (uuid == NULL || strlen(uuid) != 36)
+        return FALSE;
+
+    for (gsize i = 0; i < 36; i++) {
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (uuid[i] != '-')
+                return FALSE;
+        } else if (!g_ascii_isxdigit(uuid[i])) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+gboolean
 pu_is_drive(const gchar *device)
 {
     blkid_probe pr;
