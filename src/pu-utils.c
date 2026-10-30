@@ -393,6 +393,24 @@ pu_partition_set_partuuid(const gchar *device,
 }
 
 gboolean
+pu_is_valid_uuid(const gchar *uuid)
+{
+    if (uuid == NULL || strlen(uuid) != 36)
+        return FALSE;
+
+    for (gsize i = 0; i < 36; i++) {
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (uuid[i] != '-')
+                return FALSE;
+        } else if (!g_ascii_isxdigit(uuid[i])) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+gboolean
 pu_is_drive(const gchar *device)
 {
     blkid_probe pr;
