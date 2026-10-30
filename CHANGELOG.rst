@@ -13,6 +13,11 @@
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
+-  Add the ``type-guid`` partition option for setting an arbitrary GPT partition
+   type GUID.
+-  A malformed ``partuuid`` on GPT partitioned devices now fails with an error
+   when parsing the layout configuration instead of failing later while writing
+   to the device.
 
 .. _release-4.0.0:
 
