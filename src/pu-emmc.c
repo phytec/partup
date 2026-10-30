@@ -981,6 +981,17 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
         part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
         part->partuuid = pu_hash_table_lookup_string(v->data.mapping, "partuuid", "");
+        if (g_strcmp0(part->partuuid, "") > 0 &&
+            g_str_equal(emmc->disktype->name, "gpt") &&
+            !pu_is_valid_uuid(part->partuuid)) {
+            g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                        "Invalid partuuid '%s' of partition '%s'",
+                        part->partuuid, part->label ? part->label : "");
+            g_free(part->partuuid);
+            g_free(part->label);
+            g_free(part);
+            return FALSE;
+        }
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", NULL);
         part->mkfs_extra_args = pu_hash_table_lookup_string(v->data.mapping, "mkfs-extra-args", NULL);
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);
