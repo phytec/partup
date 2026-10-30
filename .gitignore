@@ -2,3 +2,9 @@
 env/
 tags
 plan.md
+debian/.debhelper/
+debian/partup/
+debian/files
+debian/debhelper-build-stamp
+debian/partup.debhelper.log
+debian/partup.substvars
