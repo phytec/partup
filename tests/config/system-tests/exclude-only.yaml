@@ -1,0 +1,37 @@
+api-version: 4
+disklabel: gpt
+
+partitions:
+  - label: boot
+    filesystem: fat32
+    size: 16MiB
+    offset: 1MiB
+    flags:
+      - boot
+    input:
+      - filename: lorem.txt
+  - label: root1
+    filesystem: ext4
+    expand: true
+    input:
+      - filename: dir-struct.tar
+        exclude:
+          - empty
+  - label: root2
+    filesystem: ext4
+    expand: true
+    input:
+      - filename: dir-struct.tar
+        only:
+          - foo
+  - label: root3
+    filesystem: ext4
+    expand: true
+    input:
+      - filename: dir-struct.tar
+        exclude:
+          - empty
+          - foo/tested.c
+        only:
+          - foo
+          - nested

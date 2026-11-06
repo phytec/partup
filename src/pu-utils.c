@@ -9,7 +9,9 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <glob.h>
 #include <stdio.h>
+#include <string.h>
 #include <blkid.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -59,9 +61,11 @@ pu_spawn_command_line_sync(const gchar *command_line,
 gboolean
 pu_archive_extract(const gchar *filename,
                    const gchar *dest,
+                   GList *exclude,
+                   GList *only,
                    GError **error)
 {
-    g_autofree gchar *cmd = NULL;
+    g_autoptr(GString) cmd = NULL;
 
     g_return_val_if_fail(filename != NULL, FALSE);
     g_return_val_if_fail(dest != NULL, FALSE);
@@ -69,9 +73,29 @@ pu_archive_extract(const gchar *filename,
 
     g_debug("Extracting '%s' to '%s'", filename, dest);
 
-    cmd = g_strdup_printf("tar -xf %s -C %s", filename, dest);
+    cmd = g_string_new("tar");
 
-    if (!pu_spawn_command_line_sync(cmd, error)) {
+    for (GList *e = exclude; e; e = e->next) {
+        g_autofree gchar *quoted = g_shell_quote(e->data);
+        g_string_append_printf(cmd, " --exclude %s", quoted);
+    }
+
+    {
+        g_autofree gchar *qdest = g_shell_quote(dest);
+        g_autofree gchar *qfile = g_shell_quote(filename);
+        g_string_append_printf(cmd, " -C %s -xf %s", qdest, qfile);
+    }
+
+    for (GList *o = only; o; o = o->next) {
+        g_autofree gchar *quoted = g_shell_quote(o->data);
+        if (g_regex_match_simple("[!^*?\\[\\]]", o->data, 0, 0)) {
+            g_string_append_printf(cmd, " --wildcards %s", quoted);
+        } else {
+            g_string_append_printf(cmd, " --no-wildcards %s", quoted);
+        }
+    }
+
+    if (!pu_spawn_command_line_sync(cmd->str, error)) {
         g_prefix_error(error, "Failed extracting '%s' to '%s': ", filename, dest);
         return FALSE;
     }
@@ -583,4 +607,227 @@ pu_str_pre_remove(gchar *string,
     memmove(string, start, strlen((gchar *) start) + 1);
 
     return string;
+}
+
+
+static gboolean
+path_is_same_or_child(const gchar *path,
+                      const gchar *parent)
+{
+    gsize len = strlen(parent);
+
+    if (!g_str_has_prefix(path, parent)) {
+        return FALSE;
+    }
+
+    return path[len] == '\0' || path[len] == '/' || g_str_equal(parent, "/");
+}
+
+/*
+ * Remove 'file' recursively, except for the paths in the set 'skip'. Parent
+ * directories of skipped paths are retained as well.
+ *
+ * The paths in 'skip' have to be canonical absolute paths.
+ */
+gboolean
+pu_file_remove_recursive(GFile *file,
+                         GHashTable *skip,
+                         GError **error)
+{
+    g_autoptr(GFileEnumerator) dir_enum = NULL;
+    g_autoptr(GFileInfo) info = NULL;
+    gboolean skip_delete = FALSE;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    if (skip) {
+        g_autofree gchar *file_path = NULL;
+        GHashTableIter iter;
+        gpointer key;
+
+        file_path = g_file_get_path(file);
+        g_hash_table_iter_init(&iter, skip);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            if (path_is_same_or_child(file_path, key)) {
+                /* 'file_path' is retained itself or lies within a retained
+                 * directory */
+                return TRUE;
+            }
+            if (path_is_same_or_child(key, file_path)) {
+                /* 'file_path' is a parent of a retained path. Retain it, but
+                 * still evaluate its children */
+                skip_delete = TRUE;
+            }
+        }
+    }
+
+    dir_enum = g_file_enumerate_children(file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                         G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                         NULL, NULL);
+    if (dir_enum) {
+        while ((info = g_file_enumerator_next_file(dir_enum, NULL, NULL)) != NULL) {
+            g_autoptr(GFile) child = NULL;
+
+            child = g_file_enumerator_get_child(dir_enum, info);
+            if (!pu_file_remove_recursive(child, skip, error)) {
+                g_prefix_error(error, "Failed recursive file removal: ");
+                return FALSE;
+            }
+            g_clear_object(&info);
+        }
+    }
+
+    if (skip_delete) {
+        return TRUE;
+    }
+
+    return g_file_delete(file, NULL, error);
+}
+
+/*
+ * Resolve the list of path patterns 'paths' to a set of canonical absolute
+ * paths. Relative patterns are interpreted relative to 'root'. Patterns may
+ * contain wildcards. Patterns that match nothing are ignored. Patterns that
+ * resolve to somewhere outside of 'root' (or to 'root' itself) are rejected.
+ */
+static GHashTable *
+resolve_path_list(const gchar *root,
+                  GList *paths,
+                  GError **error)
+{
+    g_autoptr(GHashTable) table = NULL;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+    table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    for (GList *p = paths; p; p = p->next) {
+        const gchar *ps = p->data;
+        g_autofree gchar *pattern = NULL;
+        glob_t gl = {0};
+        gint ret;
+
+        if (g_path_is_absolute(ps)) {
+            pattern = g_strdup(ps);
+        } else {
+            pattern = g_build_filename(root, ps, NULL);
+        }
+
+        ret = glob(pattern, GLOB_NOSORT, NULL, &gl);
+        if (ret == GLOB_NOMATCH) {
+            g_debug("Pattern '%s' did not match anything", pattern);
+            globfree(&gl);
+            continue;
+        } else if (ret != 0) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "glob() failed on '%s': %d", ps, ret);
+            globfree(&gl);
+            return NULL;
+        }
+
+        for (gsize i = 0; i < gl.gl_pathc; i++) {
+            gchar *canon = g_canonicalize_filename(gl.gl_pathv[i], NULL);
+
+            if (g_str_equal(canon, root) || !path_is_same_or_child(canon, root)) {
+                g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                            "Path '%s' is not located within '%s'", ps, root);
+                g_free(canon);
+                globfree(&gl);
+                return NULL;
+            }
+            g_debug("Resolved '%s' to '%s'", ps, canon);
+            g_hash_table_replace(table, canon, NULL);
+        }
+        globfree(&gl);
+    }
+
+    return g_steal_pointer(&table);
+}
+
+/**
+ * pu_path_remove_exclude_only:
+ * @path: Root directory (e.g. a mounted partition) to operate on
+ * @exclude: (nullable): Paths to delete. Relative paths are interpreted
+ *   relative to @path. Wildcards are supported.
+ * @only: (nullable): Paths to retain. Everything else below @path is deleted.
+ *   Relative paths are interpreted relative to @path. Wildcards are supported.
+ * @error: Return location for a #GError
+ *
+ * Deletes the paths in @exclude first and afterwards everything not in @only.
+ * Therefore, @exclude takes precedence over @only.
+ *
+ * Returns: %TRUE on success, %FALSE otherwise
+ */
+gboolean
+pu_path_remove_exclude_only(const gchar *path,
+                            GList *exclude,
+                            GList *only,
+                            GError **error)
+{
+    g_autofree gchar *root = NULL;
+    GHashTableIter iter;
+    gpointer key;
+
+    g_return_val_if_fail(g_strcmp0(path, "") > 0, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    root = g_canonicalize_filename(path, NULL);
+
+    if (exclude) {
+        g_autoptr(GHashTable) exclude_table = NULL;
+
+        exclude_table = resolve_path_list(root, exclude, error);
+        if (!exclude_table) {
+            g_prefix_error(error, "Failed parsing 'exclude' paths: ");
+            return FALSE;
+        }
+
+        g_hash_table_iter_init(&iter, exclude_table);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            g_autoptr(GFile) file = NULL;
+
+            /* An entry may already be gone if a parent was removed before */
+            if (!g_file_test(key, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_SYMLINK))
+                continue;
+            file = g_file_new_for_path(key);
+            if (!pu_file_remove_recursive(file, NULL, error))
+                return FALSE;
+        }
+    }
+
+    if (only) {
+        g_autoptr(GHashTable) only_table = NULL;
+        g_autoptr(GFile) root_file = NULL;
+        g_autoptr(GFileEnumerator) dir_enum = NULL;
+        g_autoptr(GFileInfo) info = NULL;
+
+        only_table = resolve_path_list(root, only, error);
+        if (!only_table) {
+            g_prefix_error(error, "Failed parsing 'only' paths: ");
+            return FALSE;
+        }
+
+        /* Delete every top-level entry (including hidden ones), except the
+         * ones in "only" */
+        root_file = g_file_new_for_path(root);
+        dir_enum = g_file_enumerate_children(root_file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                             G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                             NULL, error);
+        if (!dir_enum) {
+            g_prefix_error(error, "Failed listing '%s': ", root);
+            return FALSE;
+        }
+        while ((info = g_file_enumerator_next_file(dir_enum, NULL, error)) != NULL) {
+            g_autoptr(GFile) child = NULL;
+
+            child = g_file_enumerator_get_child(dir_enum, info);
+            if (!pu_file_remove_recursive(child, only_table, error))
+                return FALSE;
+            g_clear_object(&info);
+        }
+        if (error && *error)
+            return FALSE;
+    }
+
+    return TRUE;
 }

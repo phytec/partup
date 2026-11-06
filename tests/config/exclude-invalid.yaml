@@ -1,0 +1,12 @@
+api-version: 4
+disklabel: gpt
+
+partitions:
+  - label: root
+    filesystem: ext4
+    size: 64MiB
+    offset: 1MiB
+    input:
+      - filename: dir-struct.tar
+        exclude:
+          - - nested
