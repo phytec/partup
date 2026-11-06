@@ -67,9 +67,8 @@ else
 endif
 
 install_data(
-  'partup-completion.bash',
-  install_dir : bash_completion_dir,
-  rename : 'partup'
+  'completions/bash/partup',
+  install_dir : bash_completion_dir
 )
 
 partup_dep = declare_dependency(
