@@ -31,6 +31,7 @@ typedef struct _PuEmmcInput {
 typedef struct _PuEmmcPartition {
     gchar *label;
     gchar *partuuid;
+    gchar *type_guid;
     PedPartitionType type;
     gchar *filesystem;
     gchar *mkfs_extra_args;
@@ -328,6 +329,15 @@ pu_emmc_write_data(PuFlash *flash,
             }
         }
 
+        if (g_strcmp0(part->type_guid, "") > 0) {
+            if (g_str_equal(self->disktype->name, "gpt")) {
+                if (!pu_partition_set_type_guid(self->device->path, idx, part->type_guid, error))
+                    return FALSE;
+            } else {
+                g_warning("Setting type GUID is only supported on GPT partitioned devices");
+            }
+        }
+
         part_path = pu_device_get_partition_path(self->device->path, idx, error);
         if (part_path == NULL)
             return FALSE;
@@ -593,6 +603,7 @@ pu_emmc_class_finalize(GObject *object)
         PuEmmcPartition *part = p->data;
         g_free(part->label);
         g_free(part->partuuid);
+        g_free(part->type_guid);
         g_free(part->filesystem);
         g_free(part->mkfs_extra_args);
         g_list_free(g_steal_pointer(&part->flags));
@@ -981,6 +992,29 @@ pu_emmc_parse_partitions(PuEmmc *emmc,
         PuEmmcPartition *part = g_new0(PuEmmcPartition, 1);
         part->label = pu_hash_table_lookup_string(v->data.mapping, "label", NULL);
         part->partuuid = pu_hash_table_lookup_string(v->data.mapping, "partuuid", "");
+        part->type_guid = pu_hash_table_lookup_string(v->data.mapping, "type-guid", "");
+        if (g_str_equal(emmc->disktype->name, "gpt")) {
+            const gchar *invalid = NULL;
+            const gchar *name = NULL;
+
+            if (g_strcmp0(part->partuuid, "") > 0 && !pu_is_valid_uuid(part->partuuid)) {
+                invalid = part->partuuid;
+                name = "partuuid";
+            } else if (g_strcmp0(part->type_guid, "") > 0 && !pu_is_valid_uuid(part->type_guid)) {
+                invalid = part->type_guid;
+                name = "type-guid";
+            }
+            if (invalid != NULL) {
+                g_set_error(error, PU_ERROR, PU_ERROR_EMMC_PARSE,
+                            "Invalid %s '%s' of partition '%s'",
+                            name, invalid, part->label ? part->label : "");
+                g_free(part->partuuid);
+                g_free(part->type_guid);
+                g_free(part->label);
+                g_free(part);
+                return FALSE;
+            }
+        }
         part->filesystem = pu_hash_table_lookup_string(v->data.mapping, "filesystem", NULL);
         part->mkfs_extra_args = pu_hash_table_lookup_string(v->data.mapping, "mkfs-extra-args", NULL);
         part->size = pu_hash_table_lookup_sector(v->data.mapping, emmc->device, "size", 0);

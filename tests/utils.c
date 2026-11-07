@@ -205,6 +205,19 @@ test_is_ext234_image(void)
     g_assert_false(pu_is_ext234_image("data/lorem.txt"));
 }
 
+static void
+test_is_valid_uuid(void)
+{
+    g_assert_true(pu_is_valid_uuid("6a69db6b-0858-404c-b42c-a58f5fb498ff"));
+    g_assert_true(pu_is_valid_uuid("6A69DB6B-0858-404C-B42C-A58F5FB498FF"));
+    g_assert_false(pu_is_valid_uuid(NULL));
+    g_assert_false(pu_is_valid_uuid(""));
+    g_assert_false(pu_is_valid_uuid("6a69db6b-0858-404c-b42c-a58f5fb498f"));
+    g_assert_false(pu_is_valid_uuid("6a69db6b-0858-404c-b42c-a58f5fb498ff0"));
+    g_assert_false(pu_is_valid_uuid("6a69db6b085804c-b42c-a58f5fb498ff-0"));
+    g_assert_false(pu_is_valid_uuid("6a69db6b-0858-404c-b42c-a58f5fb498fg"));
+}
+
 int
 main(int argc,
      char *argv[])
@@ -235,6 +248,7 @@ main(int argc,
     g_test_add_func("/utils/str_pre_remove", test_str_pre_remove);
     g_test_add_func("/utils/device_get_partition_pattern", test_device_get_partition_pattern);
     g_test_add_func("/utils/is_ext234_image", test_is_ext234_image);
+    g_test_add_func("/utils/is_valid_uuid", test_is_valid_uuid);
 
     return g_test_run();
 }

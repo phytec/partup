@@ -1,0 +1,8 @@
+api-version: 1
+disklabel: gpt
+
+partitions:
+  - label: BOOT
+    partuuid: "not-a-uuid"
+    size: 32MiB
+    offset: 1MiB
