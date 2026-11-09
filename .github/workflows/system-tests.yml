@@ -19,7 +19,7 @@ jobs:
       - name: Build and install application
         run: |
           meson setup build --buildtype=release
-          meson install -C build
+          sudo meson install -C build
       - name: Setup loopdev and symlink
         run: |
           dd if=/dev/zero of=loop-file bs=1M count=100
