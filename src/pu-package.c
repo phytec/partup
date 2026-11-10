@@ -9,6 +9,7 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "pu-error.h"
@@ -81,26 +82,64 @@ pu_package_create(gchar **files,
                   GError **error)
 {
     g_autofree gchar *cmd = NULL;
-    g_autofree gchar *input = NULL;
+    g_autofree gchar *cwd = NULL;
+    g_autofree gchar *cwd_prefix = NULL;
+    g_autofree gchar *output_abs = NULL;
+    g_autofree gchar *quoted_output = NULL;
+    g_autoptr(GString) input = NULL;
     guint layout_yaml_count = 0;
 
     g_return_val_if_fail(files != NULL, FALSE);
     g_return_val_if_fail(g_strcmp0(output, "") > 0, FALSE);
     g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-    /* Check if specified input files exist and search for required layout
-     * configuration file */
-    for (guint i = 0; i < g_strv_length(files); i++) {
-        g_autofree gchar *file = g_strdup(files[i]);
+    cwd = g_get_current_dir();
+    cwd_prefix = g_str_has_suffix(cwd, "/") ? g_strdup(cwd)
+                                            : g_strconcat(cwd, "/", NULL);
+    input = g_string_new(NULL);
 
-        if (!g_file_test(file, G_FILE_TEST_EXISTS)) {
+    /* Check if specified input files exist and are located inside the current
+     * directory. Search for the required layout configuration file, which must
+     * be placed at the root of the package. The relative paths of the input
+     * files are preserved in the package. */
+    for (gchar **file = files; *file != NULL; file++) {
+        g_autofree gchar *abs_path = NULL;
+        g_autofree gchar *rel_path_dot = NULL;
+        g_autofree gchar *quoted = NULL;
+        const gchar *rel_path;
+
+        if (!g_file_test(*file, G_FILE_TEST_EXISTS)) {
             g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_NOT_FOUND,
-                        "Input file '%s' does not exist", file);
+                        "Input file '%s' does not exist", *file);
             return FALSE;
         }
 
-        if (g_str_has_suffix(file, ".yaml"))
+        abs_path = g_canonicalize_filename(*file, cwd);
+        if (!g_str_has_prefix(abs_path, cwd_prefix) ||
+            *(abs_path + strlen(cwd_prefix)) == '\0') {
+            g_set_error(error, PU_PACKAGE_ERROR, PU_PACKAGE_ERROR_INVALID_PATH,
+                        "Input file '%s' must be located inside the current directory",
+                        *file);
+            return FALSE;
+        }
+        rel_path = abs_path + strlen(cwd_prefix);
+
+        if (g_str_has_suffix(rel_path, ".yaml")) {
+            if (strchr(rel_path, '/')) {
+                g_set_error(error, PU_PACKAGE_ERROR,
+                            PU_PACKAGE_ERROR_INVALID_PATH,
+                            "Layout configuration '%s' must be placed at the root of the package",
+                            *file);
+                return FALSE;
+            }
             layout_yaml_count++;
+        }
+
+        /* Prefix with "./" so that names starting with "-" are not
+         * interpreted as options by mksquashfs. The prefix is not stored. */
+        rel_path_dot = g_strconcat("./", rel_path, NULL);
+        quoted = g_shell_quote(rel_path_dot);
+        g_string_append_printf(input, "%s ", quoted);
     }
 
     if (!layout_yaml_count) {
@@ -127,8 +166,12 @@ pu_package_create(gchar **files,
         g_remove(output);
     }
 
-    input = g_strjoinv(" ", files);
-    cmd = g_strdup_printf("mksquashfs %s %s", input, output);
+    /* Do not strip leading directories from the input files, so that their
+     * relative paths are preserved in the package */
+    output_abs = g_canonicalize_filename(output, cwd);
+    quoted_output = g_shell_quote(output_abs);
+    cmd = g_strdup_printf("mksquashfs %s%s -no-strip -noappend", input->str,
+                          quoted_output);
 
     if (!pu_spawn_command_line_sync(cmd, error)) {
         g_prefix_error(error, "Failed creating package '%s': ", output);
