@@ -10,6 +10,11 @@
 -  Add the global ``-V, --version`` option for printing the program version. The
    ``version`` command is deprecated in favor of this option and prints a
    warning when used.
+-  Preserve the relative paths of input files when creating a package, instead
+   of stripping their leading directories. For example, ``partup package
+   test.partup layout.yaml foo/bar.txt`` now stores ``foo/bar.txt`` in the
+   package. Input files must be located inside the current directory and the
+   layout configuration file must be located at the root of the package.
 
 .. _release-4.0.0:
 

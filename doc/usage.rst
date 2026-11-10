@@ -117,6 +117,12 @@ its input files and the layout configuration file as the only ``.yaml`` file::
    The first filename provided after the ``package`` command is always the
    output filename of the package.
 
+The relative paths of the input files are preserved in the package. For example,
+``foo/bar.txt`` is stored as ``foo/bar.txt`` and not as ``bar.txt``. Input files
+must be located inside the current directory, which can be changed with the
+``-C, --directory`` option. The layout configuration file must always be
+specified without a directory, so that it ends up at the root of the package.
+
 .. note::
 
    The extension of a partup package should be named ``.partup``, although this
