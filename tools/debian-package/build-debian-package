@@ -60,7 +60,7 @@ podman build \
 for P in $(printf "$PLATFORM" | tr ',' ' '); do
     ARCH=$(printf "$P" | cut -f2 -d '/')
     LATEST_TAG=$(git describe --tags --abbrev=0 | cut -c 2-)
-    podman run -td --rm --name partup-deb-$ARCH --arch $ARCH partup-deb:$BRANCH /bin/sh
+    podman run -td --replace --name partup-deb-$ARCH --arch $ARCH partup-deb:$BRANCH /bin/sh
     DEB_FILE=$(podman exec partup-deb-$ARCH bash -c "ls /*.deb" | head -n 1)
     podman cp partup-deb-$ARCH:$DEB_FILE .
     podman stop --time 0 partup-deb-$ARCH
