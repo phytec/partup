@@ -3,6 +3,8 @@
 # Copyright (c) 2025 PHYTEC Messtechnik GmbH
 # Author: Martin Schwan <m.schwan@phytec.de>
 
+set -e
+
 BRANCH=main
 PLATFORM=linux/amd64,linux/arm64
 REPO=https://github.com/phytec/partup
@@ -58,11 +60,11 @@ podman build \
 for P in $(printf "$PLATFORM" | tr ',' ' '); do
     ARCH=$(printf "$P" | cut -f2 -d '/')
     LATEST_TAG=$(git describe --tags --abbrev=0 | cut -c 2-)
-    podman run -td --rm --name partup-deb-$ARCH --arch $ARCH partup-deb /bin/sh
+    podman run -td --replace --name partup-deb-$ARCH --arch $ARCH partup-deb:$BRANCH /bin/sh
     DEB_FILE=$(podman exec partup-deb-$ARCH bash -c "ls /*.deb" | head -n 1)
     podman cp partup-deb-$ARCH:$DEB_FILE .
     podman stop --time 0 partup-deb-$ARCH
 done
 
-podman image rm -f partup-deb
+podman image rm -f partup-deb:$BRANCH
 podman manifest rm partup-deb
