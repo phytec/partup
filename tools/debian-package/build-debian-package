@@ -3,6 +3,8 @@
 # Copyright (c) 2025 PHYTEC Messtechnik GmbH
 # Author: Martin Schwan <m.schwan@phytec.de>
 
+set -e
+
 BRANCH=main
 PLATFORM=linux/amd64,linux/arm64
 REPO=https://github.com/phytec/partup
