@@ -30,7 +30,7 @@ jobs:
       - name: Run system tests with loop device
         timeout-minutes: 2
         run: |
-          for f in tests/config/system-tests/*
+          for f in tests/config/system-tests/*.yaml
           do
             echo "Testing with $f"
             echo "Create package"
@@ -46,6 +46,11 @@ jobs:
             echo "Show loop device info"
             sudo fdisk -l ${{ env.loop_dev }}
             sudo blkid ${{ env.loop_dev }}
+            verify_script=${f%.*}.sh
+            if [ -f $verify_script ]; then
+              echo "Running verification script"
+              ./$verify_script ${{ env.loop_dev }}
+            fi
             git clean -xdf -e loop-file
           done
       - name: Remove loopdev
