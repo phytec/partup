@@ -13,6 +13,10 @@
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
+-  Add the input options ``exclude`` and ``only``, which allow excluding paths
+   from, or restricting an input to, specific paths. For ``.tar`` archives they
+   are passed to tar during extraction, for other inputs the paths are removed
+   from the partition after writing. See :ref:`input-files`.
 
 .. _release-4.0.0:
 
