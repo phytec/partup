@@ -56,7 +56,9 @@ sudo meson test --suite root -C build --print-errorlogs
   `error == NULL || *error == NULL`.
 - Free everything you allocate. Prefer `g_autofree`/`g_autoptr`.
 - Keep the SPDX license header and copyright line in new files
-  (`GPL-3.0-or-later`).
+  (`GPL-3.0-or-later`). Use the current year in the copyright line of new
+  files (check with `date +%Y`). Do not change the copyright year of existing
+  files.
 - Do not add new dependencies without discussing it first.
 
 ## Documentation
