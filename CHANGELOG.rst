@@ -13,6 +13,9 @@
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
+-  Allow aborting ``partup install`` with ``Ctrl+C`` (``SIGINT``) or
+   ``SIGTERM``. The package and partitions are unmounted and partup exits with
+   status 130.
 
 .. _release-4.0.0:
 

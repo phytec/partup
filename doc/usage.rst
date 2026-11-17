@@ -58,6 +58,20 @@ show [OPTION…] *PACKAGE*
 version
    Print the program version
 
+Aborting an Installation
+------------------------
+
+While ``install`` is writing to the device, it can be aborted with ``Ctrl+C``
+(``SIGINT``) or ``SIGTERM``. partup then stops at the next safe point, unmounts
+the package and any partitions it mounted, prints ``Aborted by user`` and exits
+with status 130. A second signal terminates partup immediately without cleaning
+up.
+
+.. warning::
+
+   An aborted installation leaves the device partially written. Run the
+   installation again before using the device.
+
    .. deprecated:: 5.0.0
       Use the global ``-V, --version`` option instead.
 
