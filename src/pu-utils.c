@@ -5,6 +5,7 @@
 
 #define G_LOG_DOMAIN "partup-utils"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <gio/gio.h>
 #include <glib.h>
@@ -13,6 +14,7 @@
 #include <blkid.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include "pu-config.h"
 #include "pu-error.h"
 #include "pu-glib-compat.h"
@@ -199,17 +201,13 @@ pu_write_raw(const gchar *input_path,
              GError **error)
 {
     g_autoptr(GFile) input_file = NULL;
-    g_autoptr(GFile) output_file = NULL;
-    g_autoptr(GFileInputStream) input_fistream = NULL;
-    g_autoptr(GFileIOStream) output_fiostream = NULL;
-    GOutputStream *output_ostream;
     g_autoptr(GFileInfo) input_finfo = NULL;
-    g_autoptr(GFileInfo) output_finfo = NULL;
     goffset input_size;
     gsize buffer_size;
-    gsize num_read;
     gsize input_remaining;
-    gssize ret;
+    gboolean ret = TRUE;
+    gint input_fd;
+    gint output_fd;
     g_autofree guchar *buffer = NULL;
 
     g_return_val_if_fail(input_path != NULL, FALSE);
@@ -239,25 +237,33 @@ pu_write_raw(const gchar *input_path,
         return FALSE;
     }
 
-    output_file = g_file_new_for_path(output_path);
-
-    /* Open input and output stream */
-    input_fistream = g_file_read(input_file, NULL, error);
-    if (input_fistream == NULL)
+    /* Plain file descriptors are used for the copy loop. GIO streams retry
+     * interrupted system calls internally, which would delay aborting with
+     * SIGINT while read() or write() blocks on a slow device. */
+    input_fd = g_open(input_path, O_RDONLY | O_CLOEXEC, 0);
+    if (input_fd < 0) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed opening '%s': %s", input_path, g_strerror(errno));
         return FALSE;
+    }
 
-    output_fiostream = g_file_open_readwrite(output_file, NULL, error);
-    if (output_fiostream == NULL)
+    output_fd = g_open(output_path, O_RDWR | O_CLOEXEC, 0);
+    if (output_fd < 0) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed opening '%s': %s", output_path, g_strerror(errno));
+        close(input_fd);
         return FALSE;
-    output_ostream = g_io_stream_get_output_stream(G_IO_STREAM(output_fiostream));
+    }
 
-    if (g_input_stream_skip(G_INPUT_STREAM(input_fistream), input_offset, NULL,
-                            error) < 0)
-        return FALSE;
-
-    if (!g_seekable_seek(G_SEEKABLE(output_fiostream), output_offset,
-                         G_SEEK_SET, NULL, error))
-        return FALSE;
+    /* Skip seeking the input at offset 0, so that pipes work as input */
+    if ((input_offset > 0 && lseek(input_fd, input_offset, SEEK_SET) < 0) ||
+        lseek(output_fd, output_offset, SEEK_SET) < 0) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed seeking in '%s' or '%s': %s", input_path,
+                    output_path, g_strerror(errno));
+        ret = FALSE;
+        goto out;
+    }
 
     /* Begin reading and writing */
     input_remaining = input_size - input_offset;
@@ -265,25 +271,65 @@ pu_write_raw(const gchar *input_path,
     buffer = g_new0(guchar, buffer_size);
 
     while (input_remaining > 0) {
-        if (!pu_signal_check(error))
-            return FALSE;
+        gsize num_written = 0;
+        gssize num_read;
+
+        if (!pu_signal_check(error)) {
+            ret = FALSE;
+            goto out;
+        }
 
         if (input_remaining < buffer_size)
             buffer_size = input_remaining;
 
-        ret = g_input_stream_read(G_INPUT_STREAM(input_fistream), buffer,
-                                  buffer_size, NULL, error);
-        if (ret < 0)
-            return FALSE;
-        num_read = ret;
+        num_read = read(input_fd, buffer, buffer_size);
+        if (num_read < 0) {
+            if (errno == EINTR)
+                continue; /* Re-check for abort at the top of the loop */
+            g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                        "Failed reading '%s': %s", input_path, g_strerror(errno));
+            ret = FALSE;
+            goto out;
+        }
+        if (num_read == 0) {
+            g_set_error(error, PU_ERROR, PU_ERROR_FAILED,
+                        "Unexpected end of input file '%s'", input_path);
+            ret = FALSE;
+            goto out;
+        }
 
-        if (g_output_stream_write(output_ostream, buffer, num_read, NULL, error) < 0)
-            return FALSE;
+        while (num_written < (gsize)num_read) {
+            gssize num = write(output_fd, buffer + num_written,
+                               num_read - num_written);
+            if (num < 0) {
+                if (errno == EINTR) {
+                    if (!pu_signal_check(error)) {
+                        ret = FALSE;
+                        goto out;
+                    }
+                    continue;
+                }
+                g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                            "Failed writing '%s': %s", output_path,
+                            g_strerror(errno));
+                ret = FALSE;
+                goto out;
+            }
+            num_written += num;
+        }
 
         input_remaining -= num_read;
     }
 
-    return TRUE;
+out:
+    close(input_fd);
+    if (close(output_fd) < 0 && ret) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed closing '%s': %s", output_path, g_strerror(errno));
+        ret = FALSE;
+    }
+
+    return ret;
 }
 
 gboolean
