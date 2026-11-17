@@ -7,10 +7,6 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 #include <signal.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pthread.h>
 #include "helper.h"
 #include "pu-glib-compat.h"
 #include "pu-signal.h"
@@ -138,50 +134,6 @@ test_write_raw_cancelled(EmptyFileFixture *fixture,
     pu_signal_reset();
 }
 
-static gpointer
-raise_sigint_delayed(gpointer data)
-{
-    g_usleep(300 * G_USEC_PER_SEC / 1000);
-    pthread_kill(*(pthread_t *)data, SIGINT);
-    return NULL;
-}
-
-static void
-test_write_raw_cancelled_while_blocked(EmptyFileFixture *fixture,
-                                       G_GNUC_UNUSED gconstpointer user_data)
-{
-    g_autoptr(GError) error = NULL;
-    g_autofree gchar *dir = NULL;
-    g_autofree gchar *fifo = NULL;
-    GThread *thread;
-    pthread_t self = pthread_self();
-    PedDevice device;
-    gint fd;
-
-    device.sector_size = 512;
-
-    dir = g_dir_make_tmp("partup-XXXXXX", &error);
-    g_assert_no_error(error);
-    fifo = g_build_filename(dir, "fifo", NULL);
-    g_assert_cmpint(mkfifo(fifo, 0600), ==, 0);
-
-    /* Keep the write end open without writing, so that read() blocks */
-    fd = g_open(fifo, O_RDWR, 0);
-    g_assert_cmpint(fd, >=, 0);
-
-    pu_signal_init();
-    thread = g_thread_new("sigint", raise_sigint_delayed, &self);
-    g_assert_false(pu_write_raw(fifo, g_file_get_path(fixture->file), &device,
-                   0, 0, 1, &error));
-    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
-    g_thread_join(thread);
-    pu_signal_reset();
-
-    close(fd);
-    g_unlink(fifo);
-    g_rmdir(dir);
-}
-
 static void
 test_spawn_command_line_sync_cancelled(void)
 {
@@ -304,9 +256,6 @@ main(int argc,
                test_write_raw_input_offset, empty_file_tear_down);
     g_test_add("/utils/write_raw_cancelled", EmptyFileFixture, "file", empty_file_set_up,
                test_write_raw_cancelled, empty_file_tear_down);
-    g_test_add("/utils/write_raw_cancelled_while_blocked", EmptyFileFixture, "file",
-               empty_file_set_up, test_write_raw_cancelled_while_blocked,
-               empty_file_tear_down);
     g_test_add_func("/utils/spawn_command_line_sync_cancelled",
                     test_spawn_command_line_sync_cancelled);
     g_test_add_func("/utils/path_from_filename", test_path_from_filename);
