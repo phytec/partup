@@ -12,6 +12,7 @@
 #include "pu-file.h"
 #include "pu-hashtable.h"
 #include "pu-mount.h"
+#include "pu-signal.h"
 #include "pu-utils.h"
 #include "pu-emmc.h"
 
@@ -312,6 +313,10 @@ pu_emmc_write_data(PuFlash *flash,
 
     for (GList *p = self->partitions; p != NULL; p = p->next) {
         PuEmmcPartition *part = p->data;
+
+        if (!pu_signal_check(error))
+            return FALSE;
+
         if (part->type == PED_PARTITION_LOGICAL && first_logical_part == FALSE) {
             first_logical_part = TRUE;
             idx = 5;
@@ -352,6 +357,9 @@ pu_emmc_write_data(PuFlash *flash,
         for (GList *i = part->input; i != NULL; i = i->next) {
             PuEmmcInput *input = i->data;
             g_autofree gchar *path = NULL;
+
+            if (!pu_signal_check(error))
+                return FALSE;
 
             path = pu_path_from_filename(input->filename, prefix, error);
             if (path == NULL) {
@@ -405,6 +413,9 @@ pu_emmc_write_data(PuFlash *flash,
     for (GList *c = self->clean; c != NULL; c = c->next) {
         PuEmmcClean *clean = c->data;
 
+        if (!pu_signal_check(error))
+            return FALSE;
+
         if (clean->size == 0) {
             g_warning("Size 0 specified. Skipping cleaning at %lld", clean->offset);
             continue;
@@ -425,6 +436,9 @@ pu_emmc_write_data(PuFlash *flash,
         g_autofree gchar *path = NULL;
         gsize size = 0;
         g_autofree gchar *output_sha1sum = NULL;
+
+        if (!pu_signal_check(error))
+            return FALSE;
 
         path = pu_path_from_filename(input->filename, prefix, error);
         if (path == NULL) {

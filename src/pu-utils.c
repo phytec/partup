@@ -16,6 +16,7 @@
 #include "pu-config.h"
 #include "pu-error.h"
 #include "pu-glib-compat.h"
+#include "pu-signal.h"
 #include "pu-utils.h"
 
 #define UDEVADM_SETTLE_TIMEOUT 10
@@ -30,6 +31,9 @@ pu_spawn_command_line_sync(const gchar *command_line,
     g_autofree gchar *errmsg = NULL;
 
     g_return_val_if_fail(command_line != NULL, FALSE);
+
+    if (!pu_signal_check(error))
+        return FALSE;
 
     g_debug("Running command: %s", command_line);
 
@@ -46,6 +50,13 @@ pu_spawn_command_line_sync(const gchar *command_line,
     }
 
     if (!g_spawn_check_wait_status(wait_status, error)) {
+        /* Report an interrupt instead of the failure of the child */
+        if (pu_signal_is_cancelled()) {
+            g_clear_error(error);
+            pu_signal_check(error);
+            g_strfreev(argv);
+            return FALSE;
+        }
         g_prefix_error(error, "Command '%s' failed with error message: '%s': ",
                        command_line, errmsg);
         g_strfreev(argv);
@@ -254,6 +265,9 @@ pu_write_raw(const gchar *input_path,
     buffer = g_new0(guchar, buffer_size);
 
     while (input_remaining > 0) {
+        if (!pu_signal_check(error))
+            return FALSE;
+
         if (input_remaining < buffer_size)
             buffer_size = input_remaining;
 

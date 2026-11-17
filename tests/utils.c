@@ -6,8 +6,10 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
+#include <signal.h>
 #include "helper.h"
 #include "pu-glib-compat.h"
+#include "pu-signal.h"
 #include "pu-utils.h"
 #include "pu-error.h"
 
@@ -114,6 +116,34 @@ test_write_raw_input_offset(EmptyFileFixture *fixture,
     g_assert_true(pu_write_raw("data/root.ext4", g_file_get_path(fixture->file),
                   &device, 2, 0, 0, &fixture->error));
     g_assert_no_error(fixture->error);
+}
+
+static void
+test_write_raw_cancelled(EmptyFileFixture *fixture,
+                         G_GNUC_UNUSED gconstpointer user_data)
+{
+    g_autoptr(GError) error = NULL;
+    PedDevice device;
+    device.sector_size = 512;
+
+    pu_signal_init();
+    raise(SIGINT);
+    g_assert_false(pu_write_raw("data/root.ext4", g_file_get_path(fixture->file),
+                   &device, 0, 0, 0, &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
+    pu_signal_reset();
+}
+
+static void
+test_spawn_command_line_sync_cancelled(void)
+{
+    g_autoptr(GError) error = NULL;
+
+    pu_signal_init();
+    raise(SIGINT);
+    g_assert_false(pu_spawn_command_line_sync("true", &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
+    pu_signal_reset();
 }
 
 static void
@@ -224,6 +254,10 @@ main(int argc,
                test_write_raw, empty_file_tear_down);
     g_test_add("/utils/write_raw_input_offset", EmptyFileFixture, "file", empty_file_set_up,
                test_write_raw_input_offset, empty_file_tear_down);
+    g_test_add("/utils/write_raw_cancelled", EmptyFileFixture, "file", empty_file_set_up,
+               test_write_raw_cancelled, empty_file_tear_down);
+    g_test_add_func("/utils/spawn_command_line_sync_cancelled",
+                    test_spawn_command_line_sync_cancelled);
     g_test_add_func("/utils/path_from_filename", test_path_from_filename);
     g_test_add_func("/utils/path_from_filename_empty", test_path_from_filename_empty);
     g_test_add_func("/utils/device_get_partition_path_mmc",

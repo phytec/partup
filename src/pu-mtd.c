@@ -17,6 +17,8 @@
 #include "pu-file.h"
 #include "pu-flash.h"
 #include "pu-hashtable.h"
+#include "pu-signal.h"
+#include "pu-signal.h"
 #include "pu-utils.h"
 #include "pu-mtd.h"
 
@@ -363,6 +365,9 @@ pu_mtd_setup_layout(PuFlash *flash,
         g_autofree gchar *cmd = NULL;
         const PuMtdPartition *p = NULL;
 
+        if (!pu_signal_check(error))
+            return FALSE;
+
         if (!pu_mtd_partition_enumerator_iterate(part_enum, &part_info, error)) {
             g_prefix_error(error, "Failed iterating partition enumerator: ");
             return FALSE;
@@ -416,6 +421,9 @@ pu_mtd_write_data(PuFlash *flash,
         g_autofree gchar *output_sha1sum = NULL;
         g_autofree gchar *part_dev = NULL;
         const PuMtdPartition *p = NULL;
+
+        if (!pu_signal_check(error))
+            return FALSE;
 
         if (!pu_mtd_partition_enumerator_iterate(part_enum, &part_info, error)) {
             g_prefix_error(error, "Failed iterating partition enumerator: ");

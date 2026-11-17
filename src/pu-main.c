@@ -9,6 +9,7 @@
 #include <glib/gstdio.h>
 #include <locale.h>
 #include <parted/parted.h>
+#include <signal.h>
 #include <unistd.h>
 #include "pu-command.h"
 #include "pu-config.h"
@@ -19,6 +20,7 @@
 #include "pu-mount.h"
 #include "pu-mtd.h"
 #include "pu-package.h"
+#include "pu-signal.h"
 #include "pu-utils.h"
 #include "pu-version.h"
 
@@ -136,6 +138,9 @@ cmd_install(PuCommandContext *context,
                     device_path);
         return error_out(mount_path);
     }
+
+    /* Allow aborting with Ctrl+C from here on, where cleanup is needed */
+    pu_signal_init();
 
     if (!pu_flash_init_device(flash, error)) {
         g_prefix_error(error, "Failed initializing device: ");
@@ -289,6 +294,10 @@ main(G_GNUC_UNUSED int argc,
     pu_log_set_debug_domains(arg_quiet, arg_debug, arg_debug_domains);
 
     if (!pu_command_context_invoke(context_cmd, &error)) {
+        if (g_error_matches(error, PU_ERROR, PU_ERROR_CANCELLED)) {
+            g_message("%s", error->message);
+            return 128 + SIGINT;
+        }
         g_critical("%s", error->message);
         return 1;
     }
