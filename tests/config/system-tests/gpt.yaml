@@ -16,6 +16,7 @@ partitions:
     input:
       - filename: lorem.txt
   - label: ROOT1
+    type-guid: "0fc63daf-8483-4772-8e79-3d69d8477de4"
     filesystem: ext4
     expand: true
     input:

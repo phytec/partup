@@ -118,6 +118,58 @@ test_raw_overwrite_fail_raw(EmptyFileFixture *fixture,
     g_clear_error(&fixture->error);
 }
 
+static void
+check_parse(EmptyFileFixture *fixture,
+            const gchar *path,
+            gboolean expect_ok)
+{
+    g_autoptr(PuConfig) config = NULL;
+    g_autoptr(PuEmmc) emmc = NULL;
+
+    config = pu_config_new_from_file(path, &fixture->error);
+    g_assert_no_error(fixture->error);
+    g_assert_nonnull(config);
+
+    emmc = pu_emmc_new(g_file_get_path(fixture->file), config, NULL, FALSE,
+                       &fixture->error);
+    if (expect_ok) {
+        g_assert_no_error(fixture->error);
+        g_assert_nonnull(emmc);
+    } else {
+        g_assert_error(fixture->error, PU_ERROR, PU_ERROR_EMMC_PARSE);
+        g_assert_null(emmc);
+        g_clear_error(&fixture->error);
+    }
+}
+
+static void
+test_gpt_guids(EmptyFileFixture *fixture,
+               G_GNUC_UNUSED gconstpointer user_data)
+{
+    check_parse(fixture, "config/gpt-guids.yaml", TRUE);
+}
+
+static void
+test_gpt_invalid_partuuid(EmptyFileFixture *fixture,
+                          G_GNUC_UNUSED gconstpointer user_data)
+{
+    check_parse(fixture, "config/gpt-invalid-partuuid.yaml", FALSE);
+}
+
+static void
+test_gpt_invalid_type_guid(EmptyFileFixture *fixture,
+                           G_GNUC_UNUSED gconstpointer user_data)
+{
+    check_parse(fixture, "config/gpt-invalid-type-guid.yaml", FALSE);
+}
+
+static void
+test_msdos_gpt_options(EmptyFileFixture *fixture,
+                       G_GNUC_UNUSED gconstpointer user_data)
+{
+    check_parse(fixture, "config/msdos-gpt-options.yaml", TRUE);
+}
+
 int
 main(int argc,
      char *argv[])
@@ -140,6 +192,14 @@ main(int argc,
     g_test_add("/emmc/raw_overwrite_fail_raw", EmptyFileFixture, "mmcblk0",
                empty_file_set_up, test_raw_overwrite_fail_raw,
                empty_file_tear_down);
+    g_test_add("/emmc/gpt_guids", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_gpt_guids, empty_file_tear_down);
+    g_test_add("/emmc/gpt_invalid_partuuid", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_gpt_invalid_partuuid, empty_file_tear_down);
+    g_test_add("/emmc/gpt_invalid_type_guid", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_gpt_invalid_type_guid, empty_file_tear_down);
+    g_test_add("/emmc/msdos_ignores_gpt_options", EmptyFileFixture, "mmcblk0",
+               empty_file_set_up, test_msdos_gpt_options, empty_file_tear_down);
 
     return g_test_run();
 }

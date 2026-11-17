@@ -46,6 +46,11 @@ gboolean pu_partition_set_partuuid(const gchar *device,
                                    guint index,
                                    const gchar *partuuid,
                                    GError **error);
+gboolean pu_partition_set_type_guid(const gchar *device,
+                                    guint index,
+                                    const gchar *type_guid,
+                                    GError **error);
+gboolean pu_is_valid_uuid(const gchar *uuid);
 gboolean pu_is_drive(const gchar *device);
 gboolean pu_is_ext234_image(const gchar *path);
 gboolean pu_wait_for_partitions(GError **error);

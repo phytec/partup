@@ -1,0 +1,8 @@
+api-version: 1
+disklabel: gpt
+
+partitions:
+  - label: BOOT
+    type-guid: "6a69db6b-0858-404c-b42c-a58f5fb498f"
+    size: 32MiB
+    offset: 1MiB
