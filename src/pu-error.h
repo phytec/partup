@@ -37,7 +37,10 @@ typedef enum {
     PU_ERROR_UNKNOWN_FSTYPE,
 
     /* Mount error */
-    PU_ERROR_MOUNT
+    PU_ERROR_MOUNT,
+
+    /* Operation aborted by the user (SIGINT/SIGTERM) */
+    PU_ERROR_CANCELLED
 } PuErrorEnum;
 
 GQuark pu_error_quark(void);
