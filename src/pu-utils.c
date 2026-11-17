@@ -5,6 +5,7 @@
 
 #define G_LOG_DOMAIN "partup-utils"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <gio/gio.h>
 #include <glib.h>
@@ -13,6 +14,7 @@
 #include <blkid.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include "pu-config.h"
 #include "pu-error.h"
 #include "pu-glib-compat.h"
@@ -20,6 +22,37 @@
 #include "pu-utils.h"
 
 #define UDEVADM_SETTLE_TIMEOUT 10
+
+/* Amount of written data after which the output is flushed to the device. The
+ * kernel flushes a block device when it is closed, so without this an abort
+ * would block for as long as it takes to write all cached data. */
+#define PU_WRITE_SYNC_INTERVAL (16 * PED_MEBIBYTE_SIZE)
+
+typedef gint PuFd;
+
+static void
+pu_fd_clear(PuFd *fd)
+{
+    if (*fd >= 0)
+        close(*fd);
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(PuFd, pu_fd_clear)
+
+static gboolean
+sync_output(PuFd fd,
+            const gchar *path,
+            GError **error)
+{
+    /* EINVAL: Output does not support syncing, e.g. a character device */
+    if (fdatasync(fd) < 0 && errno != EINVAL) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed syncing '%s': %s", path, g_strerror(errno));
+        return FALSE;
+    }
+
+    return TRUE;
+}
 
 gboolean
 pu_spawn_command_line_sync(const gchar *command_line,
@@ -209,7 +242,9 @@ pu_write_raw(const gchar *input_path,
     gsize buffer_size;
     gsize num_read;
     gsize input_remaining;
+    gsize unsynced = 0;
     gssize ret;
+    g_auto(PuFd) sync_fd = -1;
     g_autofree guchar *buffer = NULL;
 
     g_return_val_if_fail(input_path != NULL, FALSE);
@@ -251,6 +286,16 @@ pu_write_raw(const gchar *input_path,
         return FALSE;
     output_ostream = g_io_stream_get_output_stream(G_IO_STREAM(output_fiostream));
 
+    /* Separate descriptor for syncing, which shares the page cache with the
+     * stream and avoids depending on gio-unix */
+    sync_fd = g_open(output_path, O_WRONLY | O_CLOEXEC, 0);
+    if (sync_fd < 0) {
+        g_set_error(error, G_IO_ERROR, g_io_error_from_errno(errno),
+                    "Failed opening '%s' for syncing: %s", output_path,
+                    g_strerror(errno));
+        return FALSE;
+    }
+
     if (g_input_stream_skip(G_INPUT_STREAM(input_fistream), input_offset, NULL,
                             error) < 0)
         return FALSE;
@@ -265,6 +310,7 @@ pu_write_raw(const gchar *input_path,
     buffer = g_new0(guchar, buffer_size);
 
     while (input_remaining > 0) {
+        g_debug("checking signals");
         if (!pu_signal_check(error))
             return FALSE;
 
@@ -281,7 +327,18 @@ pu_write_raw(const gchar *input_path,
             return FALSE;
 
         input_remaining -= num_read;
+        unsynced += num_read;
+
+        if (unsynced >= PU_WRITE_SYNC_INTERVAL) {
+            g_debug("syncing");
+            if (!sync_output(sync_fd, output_path, error))
+                return FALSE;
+            unsynced = 0;
+        }
     }
+
+    if (unsynced > 0 && !sync_output(sync_fd, output_path, error))
+        return FALSE;
 
     return TRUE;
 }
