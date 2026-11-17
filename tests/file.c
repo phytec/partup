@@ -6,8 +6,10 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
+#include <signal.h>
 #include "pu-file.h"
 #include "pu-error.h"
+#include "pu-signal.h"
 
 #define ROOT_EXT4_SIZE 262144
 
@@ -47,6 +49,38 @@ test_file_copy_fail(void)
     g_assert_error(error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND);
 
     g_assert_cmpint(g_rmdir(dest), ==, 0);
+}
+
+static void
+test_file_copy_cancelled(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *dest = NULL;
+
+    dest = g_dir_make_tmp("partup-XXXXXX", &error);
+    g_assert_no_error(error);
+
+    pu_signal_init();
+    raise(SIGINT);
+    g_assert_false(pu_file_copy("data/lorem.txt", dest, &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
+    pu_signal_reset();
+
+    g_assert_cmpint(g_rmdir(dest), ==, 0);
+}
+
+static void
+test_file_read_raw_cancelled(void)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree guchar *buffer = NULL;
+
+    pu_signal_init();
+    raise(SIGINT);
+    g_assert_false(pu_file_read_raw("data/root.ext4", &buffer, 0, -1, NULL,
+                                    &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
+    pu_signal_reset();
 }
 
 static void
@@ -94,6 +128,8 @@ main(int argc,
 
     g_test_add_func("/file/file_copy", test_file_copy);
     g_test_add_func("/file/file_copy_fail", test_file_copy_fail);
+    g_test_add_func("/file/file_copy_cancelled", test_file_copy_cancelled);
+    g_test_add_func("/file/file_read_raw_cancelled", test_file_read_raw_cancelled);
     g_test_add_func("/file/file_get_size", test_file_get_size);
     g_test_add_func("/file/file_read_int64", test_file_read_int64);
 

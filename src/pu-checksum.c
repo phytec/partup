@@ -34,8 +34,8 @@ pu_checksum_verify_file(const gchar *filename,
 
     file_size = g_file_info_get_size(file_info);
     buffer = g_new0(guchar, file_size);
-    if (!g_input_stream_read_all(G_INPUT_STREAM(stream), buffer, file_size,
-                                 NULL, NULL, error))
+    if (!pu_file_read_all_interruptible(G_INPUT_STREAM(stream), buffer,
+                                        file_size, NULL, error))
         return FALSE;
 
     computed_checksum = g_compute_checksum_for_data(checksum_type, buffer, file_size);

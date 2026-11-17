@@ -6,13 +6,28 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gio/gio.h>
+#include <signal.h>
 #include "pu-checksum.h"
 #include "pu-error.h"
+#include "pu-signal.h"
 
 #define LOREM_TXT_SHA256SUM "25623b53e0984428da972f4c635706d32d01ec92dcd2ab39066082e0b9488c9d"
 #define LOREM_TXT_MD5SUM    "3bc34a45d26784b5bea8529db533ae84"
 #define RANDOM_BIN_1024_3072_SHA256SUM "e8f899417ccad9ca2d4a49057aed9b9c1e0998d29434006ce0130d180d76e90d"
 #define RANDOM_BIN_1024_3072_MD5SUM    "c231ac1b4f0ed9efbc485310de58bc3d"
+
+static void
+checksum_cancelled(void)
+{
+    g_autoptr(GError) error = NULL;
+
+    pu_signal_init();
+    raise(SIGINT);
+    g_assert_false(pu_checksum_verify_file("data/lorem.txt", LOREM_TXT_SHA256SUM,
+                                           G_CHECKSUM_SHA256, &error));
+    g_assert_error(error, PU_ERROR, PU_ERROR_CANCELLED);
+    pu_signal_reset();
+}
 
 static void
 checksum_good(void)
@@ -99,6 +114,7 @@ main(int argc,
 #endif
 
     g_test_add_func("/checksum/good", checksum_good);
+    g_test_add_func("/checksum/cancelled", checksum_cancelled);
     g_test_add_func("/checksum/bad", checksum_bad);
     g_test_add_func("/checksum/creation", checksum_creation);
 

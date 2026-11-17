@@ -6,8 +6,14 @@
 #ifndef PARTUP_FILE_H
 #define PARTUP_FILE_H
 
+#include <gio/gio.h>
 #include <glib.h>
 
+gboolean pu_file_read_all_interruptible(GInputStream *stream,
+                                        guchar *buffer,
+                                        gsize count,
+                                        gsize *bytes_read,
+                                        GError **error);
 gboolean pu_file_read_raw(const gchar *filename,
                           guchar **buffer,
                           goffset offset,
