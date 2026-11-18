@@ -19,6 +19,7 @@
 #include "pu-hashtable.h"
 #include "pu-utils.h"
 #include "pu-mtd.h"
+#include "pu-ubi.h"
 
 typedef struct _PuMtdInput {
     gchar *filename;
@@ -35,6 +36,7 @@ typedef struct _PuMtdPartition {
     gboolean erase;
     gboolean expand;
     PuMtdInput *input;
+    GList *volumes;
 } PuMtdPartition;
 
 struct _PuMtd {
@@ -475,6 +477,14 @@ pu_mtd_write_data(PuFlash *flash,
 static void
 pu_mtd_class_finalize(GObject *object)
 {
+    PuMtd *self = PU_MTD(object);
+
+    for (GList *p = self->partitions; p != NULL; p = p->next) {
+        PuMtdPartition *part = p->data;
+        pu_ubi_volumes_free(part->volumes);
+        part->volumes = NULL;
+    }
+
     G_OBJECT_CLASS(pu_mtd_parent_class)->finalize(object);
 }
 
@@ -593,6 +603,24 @@ pu_mtd_parse_partitions(PuMtd *mtd,
                             input->filename, input->_size, part->size);
                 return FALSE;
             }
+        }
+
+        PuConfigValue *value_ubi = g_hash_table_lookup(v->data.mapping, "ubi");
+        if (value_ubi) {
+            if (part->input) {
+                g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                            "Partition '%s' has an input and UBI volumes. "
+                            "Only one of both is supported", part->name);
+                return FALSE;
+            }
+            if (value_ubi->type != PU_CONFIG_VALUE_TYPE_MAPPING) {
+                g_set_error(error, PU_ERROR, PU_ERROR_MTD_PARSE,
+                            "'ubi' of partition does not contain a mapping");
+                return FALSE;
+            }
+            if (!pu_ubi_parse_volumes(value_ubi->data.mapping, prefix,
+                                      &part->volumes, error))
+                return FALSE;
         }
 
         mtd->partitions = g_list_prepend(mtd->partitions, part);
