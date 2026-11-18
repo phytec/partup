@@ -91,6 +91,18 @@ mtd_ubi_input_too_big(void)
 }
 
 static void
+mtd_ubi_static_filesystem(void)
+{
+    mtd_ubi_fail("config/ubi-static-filesystem.yaml", PU_ERROR_UBI_PARSE);
+}
+
+static void
+mtd_ubi_static_expand(void)
+{
+    mtd_ubi_fail("config/ubi-static-expand.yaml", PU_ERROR_UBI_PARSE);
+}
+
+static void
 mtd_ubi_input_and_partition(void)
 {
     mtd_ubi_fail("config/ubi-input-and-partition.yaml", PU_ERROR_MTD_PARSE);
@@ -114,6 +126,8 @@ main(int argc,
     g_test_add_func("/mtd/ubi/unknown-type", mtd_ubi_unknown_type);
     g_test_add_func("/mtd/ubi/unknown-filesystem", mtd_ubi_unknown_filesystem);
     g_test_add_func("/mtd/ubi/input-too-big", mtd_ubi_input_too_big);
+    g_test_add_func("/mtd/ubi/static-filesystem", mtd_ubi_static_filesystem);
+    g_test_add_func("/mtd/ubi/static-expand", mtd_ubi_static_expand);
     g_test_add_func("/mtd/ubi/input-and-partition", mtd_ubi_input_and_partition);
 
     return g_test_run();
