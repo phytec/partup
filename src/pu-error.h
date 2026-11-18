@@ -27,6 +27,8 @@ typedef enum {
 
     /* UBI errors */
     PU_ERROR_UBI_PARSE,
+    PU_ERROR_UBI_FORMAT,
+    PU_ERROR_UBI_VERIFY,
 
     /* Config parsing errors */
     PU_ERROR_CONFIG_INIT_FAILED,
