@@ -424,7 +424,7 @@ pu_emmc_write_data(PuFlash *flash,
         PuEmmcInput *input = bin->input;
         g_autofree gchar *path = NULL;
         gsize size = 0;
-        g_autofree gchar *output_sha1sum = NULL;
+        g_autofree gchar *output_checksum = NULL;
 
         path = pu_path_from_filename(input->filename, prefix, error);
         if (path == NULL) {
@@ -464,15 +464,15 @@ pu_emmc_write_data(PuFlash *flash,
             return FALSE;
 
         if (!skip_checksums) {
-            output_sha1sum = pu_checksum_new_from_file(path, bin->input_offset *
-                                                       self->device->sector_size,
-                                                       G_CHECKSUM_SHA1, error);
-            g_debug("Verifying SHA1 sum of written output: %s", output_sha1sum);
+            output_checksum = pu_checksum_new_from_file(path, bin->input_offset *
+                                                        self->device->sector_size,
+                                                        G_CHECKSUM_SHA256, error);
+            g_debug("Verifying SHA256 sum of written output: %s", output_checksum);
             if (!pu_checksum_verify_raw(self->device->path, bin->output_offset *
                                         self->device->sector_size,
                                         size - bin->input_offset *
-                                        self->device->sector_size, output_sha1sum,
-                                        G_CHECKSUM_SHA1, error))
+                                        self->device->sector_size, output_checksum,
+                                        G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
     }
@@ -502,7 +502,7 @@ pu_emmc_write_data(PuFlash *flash,
                 PuEmmcBinary *bin = i->data;
                 g_autofree gchar *path = NULL;
                 gsize size = 0;
-                g_autofree gchar *output_sha1sum = NULL;
+                g_autofree gchar *output_checksum = NULL;
 
                 path = pu_path_from_filename(bin->input->filename, prefix, error);
                 if (path == NULL) {
@@ -552,18 +552,18 @@ pu_emmc_write_data(PuFlash *flash,
                     return FALSE;
 
                 if (!skip_checksums) {
-                    output_sha1sum = pu_checksum_new_from_file(
+                    output_checksum = pu_checksum_new_from_file(
                             path, bin->input_offset * self->device->sector_size,
-                            G_CHECKSUM_SHA1, error);
-                    g_debug("Verifying SHA1 sum of written output: %s",
-                            output_sha1sum);
+                            G_CHECKSUM_SHA256, error);
+                    g_debug("Verifying SHA256 sum of written output: %s",
+                            output_checksum);
                     if (!pu_checksum_verify_raw_bootpart(self->device->path, 0,
                                                          bin->output_offset *
                                                          self->device->sector_size,
                                                          size - bin->input_offset *
                                                          self->device->sector_size,
-                                                         output_sha1sum,
-                                                         G_CHECKSUM_SHA1, error))
+                                                         output_checksum,
+                                                         G_CHECKSUM_SHA256, error))
                         return FALSE;
 
                     if (!pu_checksum_verify_raw_bootpart(self->device->path, 1,
@@ -571,8 +571,8 @@ pu_emmc_write_data(PuFlash *flash,
                                                          self->device->sector_size,
                                                          size - bin->input_offset *
                                                          self->device->sector_size,
-                                                         output_sha1sum,
-                                                         G_CHECKSUM_SHA1, error))
+                                                         output_checksum,
+                                                         G_CHECKSUM_SHA256, error))
                         return FALSE;
                 }
             }
