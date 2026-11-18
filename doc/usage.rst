@@ -84,14 +84,17 @@ translation layer. This includes:
 -  SSD
 -  SD cards
 -  eMMC devices and their eMMC boot partitions
+-  Memory Technology Devices (MTD) (since :ref:`release-3.0.0`), including raw
+   NAND flash with UBI volumes (since :ref:`release-5.0.0`)
 
-The device must be named ``mmcblk*`` or ``sd*``, e.g. the following device names
-are valid::
+The device must be named ``mmcblk*``, ``sd*``, or ``mtd*``, e.g. the following
+device names are valid::
 
    /dev/mmcblk0
    /dev/mmcblk9
    /dev/sda
    /dev/sdf
+   /dev/mtd0
 
 .. warning::
 
@@ -100,9 +103,10 @@ are valid::
 
 .. note::
 
-   Devices with raw access to memory, not incorporating a flash translation
-   layer, like those accessible through the `Linux MTD interface
-   <http://www.linux-mtd.infradead.org/>`_, are currently not supported.
+   MTDs must be specified as their master device, like ``/dev/mtd0``. partup
+   creates the MTD's partitions itself. For that, the kernel must be configured
+   with ``CONFIG_MTD_PARTITIONED_MASTER``, so that the master device is exposed
+   even if the MTD is already partitioned.
 
 .. _example-usage:
 
@@ -212,10 +216,12 @@ to the raw device, namely:
 -  the ``raw`` section of MMC and HD devices (since :ref:`release-2.1.0`),
 -  eMMC boot partition ``binaries`` -- verified on both boot partitions
    (``boot0`` and ``boot1``) (since :ref:`release-3.0.0`), and
--  MTD ``partitions`` (since :ref:`release-3.0.0`).
+-  MTD ``partitions`` (since :ref:`release-3.0.0`), and
+-  UBI ``volumes`` without a filesystem (since :ref:`release-5.0.0`).
 
 Read-back verification is *not* performed for data that is written through a
 mounted filesystem, i.e. files copied into a partition, archives extracted into
-a partition, or raw ext[234] filesystem images written to a partition.
+a partition, or raw ext[234] or UBIFS filesystem images written to a partition
+or volume.
 
 The output verification is skipped when ``--skip-checksums`` is given.
