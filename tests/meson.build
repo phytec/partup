@@ -4,6 +4,7 @@ tests = [
   'config',
   'emmc',
   'file',
+  'mtd',
   'package',
   'unit',
   'utils'

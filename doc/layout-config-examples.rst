@@ -18,3 +18,9 @@ eMMC Layout With Raw WIC Image As Input
 
 .. literalinclude:: data/layout-raw-wic.yaml
    :language: yaml
+
+MTD Layout With UBI Volumes
+---------------------------
+
+.. literalinclude:: data/layout-ubi-nand.yaml
+   :language: yaml

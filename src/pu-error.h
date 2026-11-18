@@ -25,6 +25,11 @@ typedef enum {
     /* MTD errors */
     PU_ERROR_MTD_PARSE,
 
+    /* UBI errors */
+    PU_ERROR_UBI_PARSE,
+    PU_ERROR_UBI_FORMAT,
+    PU_ERROR_UBI_VERIFY,
+
     /* Config parsing errors */
     PU_ERROR_CONFIG_INIT_FAILED,
     PU_ERROR_CONFIG_INVALID_ROOT,

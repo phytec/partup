@@ -13,6 +13,19 @@
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
+-  Add support for UBI (Unsorted Block Images) volumes inside an MTD partition.
+   Raw NAND flashes have no partition table but use the UBI layer to manage
+   volumes within an MTD. A partition with an ``ubi`` section is formatted with
+   UBI, wiping all of its previous content, and the specified volumes are
+   created on top of it. Volumes are either dynamic, holding a UBIFS filesystem,
+   or static for raw data, which is how a bootloader usually accesses them.
+
+   Input files of volumes with a filesystem are copied into the mounted
+   filesystem or extracted into it, if they are archives. UBIFS images are
+   written directly to the volume. Volumes without a filesystem are written
+   directly and are verified by reading the volume back.
+
+   This needs the kernel's UBI and UBIFS modules to be available.
 
 .. _release-4.0.0:
 
