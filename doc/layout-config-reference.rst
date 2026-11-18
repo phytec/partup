@@ -307,6 +307,90 @@ contained partitions of an MTD. Each entry may contain the following options:
    given as a runtime argument. Note, that this checksum is independent from the
    input's ``sha256sum`` option. See :ref:`checksum-verification` for details.
 
+``ubi`` :badge-type:`mapping` :badge-since:`5.0.0`
+   A mapping with the UBI volumes to create on top of this partition. This
+   option is mutually exclusive with ``input``, as a partition either holds raw
+   data or UBI volumes. See :ref:`ubi-volumes`.
+
+.. _ubi-volumes:
+
+UBI Volumes
+............
+
+UBI (Unsorted Block Images) volume support is available since:
+:ref:`release-5.0.0`
+
+Raw NAND flash has no partition table. Instead, the UBI layer manages volumes
+inside an MTD. These volumes commonly hold a UBIFS rootfs or raw files for the
+bootloader. A partition with an ``ubi`` mapping is formatted with UBI and the
+volumes out of its ``volumes`` sequence are created on top of it.
+
+Formatting is always done with ``ubiformat``, which erases all previous content
+of the partition and writes fresh erase counters and an empty volume table.
+
+The ``ubi`` mapping contains the following option:
+
+``volumes`` :badge-type:`sequence` :badge-state:`required` :badge-since:`5.0.0`
+   A sequence of mappings describing the UBI volumes. Each mapping may contain
+   the following options:
+
+   ``name`` :badge-type:`string` :badge-state:`required` :badge-since:`5.0.0`
+      The volume name. UBI requires volume names to be unique within a UBI
+      device and to be at most 63 characters long.
+
+   ``size`` :badge-type:`integer` :badge-type:`string` :badge-since:`5.0.0`
+      The size of the volume. This scalar is mandatory, unless the volume is
+      expanded. The same units as for the partition's ``size`` are supported,
+      e.g. ``12kiB`` or ``34MB``. When no unit is specified, the default is
+      sectors. UBI rounds the size up to whole logical eraseblocks (LEB), so a
+      volume may become slightly larger than specified.
+
+   ``type`` :badge-type:`string` :badge-since:`5.0.0`
+      The volume type. Possible options are:
+
+      -  ``dynamic``: Volume that can be used as a UBI character device and can
+         hold a UBIFS filesystem. UBI assigns the volume's data to logical
+         eraseblocks dynamically.
+      -  ``static``: Volume with a fixed amount of logical eraseblocks, meant
+         for raw data only. This is what a bootloader usually uses to access
+         files directly.
+
+      The default value is ``dynamic``. A static volume cannot be expanded and
+      cannot have a filesystem.
+
+   ``filesystem`` :badge-type:`string` :badge-since:`5.0.0`
+      The filesystem type of the volume. The only supported filesystem is
+      ``ubifs``, which is also the default value of dynamic volumes. Use
+      ``null`` to write raw data into the volume. Static volumes have no
+      filesystem by default.
+
+      The filesystem is created with ``mkfs.ubifs`` before any input file is
+      written, replacing any filesystem that was on the volume before.
+
+   ``mkfs-extra-args`` :badge-type:`string` :badge-since:`5.0.0`
+      Extra arguments to be passed to ``mkfs.ubifs``. See ``man mkfs.ubifs``
+      for allowed arguments.
+
+   ``expand`` :badge-type:`boolean` :badge-since:`5.0.0`
+      Expand the volume to the rest of the UBI device. Only the last volume can
+      be expanded. The default is ``false`` for all volumes.
+
+   ``input`` :badge-type:`sequence` :badge-since:`5.0.0`
+      A sequence of input mappings. See :ref:`input-files`.
+
+      Volumes with a filesystem get their input files copied into the mounted
+      filesystem, or extracted if they are archives. UBIFS images are written
+      directly to the volume and are then mounted once, so that UBIFS can
+      resize the filesystem to the whole volume. Volumes without a filesystem
+      are written directly with ``ubiupdatevol``. Such a volume takes only one
+      input file, because writing replaces the whole volume's content.
+
+      Raw volume writes are always being verified by reading the volume back
+      and checking it against the input's SHA256 sum. The checksum is not
+      being verified when ``--skip-checksums`` is given as a runtime
+      argument. Note, that this checksum is independent from the input's
+      ``sha256sum`` option. See :ref:`checksum-verification` for details.
+
 .. _input-files:
 
 Input Files
@@ -356,3 +440,9 @@ types, they are treated as following.
    any existing filesystem, so it should be specified as ``filesystem: null`` or
    not be specified at all. Additionally ext filesystems are resized to utilize
    the whole partition.
+
+``ubifs``
+   Raw filesystem images are written directly to the UBI volume. This overrides
+   any existing filesystem. Additionally, the UBIFS filesystem is mounted after
+   writing, so that it resizes itself to utilize the whole volume. Only works on
+   :ref:`ubi-volumes`.
