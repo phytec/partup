@@ -40,4 +40,21 @@ gboolean pu_ubi_parse_volumes(GHashTable *ubi,
                               GError **error);
 void pu_ubi_volumes_free(GList *volumes);
 
+gchar * pu_ubi_get_ubi_node(guint mtd_devnum);
+gboolean pu_ubi_detach(guint mtd_devnum,
+                       GError **error);
+gboolean pu_ubi_format(const gchar *mtd_path,
+                       GError **error);
+gboolean pu_ubi_attach(guint mtd_devnum,
+                       gchar **ubi_node,
+                       GError **error);
+gboolean pu_ubi_create_volumes(const gchar *ubi_node,
+                               GList *volumes,
+                               GError **error);
+gboolean pu_ubi_write_volumes(const gchar *ubi_node,
+                              GList *volumes,
+                              const gchar *prefix,
+                              gboolean skip_checksums,
+                              GError **error);
+
 #endif /* PARTUP_UBI_H */
