@@ -10,6 +10,10 @@
 -  Add the global ``-V, --version`` option for printing the program version. The
    ``version`` command is deprecated in favor of this option and prints a
    warning when used.
+-  Verify the automatically read-back output data with a SHA256 sum instead of
+   a SHA1 sum. SHA1 is considered insecure, while SHA256 is only marginally
+   slower for this use case. This does not change any layout configuration
+   options, as this checksum is generated and compared internally.
 -  Add a FAQ section to the documentation explaining the ``Filesystem has
    unsupported feature(s)`` error of ``resize2fs``, caused by the ext4
    ``orphan_file`` feature and old e2fsprogs versions.
