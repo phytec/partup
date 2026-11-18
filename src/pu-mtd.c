@@ -413,7 +413,7 @@ pu_mtd_write_data(PuFlash *flash,
     while (TRUE) {
         g_autofree gchar *cmd = NULL;
         g_autofree gchar *path = NULL;
-        g_autofree gchar *output_sha1sum = NULL;
+        g_autofree gchar *output_checksum = NULL;
         g_autofree gchar *part_dev = NULL;
         const PuMtdPartition *p = NULL;
 
@@ -458,10 +458,11 @@ pu_mtd_write_data(PuFlash *flash,
         }
 
         if (!skip_checksums) {
-            output_sha1sum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA1, error);
-            g_debug("Verifying SHA1 sum of written output: %s", output_sha1sum);
+            output_checksum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA256,
+                                                        error);
+            g_debug("Verifying SHA256 sum of written output: %s", output_checksum);
             if (!pu_checksum_verify_raw(part_dev, 0, p->input->_size,
-                                        output_sha1sum, G_CHECKSUM_SHA1, error))
+                                        output_checksum, G_CHECKSUM_SHA256, error))
                 return FALSE;
         }
     }
