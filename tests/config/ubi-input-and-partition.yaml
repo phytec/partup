@@ -1,0 +1,12 @@
+api-version: 5
+supported-device-types:
+  - mtd
+partitions:
+  - name: rootfs
+    size: 400MiB
+    input:
+      filename: lorem.txt
+    ubi:
+      volumes:
+        - name: data
+          size: 8MiB

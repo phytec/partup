@@ -1,0 +1,8 @@
+api-version: 5
+supported-device-types:
+  - mtd
+partitions:
+  - name: rootfs
+    size: 400MiB
+    ubi:
+      mkfs-extra-args: -F
