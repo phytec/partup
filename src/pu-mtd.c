@@ -193,6 +193,16 @@ pu_mtd_partition_enumerator_iterate(PuMtdPartitionEnumerator *part_enum,
     return TRUE;
 }
 
+static guint
+get_mtd_number(const gchar *device_path)
+{
+    g_autofree gchar *basename = g_path_get_basename(device_path);
+
+    g_return_val_if_fail(g_str_has_prefix(basename, "mtd"), 0);
+
+    return (guint) g_ascii_strtoll(basename + 3, NULL, 10);
+}
+
 static gboolean
 pu_mtd_init_device(PuFlash *flash,
                    GError **error)
@@ -219,6 +229,11 @@ pu_mtd_init_device(PuFlash *flash,
         return FALSE;
     }
 
+    /* Detach any UBI device from the master device, so that its partitions
+     * can be deleted. */
+    if (!pu_ubi_detach(get_mtd_number(device_path), error))
+        return FALSE;
+
     /* Delete device's old partitions */
     part_enum = pu_mtd_enumerate_partitions(device_path, error);
     if (!part_enum)
@@ -234,6 +249,12 @@ pu_mtd_init_device(PuFlash *flash,
 
         if (!part_info)
             break;
+
+        if (!pu_ubi_detach(part_info->devnum, error)) {
+            g_prefix_error(error, "Failed detaching UBI device from partition "
+                           "%u of device '%s'", part_info->devnum, device_path);
+            return FALSE;
+        }
 
         cmd = g_strdup_printf("mtdpart del %s %u", device_path, part_info->devnum);
         if (!pu_spawn_command_line_sync(cmd, error)) {
@@ -375,6 +396,28 @@ pu_mtd_setup_layout(PuFlash *flash,
         p = find_partition(self, part_info->name, part_info->offset, error);
         if (!p)
             return FALSE;
+
+        /* A partition holding UBI volumes is formatted with UBI instead of
+         * being erased with the other partitions. ubiformat writes fresh UBI
+         * erase counters and volume tables, so no flash_erase is needed. */
+        if (p->volumes) {
+            g_autofree gchar *ubi_node = NULL;
+            g_autofree gchar *part_dev = NULL;
+
+            part_dev = g_strdup_printf("/dev/mtd%u", part_info->devnum);
+
+            if (!pu_ubi_format(part_dev, error))
+                return FALSE;
+
+            if (!pu_ubi_attach(part_info->devnum, &ubi_node, error))
+                return FALSE;
+
+            if (!pu_ubi_create_volumes(ubi_node, p->volumes, error))
+                return FALSE;
+
+            continue;
+        }
+
         if (!p->erase)
             continue;
 
@@ -429,6 +472,25 @@ pu_mtd_write_data(PuFlash *flash,
         p = find_partition(self, part_info->name, part_info->offset, error);
         if (!p)
             return FALSE;
+
+        if (p->volumes) {
+            g_autofree gchar *ubi_node = NULL;
+
+            ubi_node = pu_ubi_get_ubi_node(part_info->devnum);
+            if (!ubi_node) {
+                g_set_error(error, PU_ERROR, PU_ERROR_UBI_VERIFY,
+                            "Failed finding UBI device of partition '%s'",
+                            part_info->name);
+                return FALSE;
+            }
+
+            if (!pu_ubi_write_volumes(ubi_node, p->volumes, prefix,
+                                      skip_checksums, error))
+                return FALSE;
+
+            continue;
+        }
+
         if (!p->input)
             continue;
 
