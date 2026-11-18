@@ -18,7 +18,7 @@ Main Features
 -  Write files and extract archives to partitions
 -  Write raw binaries to device at specified offset
 -  Checksum verification for input files (MD5, SHA256) and automatic read-back
-   verification of written raw data (SHA1)
+   verification of written raw data (SHA256)
 -  Set PARTUUID and partition flags
 
 .. toctree::
