@@ -6,9 +6,12 @@
 #define G_LOG_DOMAIN "partup-ubi"
 
 #include <glib.h>
+#include <glib/gstdio.h>
+#include "pu-checksum.h"
 #include "pu-error.h"
 #include "pu-file.h"
 #include "pu-hashtable.h"
+#include "pu-mount.h"
 #include "pu-utils.h"
 #include "pu-ubi.h"
 
@@ -172,8 +175,7 @@ pu_ubi_parse_volumes(GHashTable *ubi,
         volume = g_new0(PuUbiVolume, 1);
         volume->name = pu_hash_table_lookup_string(v->data.mapping, "name", NULL);
         volume->size = pu_hash_table_lookup_bytes(v->data.mapping, "size", 0);
-        volume->filesystem = pu_hash_table_lookup_string(v->data.mapping,
-                                                         "filesystem", "ubifs");
+        volume->filesystem = NULL;
         volume->mkfs_extra_args = pu_hash_table_lookup_string(v->data.mapping,
                                                               "mkfs-extra-args", NULL);
         volume->expand = pu_hash_table_lookup_boolean(v->data.mapping, "expand", FALSE);
@@ -196,11 +198,34 @@ pu_ubi_parse_volumes(GHashTable *ubi,
             return FALSE;
         }
 
+        /* Only dynamic volumes can hold a filesystem. Their default
+         * filesystem is UBIFS, static volumes have none by default. */
+        if (g_hash_table_contains(v->data.mapping, "filesystem"))
+            volume->filesystem = pu_hash_table_lookup_string(v->data.mapping,
+                                                             "filesystem", NULL);
+        else if (volume->type == PU_UBI_VOLUME_TYPE_DYNAMIC)
+            volume->filesystem = g_strdup("ubifs");
+
         if (volume->filesystem && !g_str_equal(volume->filesystem, "ubifs")) {
             g_set_error(error, PU_ERROR, PU_ERROR_UBI_PARSE,
                         "Filesystem type '%s' of volume '%s' is not supported",
                         volume->filesystem, volume->name);
             return FALSE;
+        }
+
+        if (volume->type == PU_UBI_VOLUME_TYPE_STATIC) {
+            if (volume->expand) {
+                g_set_error(error, PU_ERROR, PU_ERROR_UBI_PARSE,
+                            "Static volume '%s' cannot be expanded", volume->name);
+                return FALSE;
+            }
+
+            if (volume->filesystem) {
+                g_set_error(error, PU_ERROR, PU_ERROR_UBI_PARSE,
+                            "Static volume '%s' cannot have a filesystem",
+                            volume->name);
+                return FALSE;
+            }
         }
 
         if (volume->size == 0 && !volume->expand) {
@@ -246,6 +271,429 @@ pu_ubi_parse_volumes(GHashTable *ubi,
     }
 
     *volumes = g_list_reverse(*volumes);
+
+    return TRUE;
+}
+
+static gchar *
+find_ubi_node(guint mtd_devnum)
+{
+    g_autoptr(GDir) dir = NULL;
+    const gchar *name;
+
+    dir = g_dir_open("/sys/class/ubi", 0, NULL);
+    if (!dir)
+        return NULL;
+
+    while ((name = g_dir_read_name(dir)) != NULL) {
+        g_autofree gchar *filename = NULL;
+        gint64 value = 0;
+
+        /* skip UBI volume devices, they are named ubi<major>_<minor> */
+        if (!g_str_has_prefix(name, "ubi") || strchr(name, '_'))
+            continue;
+
+        filename = g_build_filename("/sys/class/ubi", name, "mtd_dev", NULL);
+        if (!pu_file_read_int64(filename, &value, NULL))
+            continue;
+
+        if (value == (gint64) mtd_devnum)
+            return g_strdup_printf("/dev/%s", name);
+    }
+
+    return NULL;
+}
+
+static gchar *
+find_volume_node(const gchar *ubi_node,
+                 const gchar *volume_name)
+{
+    g_autoptr(GDir) dir = NULL;
+    g_autofree gchar *pattern = NULL;
+    g_autofree gchar *basename = NULL;
+    const gchar *name;
+
+    dir = g_dir_open("/sys/class/ubi", 0, NULL);
+    if (!dir)
+        return NULL;
+
+    basename = g_path_get_basename(ubi_node);
+    pattern = g_strdup_printf("%s_", basename);
+
+    while ((name = g_dir_read_name(dir)) != NULL) {
+        g_autofree gchar *filename = NULL;
+        g_autofree gchar *contents = NULL;
+
+        if (!g_str_has_prefix(name, pattern))
+            continue;
+
+        filename = g_build_filename("/sys/class/ubi", name, "name", NULL);
+        if (!g_file_get_contents(filename, &contents, NULL, NULL))
+            continue;
+
+        g_strchomp(contents);
+        if (g_str_equal(contents, volume_name))
+            return g_strdup_printf("/dev/%s", name);
+    }
+
+    return NULL;
+}
+
+gchar *
+pu_ubi_get_ubi_node(guint mtd_devnum)
+{
+    return find_ubi_node(mtd_devnum);
+}
+
+gboolean
+pu_ubi_detach(guint mtd_devnum,
+              GError **error)
+{
+    g_autofree gchar *ubi_node = NULL;
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    ubi_node = find_ubi_node(mtd_devnum);
+    if (!ubi_node) {
+        g_debug("No UBI device attached to MTD %u", mtd_devnum);
+        return TRUE;
+    }
+
+    g_debug("Detaching UBI device '%s' from MTD %u", ubi_node, mtd_devnum);
+
+    cmd = g_strdup_printf("ubidetach /dev/ubi_ctrl -m %u", mtd_devnum);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed detaching UBI device from MTD %u: ",
+                       mtd_devnum);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
+pu_ubi_format(const gchar *mtd_path,
+              GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(mtd_path != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Formatting MTD '%s' with UBI", mtd_path);
+
+    cmd = g_strdup_printf("ubiformat %s -y -q", mtd_path);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed formatting MTD '%s' with UBI: ",
+                       mtd_path);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
+pu_ubi_attach(guint mtd_devnum,
+              gchar **ubi_node,
+              GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_return_val_if_fail(ubi_node != NULL, FALSE);
+    g_return_val_if_fail(*ubi_node == NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    g_debug("Attaching MTD %u to UBI", mtd_devnum);
+
+    cmd = g_strdup_printf("ubiattach /dev/ubi_ctrl -m %u", mtd_devnum);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed attaching MTD %u to UBI: ", mtd_devnum);
+        return FALSE;
+    }
+
+    *ubi_node = find_ubi_node(mtd_devnum);
+    if (*ubi_node == NULL) {
+        g_set_error(error, PU_ERROR, PU_ERROR_UBI_FORMAT,
+                    "Failed finding UBI device of MTD %u", mtd_devnum);
+        return FALSE;
+    }
+
+    g_debug("MTD %u is now UBI device '%s'", mtd_devnum, *ubi_node);
+
+    return TRUE;
+}
+
+gboolean
+pu_ubi_create_volumes(const gchar *ubi_node,
+                      GList *volumes,
+                      GError **error)
+{
+    g_return_val_if_fail(ubi_node != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    for (GList *v = volumes; v != NULL; v = v->next) {
+        PuUbiVolume *volume = v->data;
+        g_autofree gchar *cmd = NULL;
+        g_autofree gchar *name = NULL;
+        g_autofree gchar *size = NULL;
+
+        name = g_shell_quote(volume->name);
+
+        if (volume->expand)
+            size = g_strdup("-m");
+        else
+            size = g_strdup_printf("-s %" G_GINT64_FORMAT, volume->size);
+
+        if (volume->type == PU_UBI_VOLUME_TYPE_STATIC)
+            cmd = g_strdup_printf("ubimkvol %s -N %s -t static %s",
+                                  ubi_node, name, size);
+        else
+            cmd = g_strdup_printf("ubimkvol %s -N %s %s", ubi_node, name, size);
+
+        g_debug("Creating UBI volume '%s'", volume->name);
+
+        if (!pu_spawn_command_line_sync(cmd, error)) {
+            g_prefix_error(error, "Failed creating UBI volume '%s': ",
+                           volume->name);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_mkfs_ubifs(const gchar *volume_node,
+                  const gchar *extra_args,
+                  GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_debug("Making filesystem ubifs on UBI volume '%s'", volume_node);
+
+    if (extra_args)
+        cmd = g_strdup_printf("mkfs.ubifs %s %s", extra_args, volume_node);
+    else
+        cmd = g_strdup_printf("mkfs.ubifs %s", volume_node);
+
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed creating filesystem on UBI volume '%s': ",
+                       volume_node);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_update_volume(const gchar *volume_node,
+                     const gchar *path,
+                     GError **error)
+{
+    g_autofree gchar *cmd = NULL;
+
+    g_debug("Writing file '%s' to UBI volume '%s'", path, volume_node);
+
+    cmd = g_strdup_printf("ubiupdatevol %s %s", volume_node, path);
+    if (!pu_spawn_command_line_sync(cmd, error)) {
+        g_prefix_error(error, "Failed writing '%s' to UBI volume '%s': ",
+                       path, volume_node);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_verify_input(PuUbiVolumeInput *input,
+                    const gchar *path,
+                    gboolean skip_checksums,
+                    GError **error)
+{
+    if (skip_checksums)
+        return TRUE;
+
+    if (!g_str_equal(input->md5sum, "")) {
+        g_debug("Checking MD5 sum of input file '%s'", path);
+        if (!pu_checksum_verify_file(path, input->md5sum, G_CHECKSUM_MD5, error))
+            return FALSE;
+    }
+
+    if (!g_str_equal(input->sha256sum, "")) {
+        g_debug("Checking SHA256 sum of input file '%s'", path);
+        if (!pu_checksum_verify_file(path, input->sha256sum, G_CHECKSUM_SHA256,
+                                     error))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_write_volume_data(PuUbiVolume *volume,
+                         const gchar *volume_node,
+                         const gchar *prefix,
+                         gboolean skip_checksums,
+                         GError **error)
+{
+    for (GList *i = volume->input; i != NULL; i = i->next) {
+        PuUbiVolumeInput *input = i->data;
+        g_autofree gchar *path = NULL;
+        g_autofree gchar *output_checksum = NULL;
+
+        path = pu_path_from_filename(input->filename, prefix, error);
+        if (!path) {
+            g_prefix_error(error, "Failed parsing input filename for UBI volume "
+                           "'%s': ", volume->name);
+            return FALSE;
+        }
+
+        if (!pu_ubi_verify_input(input, path, skip_checksums, error))
+            return FALSE;
+
+        if (!pu_ubi_update_volume(volume_node, path, error))
+            return FALSE;
+
+        if (skip_checksums)
+            continue;
+
+        output_checksum = pu_checksum_new_from_file(path, 0, G_CHECKSUM_SHA256,
+                                                    error);
+        if (!output_checksum) {
+            g_prefix_error(error, "Failed calculating SHA256 sum of input file '%s': ",
+                           input->filename);
+            return FALSE;
+        }
+
+        g_debug("Verifying SHA256 sum of UBI volume '%s'", volume->name);
+        if (!pu_checksum_verify_raw(volume_node, 0, input->_size, output_checksum,
+                                    G_CHECKSUM_SHA256, error))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_write_volume_filesystem(PuUbiVolume *volume,
+                               const gchar *volume_node,
+                               const gchar *prefix,
+                               gboolean skip_checksums,
+                               GError **error)
+{
+    g_autofree gchar *mount_point = NULL;
+
+    if (!pu_ubi_mkfs_ubifs(volume_node, volume->mkfs_extra_args, error))
+        return FALSE;
+
+    if (!volume->input) {
+        g_debug("No input specified. Leaving UBI volume '%s' empty", volume->name);
+        return TRUE;
+    }
+
+    mount_point = pu_create_mount_point(volume->name, error);
+    if (!mount_point)
+        return FALSE;
+
+    for (GList *i = volume->input; i != NULL; i = i->next) {
+        PuUbiVolumeInput *input = i->data;
+        g_autofree gchar *path = NULL;
+
+        path = pu_path_from_filename(input->filename, prefix, error);
+        if (!path) {
+            g_prefix_error(error, "Failed parsing input filename for UBI volume "
+                           "'%s': ", volume->name);
+            return FALSE;
+        }
+
+        if (!pu_ubi_verify_input(input, path, skip_checksums, error))
+            return FALSE;
+
+        if (g_regex_match_simple(".tar", path, G_REGEX_CASELESS, 0)) {
+            if (!pu_mount(volume_node, mount_point, volume->filesystem, NULL, error))
+                return FALSE;
+            if (!pu_archive_extract(path, mount_point, error)) {
+                g_prefix_error(error, "Failed extracting file '%s' to UBI volume "
+                               "'%s': ", input->filename, volume->name);
+                return FALSE;
+            }
+            if (!pu_umount(mount_point, error))
+                return FALSE;
+        } else if (g_regex_match_simple(".ubifs$", path, 0, 0)) {
+            if (!pu_ubi_update_volume(volume_node, path, error))
+                return FALSE;
+
+            /* Mount to let UBIFS resize the filesystem to the volume size. */
+            if (!pu_mount(volume_node, mount_point, volume->filesystem, NULL, error))
+                return FALSE;
+            if (!pu_umount(mount_point, error))
+                return FALSE;
+        } else {
+            if (!pu_mount(volume_node, mount_point, volume->filesystem, NULL, error))
+                return FALSE;
+            if (!pu_file_copy(path, mount_point, error)) {
+                g_prefix_error(error, "Failed copying file '%s' to UBI volume "
+                               "'%s': ", input->filename, volume->name);
+                return FALSE;
+            }
+            if (!pu_umount(mount_point, error))
+                return FALSE;
+        }
+    }
+
+    g_rmdir(mount_point);
+
+    return TRUE;
+}
+
+static gboolean
+pu_ubi_write_volume(PuUbiVolume *volume,
+                    const gchar *ubi_node,
+                    const gchar *prefix,
+                    gboolean skip_checksums,
+                    GError **error)
+{
+    g_autofree gchar *volume_node = NULL;
+
+    g_return_val_if_fail(volume != NULL, FALSE);
+    g_return_val_if_fail(ubi_node != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    volume_node = find_volume_node(ubi_node, volume->name);
+    if (!volume_node) {
+        g_set_error(error, PU_ERROR, PU_ERROR_UBI_VERIFY,
+                    "Failed finding UBI volume node of volume '%s'", volume->name);
+        return FALSE;
+    }
+
+    if (volume->filesystem)
+        return pu_ubi_write_volume_filesystem(volume, volume_node, prefix,
+                                              skip_checksums, error);
+
+    if (!volume->input) {
+        g_debug("No input specified. Skipping UBI volume '%s'", volume->name);
+        return TRUE;
+    }
+
+    return pu_ubi_write_volume_data(volume, volume_node, prefix, skip_checksums,
+                                    error);
+}
+
+gboolean
+pu_ubi_write_volumes(const gchar *ubi_node,
+                     GList *volumes,
+                     const gchar *prefix,
+                     gboolean skip_checksums,
+                     GError **error)
+{
+    g_return_val_if_fail(ubi_node != NULL, FALSE);
+    g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+    for (GList *v = volumes; v != NULL; v = v->next) {
+        if (!pu_ubi_write_volume(v->data, ubi_node, prefix, skip_checksums, error))
+            return FALSE;
+    }
 
     return TRUE;
 }
