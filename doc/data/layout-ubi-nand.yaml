@@ -1,0 +1,45 @@
+api-version: 5
+
+supported-device-types:
+  - mtd
+
+partitions:
+  # Barebox environment, kept intact by not erasing it.
+  - name: barebox-environment
+    size: 512kiB
+    offset: 512kiB
+    erase: false
+
+  # Barebox, written raw to the partition with flashcp.
+  - name: barebox
+    size: 1MiB
+    offset: 512kiB
+    input:
+      filename: barebox.bin
+
+  # The rest of the NAND is formatted with UBI.
+  - name: ubi
+    size: 300MiB
+    ubi:
+      volumes:
+        # Static volumes are accessed directly by the bootloader.
+        - name: dtb
+          size: 128kiB
+          type: static
+          input:
+            - filename: oftree
+
+        - name: kernel
+          size: 8MiB
+          type: static
+          input:
+            - filename: Image
+
+        # Dynamic volume with a UBIFS rootfs, using the rest of the UBI device.
+        - name: rootfs
+          expand: true
+          filesystem: ubifs
+          # -F makes the kernel fix up free space on first mount.
+          mkfs-extra-args: -F
+          input:
+            - filename: rootfs.tar
