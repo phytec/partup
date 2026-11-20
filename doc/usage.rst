@@ -41,8 +41,8 @@ install [OPTION…] *PACKAGE* *DEVICE*
    -s, --skip-checksums    Skip all checksum verification. This disables both
                            the optional verification of input files (``md5sum``
                            and ``sha256sum``) before writing and the automatic
-                           SHA1 read-back verification of written raw data after
-                           writing. See :ref:`checksum-verification`.
+                           SHA256 read-back verification of written raw data
+                           after writing. See :ref:`checksum-verification`.
 
 package [OPTION…] *PACKAGE* *FILES…*
    Create a partup PACKAGE with the contents FILES
@@ -198,16 +198,16 @@ In addition to the optional input verification, partup *automatically* verifies
 that raw data has been written correctly by reading it back from the device.
 This mechanism does not require any configuration and works as follows:
 
-1. A SHA1 sum is computed from the input file (honoring any given
+1. A SHA256 sum is computed from the input file (honoring any given
    ``input-offset``).
 2. After the data has been written, the same range is read back from the target
    device (honoring any given ``output-offset``).
-3. The SHA1 sum of the data read back from the device is compared against the
-   SHA1 sum computed from the input file.
+3. The SHA256 sum of the data read back from the device is compared against the
+   SHA256 sum computed from the input file.
 
 This read-back verification is independent from the ``md5sum`` and ``sha256sum``
-options and always uses SHA1. It is applied only to writes that go directly to
-the raw device, namely:
+options and always uses SHA256. It is applied only to writes that go directly
+to the raw device, namely:
 
 -  the ``raw`` section of MMC and HD devices (since :ref:`release-2.1.0`),
 -  eMMC boot partition ``binaries`` -- verified on both boot partitions
