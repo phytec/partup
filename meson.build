@@ -1,6 +1,6 @@
 project(
   'partup', 'c',
-  version : '4.0.0',
+  version : '5.0.0',
   license : 'GPL-3.0-or-later',
   default_options : [
     'c_std=c99',
@@ -45,6 +45,7 @@ src = [
   'src/pu-mount.c',
   'src/pu-mtd.c',
   'src/pu-package.c',
+  'src/pu-ubi.c',
   'src/pu-unit.c',
   'src/pu-utils.c'
 ]

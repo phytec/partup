@@ -1,0 +1,19 @@
+api-version: 5
+supported-device-types:
+  - mtd
+partitions:
+  - name: barebox
+    size: 1MiB
+  - name: rootfs
+    size: 400MiB
+    ubi:
+      volumes:
+        - name: kernel
+          size: 8MiB
+          type: static
+        - name: rootfs
+          expand: true
+          filesystem: ubifs
+          mkfs-extra-args: -F
+          input:
+            - filename: lorem.tar
