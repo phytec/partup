@@ -26,7 +26,7 @@
 /* Amount of written data after which the output is flushed to the device. The
  * kernel flushes a block device when it is closed, so without this an abort
  * would block for as long as it takes to write all cached data. */
-#define PU_WRITE_SYNC_INTERVAL (16 * PED_MEBIBYTE_SIZE)
+#define PU_WRITE_SYNC_INTERVAL (8 * PED_MEBIBYTE_SIZE)
 
 typedef gint PuFd;
 
@@ -310,7 +310,6 @@ pu_write_raw(const gchar *input_path,
     buffer = g_new0(guchar, buffer_size);
 
     while (input_remaining > 0) {
-        g_debug("checking signals");
         if (!pu_signal_check(error))
             return FALSE;
 
@@ -330,7 +329,6 @@ pu_write_raw(const gchar *input_path,
         unsynced += num_read;
 
         if (unsynced >= PU_WRITE_SYNC_INTERVAL) {
-            g_debug("syncing");
             if (!sync_output(sync_fd, output_path, error))
                 return FALSE;
             unsynced = 0;
